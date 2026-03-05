@@ -27,7 +27,7 @@ export default function AnalyticsPage() {
       <div className="grid gap-4 sm:grid-cols-4">
         {[
           { label: "이번 달 가입", value: latest.signups, change: diff(latest.signups, prev.signups), icon: Users, bg: "bg-blue-100", color: "text-blue-600" },
-          { label: "이번 달 게시물", value: latest.posts, change: diff(latest.posts, prev.posts), icon: FileText, bg: "bg-green-100", color: "text-green-600" },
+          { label: "이번 달 콘텐츠", value: latest.posts, change: diff(latest.posts, prev.posts), icon: FileText, bg: "bg-green-100", color: "text-green-600" },
           { label: "이번 달 댓글", value: latest.comments, change: diff(latest.comments, prev.comments), icon: MessageSquare, bg: "bg-purple-100", color: "text-purple-600" },
           { label: "페이지뷰", value: latest.pageViews.toLocaleString(), change: diff(latest.pageViews, prev.pageViews), icon: TrendingUp, bg: "bg-orange-100", color: "text-orange-600" },
         ].map((card) => {
@@ -62,7 +62,7 @@ export default function AnalyticsPage() {
                   <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e2e8f0", borderRadius: "8px", fontSize: "13px" }} />
                   <Legend />
                   <Line type="monotone" dataKey="signups" name="가입" stroke="#4f46e5" strokeWidth={2} />
-                  <Line type="monotone" dataKey="posts" name="게시물" stroke="#10b981" strokeWidth={2} />
+                  <Line type="monotone" dataKey="posts" name="콘텐츠" stroke="#10b981" strokeWidth={2} />
                   <Line type="monotone" dataKey="comments" name="댓글" stroke="#f59e0b" strokeWidth={2} />
                 </LineChart>
               </ResponsiveContainer>

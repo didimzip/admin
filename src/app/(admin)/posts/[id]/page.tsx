@@ -15,6 +15,7 @@ import {
   RiFileTextLine,
   RiDownloadLine,
   RiMessage2Line,
+  RiCalendarScheduleLine,
 } from "react-icons/ri";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -74,7 +75,7 @@ export default function PostDetailPage() {
   }, [id]);
 
   const handleDelete = () => {
-    if (!confirm("이 게시물을 삭제하시겠습니까?")) return;
+    if (!confirm("이 콘텐츠를 삭제하시겠습니까?")) return;
     deletePost(id);
     router.push("/posts");
   };
@@ -90,7 +91,7 @@ export default function PostDetailPage() {
   if (!storedPost && !mockPost) {
     return (
       <div className="flex h-64 flex-col items-center justify-center gap-3 text-slate-400">
-        <p>게시물을 찾을 수 없습니다.</p>
+        <p>콘텐츠를 찾을 수 없습니다.</p>
         <Button variant="outline" size="sm" onClick={() => router.push("/posts")}>
           <RiArrowLeftLine className="mr-1.5 h-4 w-4" />
           목록으로
@@ -106,12 +107,12 @@ export default function PostDetailPage() {
         <div className="border-b border-slate-100 px-4 py-3">
           <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
             <RiFileTextLine className="h-4 w-4 text-slate-400" />
-            게시물 목록
+            콘텐츠 목록
           </h3>
         </div>
         <div className="max-h-[calc(100vh-220px)] overflow-y-auto divide-y divide-slate-50">
           {allListPosts.length === 0 ? (
-            <p className="px-4 py-6 text-center text-xs text-slate-400">게시물이 없습니다</p>
+            <p className="px-4 py-6 text-center text-xs text-slate-400">콘텐츠가 없습니다</p>
           ) : (
             allListPosts.map((post) => {
               const sc = statusConfig[post.status as keyof typeof statusConfig];
@@ -237,6 +238,14 @@ export default function PostDetailPage() {
                       : " ~ 계속"}
                   </span>
                 )}
+                {storedPost.status === "SCHEDULED" && storedPost.scheduledAt && (
+                  <span className="flex items-center gap-1 text-amber-500">
+                    <RiCalendarScheduleLine className="h-3.5 w-3.5" />
+                    {new Date(storedPost.scheduledAt).toLocaleString("ko-KR", {
+                      month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
+                    })} 예약 게시
+                  </span>
+                )}
               </div>
 
               {/* 본문 */}
@@ -348,7 +357,8 @@ export default function PostDetailPage() {
   }
 
   /* ── 목업 게시물 (읽기 전용) ── */
-  const mp = mockPost!;
+  if (!mockPost) return null;
+  const mp = mockPost;
   const sc = statusConfig[mp.status];
   return (
     <div className="flex gap-5">
@@ -388,6 +398,14 @@ export default function PostDetailPage() {
             <span>스크랩: {mp.scrapCount}</span>
             <span>댓글: {mp.commentCount}</span>
             <span>작성일: {new Date(mp.createdAt).toLocaleDateString("ko-KR")}</span>
+            {mp.status === "SCHEDULED" && mp.scheduledAt && (
+              <span className="flex items-center gap-1 text-amber-500">
+                <RiCalendarScheduleLine className="h-3.5 w-3.5" />
+                {new Date(mp.scheduledAt).toLocaleString("ko-KR", {
+                  month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
+                })} 예약 게시
+              </span>
+            )}
           </div>
 
           <p className="mt-6 text-sm italic text-slate-400">

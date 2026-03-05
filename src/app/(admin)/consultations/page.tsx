@@ -17,7 +17,7 @@ import {
 } from "react-icons/ri";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PaginationBar } from "@/components/ui/pagination-bar";
+import { PaginationBar, CountDisplay } from "@/components/ui/pagination-bar";
 import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -188,7 +188,7 @@ function DetailDrawer({
 
               {/* Related post */}
               <div>
-                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">관련 게시물</p>
+                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">관련 콘텐츠</p>
                 <p className="text-sm font-medium leading-snug text-slate-800">{item.postTitle}</p>
                 <span className="mt-1 inline-block rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-500">
                   {item.postCategory}
@@ -290,7 +290,7 @@ export default function ConsultationsPage() {
   };
 
   const handleExport = () => {
-    const headers = ["ID", "이름", "이메일", "전화번호", "회사", "직책", "관련게시물", "카테고리", "상태", "메모", "신청일"];
+    const headers = ["ID", "이름", "이메일", "전화번호", "회사", "직책", "관련콘텐츠", "카테고리", "상태", "메모", "신청일"];
     const rows = filtered.map((c) => [
       c.id, c.name, c.email, c.phone, c.company, c.jobTitle,
       c.postTitle, c.postCategory, STATUS_CONFIG[c.status].label,
@@ -375,8 +375,21 @@ export default function ConsultationsPage() {
       {/* Table */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
-          <h3 className="text-sm font-semibold text-slate-800">상담 목록</h3>
-          <span className="text-xs text-slate-500">총 {filtered.length.toLocaleString()}건</span>
+          <div className="flex items-center gap-2.5">
+            <h3 className="text-sm font-semibold text-slate-800">상담 목록</h3>
+            <CountDisplay total={filtered.length} />
+          </div>
+          <select
+              value={pageSize}
+              onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+              className="h-7 cursor-pointer rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-600 hover:border-slate-300 focus:outline-none"
+            >
+              <option value={10}>10개씩</option>
+              <option value={20}>20개씩</option>
+              <option value={30}>30개씩</option>
+              <option value={40}>40개씩</option>
+              <option value={50}>50개씩</option>
+            </select>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[700px] text-sm">
@@ -384,7 +397,7 @@ export default function ConsultationsPage() {
               <tr className="border-b border-slate-100 bg-slate-50 text-left">
                 <th className="px-5 py-3 text-xs font-semibold text-slate-500">신청자</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">회사 / 직책</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500">관련 게시물</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500">관련 콘텐츠</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">상태</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">신청일</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">처리</th>
@@ -448,7 +461,7 @@ export default function ConsultationsPage() {
         </div>
         <div className="px-5 pb-4">
           <PaginationBar total={filtered.length} page={page} pageSize={pageSize}
-            onPageChange={setPage} onPageSizeChange={(s) => { setPageSize(s); setPage(1); }} />
+            onPageChange={setPage} />
         </div>
       </div>
 

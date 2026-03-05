@@ -11,6 +11,8 @@ import {
   RotateCcw,
   Download,
   ShieldCheck,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import {
   Card,
@@ -31,7 +33,7 @@ import {
 } from "@/components/ui/select";
 import { mockUsers, COMPANY_TYPES, JOB_CATEGORIES } from "@/data/mock-users";
 import type { CompanyType } from "@/types/user";
-import { PaginationBar } from "@/components/ui/pagination-bar";
+import { PaginationBar, CountDisplay } from "@/components/ui/pagination-bar";
 import { PAGE_SIZE_OPTIONS } from "@/components/ui/pagination-bar";
 import { cn } from "@/lib/utils";
 
@@ -83,13 +85,16 @@ const initialFilters: FilterState = {
 /* ------------------------------------------------------------------ */
 
 export default function UsersPage() {
+  const [localUsers, setLocalUsers] = useState(mockUsers);
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Filtering
   const filteredUsers = useMemo(() => {
-    return mockUsers.filter((user) => {
+    return localUsers.filter((user) => {
       if (filters.companyType !== "ALL" && user.companyType !== filters.companyType) return false;
       if (filters.companyName && !user.companyName.toLowerCase().includes(filters.companyName.toLowerCase())) return false;
       if (filters.position && !user.position.toLowerCase().includes(filters.position.toLowerCase())) return false;
@@ -100,7 +105,7 @@ export default function UsersPage() {
       }
       return true;
     });
-  }, [filters]);
+  }, [localUsers, filters]);
 
   // Pagination
   const paginatedUsers = useMemo(() => {
@@ -112,10 +117,10 @@ export default function UsersPage() {
   const typeCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const type of COMPANY_TYPES) {
-      counts[type] = mockUsers.filter((u) => u.companyType === type).length;
+      counts[type] = localUsers.filter((u) => u.companyType === type).length;
     }
     return counts;
-  }, []);
+  }, [localUsers]);
 
   function handleFilterChange(key: keyof FilterState, value: string) {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -144,6 +149,45 @@ export default function UsersPage() {
     URL.revokeObjectURL(url);
   }
 
+  function handleToggleEdit() {
+    setIsEditing(true);
+    setSelectedIds(new Set());
+  }
+
+  function handleDeleteSelected() {
+    setLocalUsers((prev) => prev.filter((u) => !selectedIds.has(u.id)));
+    setSelectedIds(new Set());
+  }
+
+  function handleDeleteAll() {
+    setLocalUsers([]);
+    setSelectedIds(new Set());
+    setIsEditing(false);
+  }
+
+  function handleToggleSelectRow(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const allPageSelected = paginatedUsers.length > 0 && paginatedUsers.every((u) => selectedIds.has(u.id));
+
+  function handleToggleSelectAll() {
+    if (allPageSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        paginatedUsers.forEach((u) => next.delete(u.id));
+        return next;
+      });
+    } else {
+      setSelectedIds((prev) => new Set([...prev, ...paginatedUsers.map((u) => u.id)]));
+    }
+  }
+
   return (
     <div className="space-y-5">
       {/* Page Title */}
@@ -152,26 +196,10 @@ export default function UsersPage() {
           <h2 className="text-xl font-bold text-slate-900">회원 관리</h2>
           <p className="mt-0.5 text-sm text-slate-500">회원 목록을 조회하고 기업 유형별로 필터링할 수 있습니다.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <select
-            value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
-              setPage(1);
-            }}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
-          >
-            {PAGE_SIZE_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {s}개씩 보기
-              </option>
-            ))}
-          </select>
-          <Button variant="outline" size="sm" onClick={handleExportCsv}>
-            <Download className="mr-1.5 h-4 w-4" />
-            CSV 내보내기
-          </Button>
-        </div>
+        <Button variant="outline" size="sm" onClick={handleExportCsv}>
+          <Download className="mr-1.5 h-4 w-4" />
+          CSV 내보내기
+        </Button>
       </div>
 
       {/* Summary Cards */}
@@ -268,13 +296,73 @@ export default function UsersPage() {
       {/* Table */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
-          <h3 className="text-sm font-semibold text-slate-800">회원 목록</h3>
-          <span className="text-xs text-slate-500">총 {filteredUsers.length.toLocaleString()}명</span>
+          <div className="flex items-center gap-2.5">
+            <h3 className="text-sm font-semibold text-slate-800">회원 목록</h3>
+            <CountDisplay total={filteredUsers.length} unit="명" />
+          </div>
+          {isEditing ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleDeleteSelected}
+                disabled={selectedIds.size === 0}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  selectedIds.size > 0
+                    ? "bg-red-50 text-red-600 hover:bg-red-100"
+                    : "cursor-not-allowed text-slate-300"
+                )}
+              >
+                선택삭제 {selectedIds.size > 0 && `(${selectedIds.size})`}
+              </button>
+              <button
+                onClick={handleDeleteAll}
+                className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 transition-colors"
+              >
+                전체삭제
+              </button>
+              <button
+                onClick={() => { setIsEditing(false); setSelectedIds(new Set()); }}
+                className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                완료
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <select
+                value={pageSize}
+                onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+                className="h-7 cursor-pointer rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-600 hover:border-slate-300 focus:outline-none"
+              >
+                <option value={10}>10개씩</option>
+                <option value={20}>20개씩</option>
+                <option value={30}>30개씩</option>
+                <option value={40}>40개씩</option>
+                <option value={50}>50개씩</option>
+              </select>
+              <button
+                onClick={handleToggleEdit}
+                className="flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                <Pencil className="h-3 w-3" /> 편집
+              </button>
+            </div>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-sm">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-left">
+                {isEditing && (
+                  <th className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={allPageSelected}
+                      onChange={handleToggleSelectAll}
+                      className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-indigo-600"
+                    />
+                  </th>
+                )}
                 <th className="px-5 py-3 text-xs font-semibold text-slate-500">닉네임</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">실명</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">이메일</th>
@@ -289,7 +377,7 @@ export default function UsersPage() {
             <tbody className="divide-y divide-slate-50">
               {paginatedUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-16 text-center">
+                  <td colSpan={isEditing ? 10 : 9} className="py-16 text-center">
                     <Users className="mx-auto mb-3 h-10 w-10 text-slate-200" />
                     <p className="text-sm text-slate-400">검색 결과가 없습니다.</p>
                   </td>
@@ -297,8 +385,25 @@ export default function UsersPage() {
               ) : (
                 paginatedUsers.map((user) => {
                   const typeConfig = companyTypeBadge[user.companyType];
+                  const isSelected = selectedIds.has(user.id);
                   return (
-                    <tr key={user.id} className="transition-colors hover:bg-slate-50/70">
+                    <tr
+                      key={user.id}
+                      className={cn(
+                        "transition-colors hover:bg-slate-50/70",
+                        isSelected && "bg-indigo-50/50"
+                      )}
+                    >
+                      {isEditing && (
+                        <td className="px-4 py-3.5">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleSelectRow(user.id)}
+                            className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-indigo-600"
+                          />
+                        </td>
+                      )}
                       <td className="px-5 py-3.5 font-medium text-slate-800">{user.nickname}</td>
                       <td className="px-4 py-3.5 text-slate-700">{user.realName}</td>
                       <td className="px-4 py-3.5 text-slate-500">{user.email}</td>

@@ -25,7 +25,6 @@ export interface PaginationBarProps {
   page: number;
   pageSize: number;
   onPageChange: (page: number) => void;
-  onPageSizeChange: (size: number) => void;
 }
 
 export function PaginationBar({
@@ -33,7 +32,6 @@ export function PaginationBar({
   page,
   pageSize,
   onPageChange,
-  onPageSizeChange,
 }: PaginationBarProps) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
@@ -41,38 +39,8 @@ export function PaginationBar({
   const pageNumbers = getPageNumbers(page, totalPages);
 
   return (
-    <div className="flex flex-col gap-4 border-t border-slate-200 pt-6">
-      {/* Top row: Count info and page size selector */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-600">
-          총{" "}
-          <span className="font-semibold text-slate-900">{total.toLocaleString()}</span>건
-          {total > 0 && (
-            <>
-              {" "}
-              · {start}–{end}건 표시
-            </>
-          )}
-        </p>
-
-        {/* Page size selector */}
-        <select
-          value={pageSize}
-          onChange={(e) => {
-            onPageSizeChange(Number(e.target.value));
-            onPageChange(1);
-          }}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
-        >
-          {PAGE_SIZE_OPTIONS.map((s) => (
-            <option key={s} value={s}>
-              {s}개씩 보기
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Bottom row: Pagination centered */}
+    <div className="border-t border-slate-200 pt-4">
+      {/* Pagination centered */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2">
           {/* Prev */}
@@ -132,5 +100,14 @@ export function PaginationBar({
         </div>
       )}
     </div>
+  );
+}
+
+/** 테이블 헤더 우측 카운트 표시 */
+export function CountDisplay({ total, unit = "건" }: { total: number; unit?: string }) {
+  return (
+    <span className="text-sm text-slate-600">
+      총 <span className="font-semibold text-slate-900">{total.toLocaleString()}</span>{unit}
+    </span>
   );
 }

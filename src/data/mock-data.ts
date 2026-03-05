@@ -39,6 +39,7 @@ export interface Post {
   category: string;
   viewCount: number;
   virtualViewCount: number;
+  todayViewCount: number;
   scrapCount: number;
   commentCount: number;
   isHot: boolean;
@@ -50,19 +51,19 @@ export interface Post {
 export const POST_CATEGORIES = ["전체", "인사이트", "네트워킹", "투자정보", "채용공고", "이벤트", "공지사항"] as const;
 
 export const mockPosts: Post[] = [
-  { id: "post_001", title: "2026년 스타트업 투자 트렌드 분석", authorNickname: "오벤처", status: "PUBLISHED", category: "투자정보", viewCount: 1245, virtualViewCount: 200, scrapCount: 89, commentCount: 23, isHot: true, scheduledAt: null, createdAt: "2026-02-28T09:00:00Z", updatedAt: "2026-02-28T09:00:00Z" },
-  { id: "post_002", title: "AI 기반 B2B SaaS 시장 전망", authorNickname: "이지은AI", status: "PUBLISHED", category: "인사이트", viewCount: 987, virtualViewCount: 150, scrapCount: 67, commentCount: 15, isHot: true, scheduledAt: null, createdAt: "2026-02-25T14:00:00Z", updatedAt: "2026-02-26T10:00:00Z" },
-  { id: "post_003", title: "시리즈A 투자 유치 성공기", authorNickname: "김창업", status: "PUBLISHED", category: "인사이트", viewCount: 756, virtualViewCount: 100, scrapCount: 45, commentCount: 31, isHot: false, scheduledAt: null, createdAt: "2026-02-20T11:00:00Z", updatedAt: "2026-02-20T11:00:00Z" },
-  { id: "post_004", title: "3월 네트워킹 데이 안내", authorNickname: "관리자", status: "SCHEDULED", category: "이벤트", viewCount: 0, virtualViewCount: 0, scrapCount: 0, commentCount: 0, isHot: false, scheduledAt: "2026-03-05T09:00:00Z", createdAt: "2026-03-01T16:00:00Z", updatedAt: "2026-03-01T16:00:00Z" },
-  { id: "post_005", title: "법률 자문 서비스 이용 가이드", authorNickname: "문변호사", status: "PUBLISHED", category: "공지사항", viewCount: 432, virtualViewCount: 50, scrapCount: 28, commentCount: 5, isHot: false, scheduledAt: null, createdAt: "2026-02-15T10:00:00Z", updatedAt: "2026-02-15T10:00:00Z" },
-  { id: "post_006", title: "스타트업 세무 관리 체크리스트", authorNickname: "송세무", status: "PUBLISHED", category: "인사이트", viewCount: 621, virtualViewCount: 80, scrapCount: 52, commentCount: 12, isHot: false, scheduledAt: null, createdAt: "2026-02-10T09:30:00Z", updatedAt: "2026-02-11T14:00:00Z" },
-  { id: "post_007", title: "[초안] 정부 지원사업 총정리 2026", authorNickname: "양공공", status: "DRAFT", category: "인사이트", viewCount: 0, virtualViewCount: 0, scrapCount: 0, commentCount: 0, isHot: false, scheduledAt: null, createdAt: "2026-03-02T11:00:00Z", updatedAt: "2026-03-02T15:00:00Z" },
-  { id: "post_008", title: "프리시리즈A 밸류에이션 가이드", authorNickname: "서블루", status: "PUBLISHED", category: "투자정보", viewCount: 534, virtualViewCount: 70, scrapCount: 41, commentCount: 8, isHot: false, scheduledAt: null, createdAt: "2026-02-08T13:00:00Z", updatedAt: "2026-02-08T13:00:00Z" },
-  { id: "post_009", title: "디딤집 서비스 업데이트 안내", authorNickname: "관리자", status: "PUBLISHED", category: "공지사항", viewCount: 1102, virtualViewCount: 300, scrapCount: 12, commentCount: 3, isHot: false, scheduledAt: null, createdAt: "2026-02-01T09:00:00Z", updatedAt: "2026-02-01T09:00:00Z" },
-  { id: "post_010", title: "4월 채용공고 모음", authorNickname: "관리자", status: "DRAFT", category: "채용공고", viewCount: 0, virtualViewCount: 0, scrapCount: 0, commentCount: 0, isHot: false, scheduledAt: null, createdAt: "2026-03-03T10:00:00Z", updatedAt: "2026-03-03T10:00:00Z" },
-  { id: "post_011", title: "ESG 투자 동향과 기업 대응 전략", authorNickname: "신넥스트", status: "PUBLISHED", category: "투자정보", viewCount: 389, virtualViewCount: 60, scrapCount: 33, commentCount: 7, isHot: false, scheduledAt: null, createdAt: "2026-02-05T10:00:00Z", updatedAt: "2026-02-05T10:00:00Z" },
-  { id: "post_012", title: "3월 스타트업 밋업 사전 등록", authorNickname: "관리자", status: "SCHEDULED", category: "네트워킹", viewCount: 0, virtualViewCount: 0, scrapCount: 0, commentCount: 0, isHot: false, scheduledAt: "2026-03-10T09:00:00Z", createdAt: "2026-03-02T14:00:00Z", updatedAt: "2026-03-02T14:00:00Z" },
-  { id: "post_013", title: "해외 진출 지원 프로그램 안내", authorNickname: "고코트라", status: "HIDDEN", category: "공지사항", viewCount: 210, virtualViewCount: 0, scrapCount: 5, commentCount: 1, isHot: false, scheduledAt: null, createdAt: "2026-01-20T09:00:00Z", updatedAt: "2026-02-28T11:00:00Z" },
+  { id: "post_001", title: "2026년 스타트업 투자 트렌드 분석", authorNickname: "오벤처", status: "PUBLISHED", category: "투자정보", viewCount: 1245, virtualViewCount: 200, todayViewCount: 87, scrapCount: 89, commentCount: 23, isHot: true, scheduledAt: null, createdAt: "2026-02-28T09:00:00Z", updatedAt: "2026-02-28T09:00:00Z" },
+  { id: "post_002", title: "AI 기반 B2B SaaS 시장 전망", authorNickname: "이지은AI", status: "PUBLISHED", category: "인사이트", viewCount: 987, virtualViewCount: 150, todayViewCount: 52, scrapCount: 67, commentCount: 15, isHot: true, scheduledAt: null, createdAt: "2026-02-25T14:00:00Z", updatedAt: "2026-02-26T10:00:00Z" },
+  { id: "post_003", title: "시리즈A 투자 유치 성공기", authorNickname: "김창업", status: "PUBLISHED", category: "인사이트", viewCount: 756, virtualViewCount: 100, todayViewCount: 34, scrapCount: 45, commentCount: 31, isHot: false, scheduledAt: null, createdAt: "2026-02-20T11:00:00Z", updatedAt: "2026-02-20T11:00:00Z" },
+  { id: "post_004", title: "3월 네트워킹 데이 안내", authorNickname: "관리자", status: "SCHEDULED", category: "이벤트", viewCount: 0, virtualViewCount: 0, todayViewCount: 0, scrapCount: 0, commentCount: 0, isHot: false, scheduledAt: "2026-03-05T09:00:00Z", createdAt: "2026-03-01T16:00:00Z", updatedAt: "2026-03-01T16:00:00Z" },
+  { id: "post_005", title: "법률 자문 서비스 이용 가이드", authorNickname: "문변호사", status: "PUBLISHED", category: "공지사항", viewCount: 432, virtualViewCount: 50, todayViewCount: 18, scrapCount: 28, commentCount: 5, isHot: false, scheduledAt: null, createdAt: "2026-02-15T10:00:00Z", updatedAt: "2026-02-15T10:00:00Z" },
+  { id: "post_006", title: "스타트업 세무 관리 체크리스트", authorNickname: "송세무", status: "PUBLISHED", category: "인사이트", viewCount: 621, virtualViewCount: 80, todayViewCount: 29, scrapCount: 52, commentCount: 12, isHot: false, scheduledAt: null, createdAt: "2026-02-10T09:30:00Z", updatedAt: "2026-02-11T14:00:00Z" },
+  { id: "post_007", title: "[초안] 정부 지원사업 총정리 2026", authorNickname: "양공공", status: "DRAFT", category: "인사이트", viewCount: 0, virtualViewCount: 0, todayViewCount: 0, scrapCount: 0, commentCount: 0, isHot: false, scheduledAt: null, createdAt: "2026-03-02T11:00:00Z", updatedAt: "2026-03-02T15:00:00Z" },
+  { id: "post_008", title: "프리시리즈A 밸류에이션 가이드", authorNickname: "서블루", status: "PUBLISHED", category: "투자정보", viewCount: 534, virtualViewCount: 70, todayViewCount: 21, scrapCount: 41, commentCount: 8, isHot: false, scheduledAt: null, createdAt: "2026-02-08T13:00:00Z", updatedAt: "2026-02-08T13:00:00Z" },
+  { id: "post_009", title: "디딤집 서비스 업데이트 안내", authorNickname: "관리자", status: "PUBLISHED", category: "공지사항", viewCount: 1102, virtualViewCount: 300, todayViewCount: 63, scrapCount: 12, commentCount: 3, isHot: false, scheduledAt: null, createdAt: "2026-02-01T09:00:00Z", updatedAt: "2026-02-01T09:00:00Z" },
+  { id: "post_010", title: "4월 채용공고 모음", authorNickname: "관리자", status: "DRAFT", category: "채용공고", viewCount: 0, virtualViewCount: 0, todayViewCount: 0, scrapCount: 0, commentCount: 0, isHot: false, scheduledAt: null, createdAt: "2026-03-03T10:00:00Z", updatedAt: "2026-03-03T10:00:00Z" },
+  { id: "post_011", title: "ESG 투자 동향과 기업 대응 전략", authorNickname: "신넥스트", status: "PUBLISHED", category: "투자정보", viewCount: 389, virtualViewCount: 60, todayViewCount: 15, scrapCount: 33, commentCount: 7, isHot: false, scheduledAt: null, createdAt: "2026-02-05T10:00:00Z", updatedAt: "2026-02-05T10:00:00Z" },
+  { id: "post_012", title: "3월 스타트업 밋업 사전 등록", authorNickname: "관리자", status: "SCHEDULED", category: "네트워킹", viewCount: 0, virtualViewCount: 0, todayViewCount: 0, scrapCount: 0, commentCount: 0, isHot: false, scheduledAt: "2026-03-10T09:00:00Z", createdAt: "2026-03-02T14:00:00Z", updatedAt: "2026-03-02T14:00:00Z" },
+  { id: "post_013", title: "해외 진출 지원 프로그램 안내", authorNickname: "고코트라", status: "HIDDEN", category: "공지사항", viewCount: 210, virtualViewCount: 0, todayViewCount: 0, scrapCount: 5, commentCount: 1, isHot: false, scheduledAt: null, createdAt: "2026-01-20T09:00:00Z", updatedAt: "2026-02-28T11:00:00Z" },
 ];
 
 // ── Comments (댓글) ──

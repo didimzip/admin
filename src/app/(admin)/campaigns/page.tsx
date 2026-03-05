@@ -5,7 +5,7 @@ import { Send, FileText, Mail, MessageCircle, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { mockCampaigns, type CampaignStatus, type CampaignChannel } from "@/data/mock-data";
-import { PaginationBar } from "@/components/ui/pagination-bar";
+import { PaginationBar, CountDisplay } from "@/components/ui/pagination-bar";
 import { cn } from "@/lib/utils";
 
 const statusConfig: Record<CampaignStatus, { label: string; variant: "success" | "warning" | "secondary" | "destructive" }> = {
@@ -93,8 +93,21 @@ export default function CampaignsPage() {
       {/* Table */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
-          <h3 className="text-sm font-semibold text-slate-800">캠페인 목록</h3>
-          <span className="text-xs text-slate-500">총 {filtered.length.toLocaleString()}건</span>
+          <div className="flex items-center gap-2.5">
+            <h3 className="text-sm font-semibold text-slate-800">캠페인 목록</h3>
+            <CountDisplay total={filtered.length} />
+          </div>
+          <select
+              value={pageSize}
+              onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+              className="h-7 cursor-pointer rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-600 hover:border-slate-300 focus:outline-none"
+            >
+              <option value={10}>10개씩</option>
+              <option value={20}>20개씩</option>
+              <option value={30}>30개씩</option>
+              <option value={40}>40개씩</option>
+              <option value={50}>50개씩</option>
+            </select>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[800px] text-sm">
@@ -149,7 +162,7 @@ export default function CampaignsPage() {
         </div>
         <div className="px-5 pb-4">
           <PaginationBar total={filtered.length} page={page} pageSize={pageSize}
-            onPageChange={setPage} onPageSizeChange={(s) => { setPageSize(s); setPage(1); }} />
+            onPageChange={setPage} />
         </div>
       </div>
     </div>

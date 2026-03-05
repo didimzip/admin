@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { mockComments, type CommentStatus } from "@/data/mock-data";
-import { PaginationBar } from "@/components/ui/pagination-bar";
+import { PaginationBar, CountDisplay } from "@/components/ui/pagination-bar";
 import { cn } from "@/lib/utils";
 
 type FilterStatus = "ALL" | CommentStatus;
@@ -96,15 +96,28 @@ export default function CommentsPage() {
             </button>
           ))}
         </div>
-        <Input className="ml-auto h-9 w-64 text-sm" placeholder="내용/작성자/게시물 검색..." value={search}
+        <Input className="ml-auto h-9 w-64 text-sm" placeholder="내용/작성자/콘텐츠 검색..." value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
       </div>
 
       {/* Table */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
-          <h3 className="text-sm font-semibold text-slate-800">댓글 목록</h3>
-          <span className="text-xs text-slate-500">총 {filtered.length.toLocaleString()}건</span>
+          <div className="flex items-center gap-2.5">
+            <h3 className="text-sm font-semibold text-slate-800">댓글 목록</h3>
+            <CountDisplay total={filtered.length} />
+          </div>
+          <select
+              value={pageSize}
+              onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+              className="h-7 cursor-pointer rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-600 hover:border-slate-300 focus:outline-none"
+            >
+              <option value={10}>10개씩</option>
+              <option value={20}>20개씩</option>
+              <option value={30}>30개씩</option>
+              <option value={40}>40개씩</option>
+              <option value={50}>50개씩</option>
+            </select>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[800px] text-sm">
@@ -112,7 +125,7 @@ export default function CommentsPage() {
               <tr className="border-b border-slate-100 bg-slate-50 text-left">
                 <th className="px-5 py-3 text-xs font-semibold text-slate-500">작성자</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 w-[28%]">내용</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500">게시물</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500">콘텐츠</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">상태</th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500">신고 수</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">신고 사유</th>
@@ -154,7 +167,7 @@ export default function CommentsPage() {
         </div>
         <div className="px-5 pb-4">
           <PaginationBar total={filtered.length} page={page} pageSize={pageSize}
-            onPageChange={setPage} onPageSizeChange={(s) => { setPageSize(s); setPage(1); }} />
+            onPageChange={setPage} />
         </div>
       </div>
     </div>

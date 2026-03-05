@@ -55,20 +55,13 @@ import {
   getDrafts,
   getPost,
   deletePost,
+  getAllTags,
   compressImageForStorage,
   type StoredPost,
 } from "@/lib/post-store";
+import { getCategories } from "@/lib/category-store";
 
 // ─── Data ────────────────────────────────────────────────────────────────────
-
-const CATEGORY_MAP: Record<string, string[]> = {
-  인사이트: ["VC 동향", "스타트업 트렌드", "산업 분석", "정책/규제"],
-  네트워킹: ["밋업", "커피챗", "온라인 세션"],
-  투자정보: ["시리즈 A/B", "엑셀러레이터", "크라우드펀딩"],
-  채용공고: ["개발", "기획/PM", "마케팅", "디자인", "기타"],
-  이벤트: ["컨퍼런스", "해커톤", "워크샵"],
-  공지사항: ["일반", "시스템", "정책 변경"],
-};
 
 const EXISTING_TAGS = [
   "스타트업", "VC", "투자", "네트워킹", "멘토링", "인사이트",
@@ -233,9 +226,11 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> | null
 function TagInput({
   tags,
   onChange,
+  availableTags = EXISTING_TAGS,
 }: {
   tags: string[];
   onChange: (tags: string[]) => void;
+  availableTags?: string[];
 }) {
   const [input, setInput] = useState("");
   const [tagError, setTagError] = useState("");
@@ -261,7 +256,7 @@ function TagInput({
       setActiveIndex(-1);
       return;
     }
-    const filtered = EXISTING_TAGS.filter(
+    const filtered = availableTags.filter(
       (t) =>
         t.toLowerCase().includes(value.toLowerCase()) && !tags.includes(t)
     );
@@ -663,6 +658,7 @@ function NewPostContent() {
   const [isScheduled, setIsScheduled] = useState(false);
   const [scheduledAt, setScheduledAt] = useState("");
   const [tags, setTags] = useState<string[]>([]);
+  const [availableTags, setAvailableTags] = useState<string[]>(EXISTING_TAGS);
   const [showConsultButton, setShowConsultButton] = useState(false);
   const [showDraftBanner, setShowDraftBanner] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -677,7 +673,24 @@ function NewPostContent() {
   const skipDirtyRef = useRef(false);
   const dirtyTrackingEnabled = useRef(false);
 
-  const subCategories = category ? CATEGORY_MAP[category] ?? [] : [];
+  const [categoryMap, setCategoryMap] = useState<Record<string, string[]>>({});
+
+  // Load categories from category store
+  useEffect(() => {
+    const cats = getCategories();
+    const map: Record<string, string[]> = {};
+    cats.forEach((c) => { map[c.name] = c.subCategories.map((s) => s.name); });
+    setCategoryMap(map);
+  }, []);
+
+  const subCategories = category ? categoryMap[category] ?? [] : [];
+
+  // Load all tags (hardcoded + previously saved posts) for autocomplete
+  useEffect(() => {
+    const saved = getAllTags();
+    const merged = Array.from(new Set([...EXISTING_TAGS, ...saved]));
+    setAvailableTags(merged);
+  }, []);
 
   // Reset subCategory when category changes (skip when loading a draft)
   useEffect(() => {
@@ -849,7 +862,7 @@ function NewPostContent() {
     if (!title.trim()) errs.title = "제목을 입력해주세요.";
     if (!editor?.getText().trim()) errs.body = "본문 내용을 입력해주세요.";
     if (!category) errs.category = "카테고리를 선택해주세요.";
-    if (!subCategory) errs.subCategory = "세부카테고리를 선택해주세요.";
+    if (subCategories.length > 0 && !subCategory) errs.subCategory = "세부카테고리를 선택해주세요.";
     if (!thumbnail && !thumbnailPreview) errs.thumbnail = "썸네일 이미지를 등록해주세요.";
     if (!publishStart) errs.publishPeriod = "시작일을 설정해주세요.";
     if (isScheduled && !scheduledAt) errs.scheduledAt = "예약 발행 일시를 설정해주세요.";
@@ -942,7 +955,7 @@ function NewPostContent() {
           <span>
             임시저장되었습니다.{" "}
             <NextLink href="/posts" className="font-semibold underline underline-offset-2 hover:text-green-900">
-              게시물 관리에서 확인하기 →
+              콘텐츠 관리에서 확인하기 →
             </NextLink>
           </span>
           <button type="button" onClick={() => setShowDraftBanner(false)} className="ml-4 text-green-600 hover:text-green-800">
@@ -956,7 +969,7 @@ function NewPostContent() {
         <div>
           <h2 className="text-xl font-bold text-slate-900">콘텐츠 작성</h2>
           <p className="mt-0.5 text-sm text-slate-500">
-            게시물을 작성하고 공개 일정을 설정합니다.
+            콘텐츠를 작성하고 공개 일정을 설정합니다.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -1023,7 +1036,7 @@ function NewPostContent() {
             <Label className="mb-2 block text-[13px] font-semibold text-slate-700">
               태그 <span className="font-normal text-slate-400">(선택)</span>
             </Label>
-            <TagInput tags={tags} onChange={setTags} />
+            <TagInput tags={tags} onChange={setTags} availableTags={availableTags} />
             <p className="mt-1.5 text-[11px] text-slate-400">
               Enter 또는 Space로 태그를 추가합니다. 기존 태그는 자동완성으로 표시됩니다.
             </p>
@@ -1147,7 +1160,7 @@ function NewPostContent() {
                     )}
                   >
                     <option value="" className="text-slate-400">카테고리 선택</option>
-                    {Object.keys(CATEGORY_MAP).map((cat) => (
+                    {Object.keys(categoryMap).map((cat) => (
                       <option key={cat} value={cat}>{cat}</option>
                     ))}
                   </select>
@@ -1298,15 +1311,15 @@ function NewPostContent() {
             <SheetTitle className="text-base">임시저장 목록</SheetTitle>
             <SheetDescription>
               {draftList.length > 0
-                ? `저장된 임시 게시물 ${draftList.length}개`
-                : "임시저장된 게시물이 없습니다"}
+                ? `저장된 임시 콘텐츠 ${draftList.length}개`
+                : "임시저장된 콘텐츠가 없습니다"}
             </SheetDescription>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto">
             {draftList.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-slate-400">
                 <RiFileTextLine className="mb-3 h-10 w-10 opacity-30" />
-                <p className="text-sm">아직 임시저장된 게시물이 없어요</p>
+                <p className="text-sm">아직 임시저장된 콘텐츠가 없어요</p>
                 <p className="mt-1 text-xs text-slate-300">
                   작성 중에 &apos;임시저장&apos; 버튼을 눌러보세요
                 </p>
@@ -1370,10 +1383,17 @@ function NewPostContent() {
   );
 }
 
+function NewPostWithKey() {
+  const searchParams = useSearchParams();
+  const id = searchParams.get("id") ?? "new";
+  // key가 바뀌면 NewPostContent 전체를 재마운트 → 이전 수정 내용이 남지 않음
+  return <NewPostContent key={id} />;
+}
+
 export default function NewPostPage() {
   return (
     <Suspense>
-      <NewPostContent />
+      <NewPostWithKey />
     </Suspense>
   );
 }

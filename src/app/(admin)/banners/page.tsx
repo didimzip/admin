@@ -1,30 +1,67 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { ImageIcon, Plus, ExternalLink, Eye, EyeOff } from "lucide-react";
+import { ImageIcon, Plus, ExternalLink, Eye, EyeOff, SquarePen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { mockBanners, BANNER_POSITIONS } from "@/data/mock-data";
-import { PaginationBar } from "@/components/ui/pagination-bar";
+import { PaginationBar, CountDisplay } from "@/components/ui/pagination-bar";
 import { cn } from "@/lib/utils";
 
 export default function BannersPage() {
+  const [localBanners, setLocalBanners] = useState(mockBanners);
   const [showActive, setShowActive] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const filtered = useMemo(() => {
-    if (showActive === "ACTIVE") return mockBanners.filter((b) => b.isActive);
-    if (showActive === "INACTIVE") return mockBanners.filter((b) => !b.isActive);
-    return mockBanners;
-  }, [showActive]);
+    if (showActive === "ACTIVE") return localBanners.filter((b) => b.isActive);
+    if (showActive === "INACTIVE") return localBanners.filter((b) => !b.isActive);
+    return localBanners;
+  }, [localBanners, showActive]);
 
   const paginated = useMemo(() => {
     const start = (page - 1) * pageSize;
     return filtered.slice(start, start + pageSize);
   }, [filtered, page, pageSize]);
 
-  const activeCount = mockBanners.filter((b) => b.isActive).length;
-  const totalClicks = mockBanners.reduce((a, b) => a + b.clickCount, 0);
+  const activeCount = localBanners.filter((b) => b.isActive).length;
+  const totalClicks = localBanners.reduce((a, b) => a + b.clickCount, 0);
+
+  const handleToggleSelectAll = () => {
+    const pageIds = paginated.map((b) => b.id);
+    const allSelected = pageIds.every((id) => selectedIds.has(id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allSelected) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+
+  const handleToggleSelectRow = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = () => {
+    setLocalBanners((prev) => prev.filter((b) => !selectedIds.has(b.id)));
+    setSelectedIds(new Set());
+    setPage(1);
+  };
+
+  const handleDeleteAll = () => {
+    setLocalBanners([]);
+    setSelectedIds(new Set());
+    setPage(1);
+  };
+
+  const allPageSelected = paginated.length > 0 && paginated.every((b) => selectedIds.has(b.id));
 
   return (
     <div className="space-y-5">
@@ -41,7 +78,7 @@ export default function BannersPage() {
       {/* Summary Cards */}
       <div className="grid gap-3 sm:grid-cols-3">
         {[
-          { label: "전체 배너", value: mockBanners.length, icon: ImageIcon, bg: "bg-blue-50 border-blue-200", color: "text-blue-600" },
+          { label: "전체 배너", value: localBanners.length, icon: ImageIcon, bg: "bg-blue-50 border-blue-200", color: "text-blue-600" },
           { label: "노출 중", value: activeCount, icon: Eye, bg: "bg-green-50 border-green-200", color: "text-green-600" },
           { label: "총 클릭 수", value: totalClicks.toLocaleString(), icon: ExternalLink, bg: "bg-purple-50 border-purple-200", color: "text-purple-600" },
         ].map((card) => {
@@ -79,13 +116,73 @@ export default function BannersPage() {
       {/* Table */}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
-          <h3 className="text-sm font-semibold text-slate-800">배너 목록</h3>
-          <span className="text-xs text-slate-500">총 {filtered.length.toLocaleString()}건</span>
+          <div className="flex items-center gap-2.5">
+            <h3 className="text-sm font-semibold text-slate-800">배너 목록</h3>
+            <CountDisplay total={filtered.length} />
+          </div>
+          {isEditing ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleDeleteSelected}
+                disabled={selectedIds.size === 0}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  selectedIds.size > 0
+                    ? "bg-red-50 text-red-600 hover:bg-red-100"
+                    : "cursor-not-allowed text-slate-300"
+                )}
+              >
+                선택삭제{selectedIds.size > 0 && ` (${selectedIds.size})`}
+              </button>
+              <button
+                onClick={handleDeleteAll}
+                className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+              >
+                전체삭제
+              </button>
+              <button
+                onClick={() => { setIsEditing(false); setSelectedIds(new Set()); }}
+                className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              >
+                완료
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <select
+                value={pageSize}
+                onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+                className="h-7 cursor-pointer rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-600 hover:border-slate-300 focus:outline-none"
+              >
+                <option value={10}>10개씩</option>
+                <option value={20}>20개씩</option>
+                <option value={30}>30개씩</option>
+                <option value={40}>40개씩</option>
+                <option value={50}>50개씩</option>
+              </select>
+              <button
+                onClick={() => setIsEditing(true)}
+                className="flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              >
+                <SquarePen className="h-3.5 w-3.5" /> 편집
+              </button>
+            </div>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[700px] text-sm">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-left">
+                {isEditing && (
+                  <th className="w-10 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={allPageSelected}
+                      onChange={handleToggleSelectAll}
+                      className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-indigo-600"
+                    />
+                  </th>
+                )}
                 <th className="px-5 py-3 text-xs font-semibold text-slate-500 w-[25%]">배너명</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">위치</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">상태</th>
@@ -98,13 +195,33 @@ export default function BannersPage() {
             <tbody className="divide-y divide-slate-50">
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-16 text-center text-sm text-slate-400">배너가 없습니다.</td>
+                  <td colSpan={isEditing ? 8 : 7} className="py-16 text-center text-sm text-slate-400">배너가 없습니다.</td>
                 </tr>
               ) : (
                 paginated.map((banner) => {
                   const ctr = banner.impressionCount > 0 ? ((banner.clickCount / banner.impressionCount) * 100).toFixed(1) : "0";
+                  const isSelected = selectedIds.has(banner.id);
                   return (
-                    <tr key={banner.id} className="transition-colors hover:bg-slate-50/70">
+                    <tr
+                      key={banner.id}
+                      onClick={() => isEditing && handleToggleSelectRow(banner.id)}
+                      className={cn(
+                        "transition-colors hover:bg-slate-50/70",
+                        isEditing && "cursor-pointer",
+                        isSelected && "bg-indigo-50/60"
+                      )}
+                    >
+                      {isEditing && (
+                        <td className="px-4 py-3.5">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleSelectRow(banner.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-indigo-600"
+                          />
+                        </td>
+                      )}
                       <td className="px-5 py-3.5 font-medium text-slate-800">{banner.title}</td>
                       <td className="px-4 py-3.5">
                         <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-600">
@@ -135,7 +252,7 @@ export default function BannersPage() {
         </div>
         <div className="px-5 pb-4">
           <PaginationBar total={filtered.length} page={page} pageSize={pageSize}
-            onPageChange={setPage} onPageSizeChange={(s) => { setPageSize(s); setPage(1); }} />
+            onPageChange={setPage} />
         </div>
       </div>
     </div>
