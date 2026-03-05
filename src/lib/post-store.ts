@@ -12,7 +12,7 @@ export type StoredPost = {
   publishEnd: string;
   isScheduled: boolean;
   scheduledAt: string;
-  status: "DRAFT" | "PUBLISHED" | "SCHEDULED";
+  status: "DRAFT" | "PUBLISHED" | "SCHEDULED" | "HIDDEN";
   showConsultButton: boolean;
   createdAt: string;
   updatedAt: string;
