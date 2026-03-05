@@ -32,6 +32,7 @@ import {
 import { mockUsers, COMPANY_TYPES, JOB_CATEGORIES } from "@/data/mock-users";
 import type { CompanyType } from "@/types/user";
 import { PaginationBar } from "@/components/ui/pagination-bar";
+import { PAGE_SIZE_OPTIONS } from "@/components/ui/pagination-bar";
 import { cn } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
@@ -151,10 +152,26 @@ export default function UsersPage() {
           <h2 className="text-xl font-bold text-slate-900">회원 관리</h2>
           <p className="mt-0.5 text-sm text-slate-500">회원 목록을 조회하고 기업 유형별로 필터링할 수 있습니다.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleExportCsv}>
-          <Download className="mr-1.5 h-4 w-4" />
-          CSV 내보내기
-        </Button>
+        <div className="flex items-center gap-2">
+          <select
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value));
+              setPage(1);
+            }}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+          >
+            {PAGE_SIZE_OPTIONS.map((s) => (
+              <option key={s} value={s}>
+                {s}개씩 보기
+              </option>
+            ))}
+          </select>
+          <Button variant="outline" size="sm" onClick={handleExportCsv}>
+            <Download className="mr-1.5 h-4 w-4" />
+            CSV 내보내기
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -316,7 +333,6 @@ export default function UsersPage() {
             page={page}
             pageSize={pageSize}
             onPageChange={setPage}
-            onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
           />
         </div>
       </div>
