@@ -1,7 +1,6 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { RiArrowLeftSLine, RiArrowRightSLine } from "react-icons/ri";
 
 export const PAGE_SIZE_OPTIONS = [20, 30, 40, 50] as const;
 
@@ -42,11 +41,11 @@ export function PaginationBar({
   const pageNumbers = getPageNumbers(page, totalPages);
 
   return (
-    <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-4 border-t border-slate-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
       {/* Count info */}
-      <p className="text-xs text-slate-500">
+      <p className="text-sm text-slate-600">
         총{" "}
-        <span className="font-semibold text-slate-700">{total.toLocaleString()}</span>건
+        <span className="font-semibold text-slate-900">{total.toLocaleString()}</span>건
         {total > 0 && (
           <>
             {" "}
@@ -55,50 +54,63 @@ export function PaginationBar({
         )}
       </p>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-6">
         {/* Page buttons */}
         {totalPages > 1 && (
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-2">
             {/* Prev */}
             <button
               onClick={() => onPageChange(page - 1)}
               disabled={page === 1}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30"
+              className={cn(
+                "text-sm font-medium transition-colors",
+                page === 1
+                  ? "cursor-not-allowed text-slate-300"
+                  : "text-slate-500 hover:text-slate-900"
+              )}
             >
-              <RiArrowLeftSLine className="h-4 w-4" />
+              ← 이전
             </button>
 
-            {pageNumbers.map((p, idx) =>
-              p === "..." ? (
-                <span
-                  key={`el-${idx}`}
-                  className="flex h-8 w-8 items-center justify-center text-xs text-slate-400"
-                >
-                  ···
-                </span>
-              ) : (
-                <button
-                  key={p}
-                  onClick={() => onPageChange(p as number)}
-                  className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-lg text-xs font-medium transition-colors",
-                    page === p
-                      ? "bg-indigo-600 text-white shadow-sm"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                  )}
-                >
-                  {p}
-                </button>
-              )
-            )}
+            {/* Page numbers */}
+            <div className="flex items-center gap-1">
+              {pageNumbers.map((p, idx) =>
+                p === "..." ? (
+                  <span
+                    key={`el-${idx}`}
+                    className="px-1 text-sm text-slate-400"
+                  >
+                    ···
+                  </span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => onPageChange(p as number)}
+                    className={cn(
+                      "min-w-8 px-2 py-1 text-sm font-medium transition-colors",
+                      page === p
+                        ? "text-slate-900 font-bold"
+                        : "text-slate-500 hover:text-slate-900"
+                    )}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
+            </div>
 
             {/* Next */}
             <button
               onClick={() => onPageChange(page + 1)}
               disabled={page === totalPages}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30"
+              className={cn(
+                "text-sm font-medium transition-colors",
+                page === totalPages
+                  ? "cursor-not-allowed text-slate-300"
+                  : "text-slate-500 hover:text-slate-900"
+              )}
             >
-              <RiArrowRightSLine className="h-4 w-4" />
+              다음 →
             </button>
           </div>
         )}
@@ -110,7 +122,7 @@ export function PaginationBar({
             onPageSizeChange(Number(e.target.value));
             onPageChange(1);
           }}
-          className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-600 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
         >
           {PAGE_SIZE_OPTIONS.map((s) => (
             <option key={s} value={s}>
