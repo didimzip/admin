@@ -41,9 +41,9 @@ export function PaginationBar({
   const pageNumbers = getPageNumbers(page, totalPages);
 
   return (
-    <div className="flex flex-col gap-4 border-t border-slate-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
-      {/* Count info */}
-      <p className="text-sm text-slate-600">
+    <div className="flex flex-col gap-4 border-t border-slate-200 pt-6">
+      {/* Count info at top */}
+      <p className="text-center text-sm text-slate-600">
         총{" "}
         <span className="font-semibold text-slate-900">{total.toLocaleString()}</span>건
         {total > 0 && (
@@ -54,8 +54,8 @@ export function PaginationBar({
         )}
       </p>
 
-      <div className="flex items-center gap-6">
-        {/* Page buttons */}
+      {/* Pagination centered */}
+      <div className="flex items-center justify-center gap-6">
         {totalPages > 1 && (
           <div className="flex items-center gap-2">
             {/* Prev */}
