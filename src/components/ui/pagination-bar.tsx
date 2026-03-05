@@ -42,78 +42,18 @@ export function PaginationBar({
 
   return (
     <div className="flex flex-col gap-4 border-t border-slate-200 pt-6">
-      {/* Count info at top */}
-      <p className="text-center text-sm text-slate-600">
-        총{" "}
-        <span className="font-semibold text-slate-900">{total.toLocaleString()}</span>건
-        {total > 0 && (
-          <>
-            {" "}
-            · {start}–{end}건 표시
-          </>
-        )}
-      </p>
-
-      {/* Pagination centered */}
-      <div className="flex items-center justify-center gap-6">
-        {totalPages > 1 && (
-          <div className="flex items-center gap-2">
-            {/* Prev */}
-            <button
-              onClick={() => onPageChange(page - 1)}
-              disabled={page === 1}
-              className={cn(
-                "text-sm font-medium transition-colors",
-                page === 1
-                  ? "cursor-not-allowed text-slate-300"
-                  : "text-slate-500 hover:text-slate-900"
-              )}
-            >
-              ← 이전
-            </button>
-
-            {/* Page numbers */}
-            <div className="flex items-center gap-1">
-              {pageNumbers.map((p, idx) =>
-                p === "..." ? (
-                  <span
-                    key={`el-${idx}`}
-                    className="px-1 text-sm text-slate-400"
-                  >
-                    ···
-                  </span>
-                ) : (
-                  <button
-                    key={p}
-                    onClick={() => onPageChange(p as number)}
-                    className={cn(
-                      "min-w-8 px-2 py-1 text-sm font-medium transition-colors",
-                      page === p
-                        ? "text-slate-900 font-bold"
-                        : "text-slate-500 hover:text-slate-900"
-                    )}
-                  >
-                    {p}
-                  </button>
-                )
-              )}
-            </div>
-
-            {/* Next */}
-            <button
-              onClick={() => onPageChange(page + 1)}
-              disabled={page === totalPages}
-              className={cn(
-                "text-sm font-medium transition-colors",
-                page === totalPages
-                  ? "cursor-not-allowed text-slate-300"
-                  : "text-slate-500 hover:text-slate-900"
-              )}
-            >
-              다음 →
-            </button>
-          </div>
-        )}
+      {/* Top row: Count info and page size selector */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-slate-600">
+          총{" "}
+          <span className="font-semibold text-slate-900">{total.toLocaleString()}</span>건
+          {total > 0 && (
+            <>
+              {" "}
+              · {start}–{end}건 표시
+            </>
+          )}
+        </p>
 
         {/* Page size selector */}
         <select
@@ -131,6 +71,66 @@ export function PaginationBar({
           ))}
         </select>
       </div>
+
+      {/* Bottom row: Pagination centered */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          {/* Prev */}
+          <button
+            onClick={() => onPageChange(page - 1)}
+            disabled={page === 1}
+            className={cn(
+              "text-sm font-medium transition-colors",
+              page === 1
+                ? "cursor-not-allowed text-slate-300"
+                : "text-slate-500 hover:text-slate-900"
+            )}
+          >
+            ← 이전
+          </button>
+
+          {/* Page numbers */}
+          <div className="flex items-center gap-1">
+            {pageNumbers.map((p, idx) =>
+              p === "..." ? (
+                <span
+                  key={`el-${idx}`}
+                  className="px-1 text-sm text-slate-400"
+                >
+                  ···
+                </span>
+              ) : (
+                <button
+                  key={p}
+                  onClick={() => onPageChange(p as number)}
+                  className={cn(
+                    "min-w-8 px-2 py-1 text-sm font-medium transition-colors",
+                    page === p
+                      ? "text-slate-900 font-bold"
+                      : "text-slate-500 hover:text-slate-900"
+                  )}
+                >
+                  {p}
+                </button>
+              )
+            )}
+          </div>
+
+          {/* Next */}
+          <button
+            onClick={() => onPageChange(page + 1)}
+            disabled={page === totalPages}
+            className={cn(
+              "text-sm font-medium transition-colors",
+              page === totalPages
+                ? "cursor-not-allowed text-slate-300"
+                : "text-slate-500 hover:text-slate-900"
+            )}
+          >
+            다음 →
+          </button>
+        </div>
+      )}
     </div>
   );
 }
