@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useToast } from "@/lib/toast-context";
 import {
   Users,
   Building2,
@@ -85,6 +86,7 @@ const initialFilters: FilterState = {
 /* ------------------------------------------------------------------ */
 
 export default function UsersPage() {
+  const { showToast } = useToast();
   const [localUsers, setLocalUsers] = useState(mockUsers);
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [page, setPage] = useState(1);
@@ -155,14 +157,18 @@ export default function UsersPage() {
   }
 
   function handleDeleteSelected() {
+    const count = selectedIds.size;
     setLocalUsers((prev) => prev.filter((u) => !selectedIds.has(u.id)));
     setSelectedIds(new Set());
+    showToast(`${count}명의 회원이 삭제되었습니다.`);
   }
 
   function handleDeleteAll() {
+    const count = localUsers.length;
     setLocalUsers([]);
     setSelectedIds(new Set());
     setIsEditing(false);
+    showToast(`전체 회원 ${count}명이 삭제되었습니다.`);
   }
 
   function handleToggleSelectRow(id: string) {

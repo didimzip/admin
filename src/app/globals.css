@@ -56,6 +56,15 @@ body {
   border-color: var(--border);
 }
 
+/* Hide scrollbar (all browsers) */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE, Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;             /* Chrome, Safari, Opera */
+}
+
 /* TipTap editor styles */
 .ProseMirror p.is-editor-empty:first-child::before {
   color: #94a3b8;

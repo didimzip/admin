@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Settings, Shield, Trash2, Bell, Globe } from "lucide-react";
+import { useToast } from "@/lib/toast-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function SettingsPage() {
+  const { showToast } = useToast();
   const [docRetention, setDocRetention] = useState("60");
   const [maxLoginAttempts, setMaxLoginAttempts] = useState("5");
   const [lockoutDuration, setLockoutDuration] = useState("30");
@@ -133,7 +135,7 @@ export default function SettingsPage() {
 
       {/* Save Button */}
       <div className="flex justify-end">
-        <Button>설정 저장</Button>
+        <Button onClick={() => showToast("설정이 저장되었습니다.")}>설정 저장</Button>
       </div>
     </div>
   );

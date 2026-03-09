@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { mockPosts, POST_CATEGORIES, type PostStatus, type Post } from "@/data/mock-data";
 import { cn } from "@/lib/utils";
 import { getAllPosts, publishScheduledPosts, hideExpiredPosts, deletePost } from "@/lib/post-store";
+import { useToast } from "@/lib/toast-context";
 import { PaginationBar, CountDisplay } from "@/components/ui/pagination-bar";
 
 const statusConfig: Record<PostStatus, { label: string; variant: "success" | "secondary" | "warning" | "destructive" }> = {
@@ -186,6 +187,7 @@ function HotSettingsPanel({
 
 export default function PostsPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [statusFilter, setStatusFilter] = useState<PostStatus | "ALL">("ALL");
   const [categoryFilter, setCategoryFilter] = useState("전체");
   const [search, setSearch] = useState("");
@@ -226,16 +228,9 @@ export default function PostsPage() {
     setHotConditions(loadHotConditions());
     loadPosts();
 
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    const now = Date.now();
-    getAllPosts().forEach((p) => {
-      if (p.status === "SCHEDULED" && p.scheduledAt) {
-        const delay = new Date(p.scheduledAt).getTime() - now;
-        if (delay > 0) timers.push(setTimeout(loadPosts, delay));
-      }
-    });
-
-    return () => timers.forEach(clearTimeout);
+    // layout.tsx에서 예약→게시 처리 후 posts-updated 이벤트를 보내면 UI 갱신
+    window.addEventListener("posts-updated", loadPosts);
+    return () => window.removeEventListener("posts-updated", loadPosts);
   }, [loadPosts]);
 
   const allPosts = useMemo(
@@ -274,20 +269,24 @@ export default function PostsPage() {
   }, [filtered, page, pageSize]);
 
   function handleDeleteSelected() {
+    const count = selectedIds.size;
     selectedIds.forEach((id) => {
       if (id.startsWith("post_")) deletePost(id);
     });
     setUserPosts((prev) => prev.filter((p) => !selectedIds.has(p.id)));
     setDeletedMockIds((prev) => new Set([...prev, ...Array.from(selectedIds).filter((id) => !id.startsWith("post_"))]));
     setSelectedIds(new Set());
+    showToast(`${count}개 콘텐츠가 삭제되었습니다.`);
   }
 
   function handleDeleteAll() {
+    const count = allPosts.length;
     allPosts.forEach((p) => { if (p.id.startsWith("post_")) deletePost(p.id); });
     setUserPosts([]);
     setDeletedMockIds(new Set(allPosts.filter((p) => !p.id.startsWith("post_")).map((p) => p.id)));
     setSelectedIds(new Set());
     setIsEditing(false);
+    showToast(`전체 콘텐츠 ${count}개가 삭제되었습니다.`);
   }
 
   function handleToggleSelectRow(id: string) {

@@ -60,6 +60,7 @@ import {
   type StoredPost,
 } from "@/lib/post-store";
 import { getCategories } from "@/lib/category-store";
+import { useToast } from "@/lib/toast-context";
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -644,6 +645,7 @@ function SectionCard({
 function NewPostContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { showToast } = useToast();
 
   // Form state
   const [title, setTitle] = useState("");
@@ -660,7 +662,6 @@ function NewPostContent() {
   const [tags, setTags] = useState<string[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>(EXISTING_TAGS);
   const [showConsultButton, setShowConsultButton] = useState(false);
-  const [showDraftBanner, setShowDraftBanner] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   const [showDraftList, setShowDraftList] = useState(false);
@@ -897,8 +898,7 @@ function NewPostContent() {
       if (compressedThumbnail !== thumbnailPreview) setThumbnailPreview(compressedThumbnail);
       refreshDraftList();
       setIsDirty(false);
-      setShowDraftBanner(true);
-      setTimeout(() => setShowDraftBanner(false), 5000);
+      showToast("임시저장되었습니다.");
     } catch {
       alert("저장 공간이 부족합니다. 다른 임시저장 항목을 삭제한 후 다시 시도해주세요.");
     }
@@ -929,6 +929,7 @@ function NewPostContent() {
         status: isScheduled ? "SCHEDULED" : "PUBLISHED",
       });
       setIsDirty(false);
+      showToast(isScheduled ? "콘텐츠가 예약되었습니다." : "콘텐츠가 게시되었습니다.");
       router.push(`/posts/${saved.id}`);
     } catch {
       alert("저장 공간이 부족합니다. 다른 임시저장 항목을 삭제한 후 다시 시도해주세요.");
@@ -949,21 +950,6 @@ function NewPostContent() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Draft saved banner */}
-      {showDraftBanner && (
-        <div className="mb-4 flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-          <span>
-            임시저장되었습니다.{" "}
-            <NextLink href="/posts" className="font-semibold underline underline-offset-2 hover:text-green-900">
-              콘텐츠 관리에서 확인하기 →
-            </NextLink>
-          </span>
-          <button type="button" onClick={() => setShowDraftBanner(false)} className="ml-4 text-green-600 hover:text-green-800">
-            <RiCloseLine className="h-4 w-4" />
-          </button>
-        </div>
-      )}
-
       {/* Page Header */}
       <div className="mb-5 flex items-center justify-between">
         <div>

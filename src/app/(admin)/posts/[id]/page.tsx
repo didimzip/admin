@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getPost, deletePost, getAllPosts, type StoredPost } from "@/lib/post-store";
+import { useToast } from "@/lib/toast-context";
 import { mockPosts, type Post } from "@/data/mock-data";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +42,7 @@ type ListPost = { id: string; title: string; status: string; createdAt: string }
 export default function PostDetailPage() {
   const router = useRouter();
   const params = useParams();
+  const { showToast } = useToast();
   const id = params.id as string;
 
   const [storedPost, setStoredPost] = useState<StoredPost | null>(null);
@@ -77,6 +79,7 @@ export default function PostDetailPage() {
   const handleDelete = () => {
     if (!confirm("이 콘텐츠를 삭제하시겠습니까?")) return;
     deletePost(id);
+    showToast("콘텐츠가 삭제되었습니다.");
     router.push("/posts");
   };
 

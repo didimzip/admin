@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/lib/toast-context";
 import {
   GripVertical, Plus, ChevronRight, FolderOpen, Tag,
   Save, RotateCcw, TriangleAlert,
@@ -242,6 +243,7 @@ function SortableSubItem({
 
 export default function CategoriesPage() {
   const router = useRouter();
+  const { showToast } = useToast();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [isDirty, setIsDirty] = useState(false);
@@ -305,6 +307,7 @@ export default function CategoriesPage() {
     savedRef.current = categories;
     setIsDirty(false);
     setSavedAt(new Date());
+    showToast("카테고리가 저장되었습니다.");
   };
 
   const handleReset = () => {

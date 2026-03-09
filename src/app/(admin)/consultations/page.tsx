@@ -412,25 +412,28 @@ export default function ConsultationsPage() {
                   </td>
                 </tr>
               ) : (
-                pagedItems.map((c) => (
+                pagedItems.map((c) => {
+                  const isCancelled = c.status === "CANCELLED";
+                  return (
                   <tr
                     key={c.id}
                     onClick={() => setSelectedItem(selectedItem?.id === c.id ? null : c)}
                     className={cn(
                       "cursor-pointer transition-colors hover:bg-slate-50",
-                      selectedItem?.id === c.id && "bg-indigo-50/60 hover:bg-indigo-50"
+                      selectedItem?.id === c.id && "bg-indigo-50/60 hover:bg-indigo-50",
+                      isCancelled && "bg-slate-50/80 opacity-60"
                     )}
                   >
                     <td className="px-5 py-3.5">
-                      <div className="font-medium text-slate-800">{c.name}</div>
+                      <div className={cn("font-medium", isCancelled ? "text-slate-400" : "text-slate-800")}>{c.name}</div>
                       <div className="text-xs text-slate-400">{c.email}</div>
                     </td>
                     <td className="px-4 py-3.5">
-                      <div className="text-slate-700">{c.company}</div>
+                      <div className={cn(isCancelled ? "text-slate-400" : "text-slate-700")}>{c.company}</div>
                       <div className="text-xs text-slate-400">{c.jobTitle}</div>
                     </td>
                     <td className="px-4 py-3.5 max-w-[200px]">
-                      <p className="line-clamp-1 text-slate-700">{c.postTitle}</p>
+                      <p className={cn("line-clamp-1", isCancelled ? "text-slate-400" : "text-slate-700")}>{c.postTitle}</p>
                       <span className="inline-block mt-0.5 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-500">
                         {c.postCategory}
                       </span>
@@ -454,7 +457,8 @@ export default function ConsultationsPage() {
                       </select>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

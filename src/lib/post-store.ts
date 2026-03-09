@@ -62,6 +62,11 @@ export function upsertPost(
       updatedAt: now,
     };
     saveAll(posts.map((p) => (p.id === existing.id ? updated : p)));
+    if (typeof window !== "undefined" && updated.status === "SCHEDULED" && updated.scheduledAt) {
+      window.dispatchEvent(new CustomEvent("scheduled-post-saved", {
+        detail: { id: updated.id, scheduledAt: updated.scheduledAt },
+      }));
+    }
     return updated;
   }
 
@@ -72,6 +77,11 @@ export function upsertPost(
     updatedAt: now,
   };
   saveAll([newPost, ...posts]);
+  if (typeof window !== "undefined" && newPost.status === "SCHEDULED" && newPost.scheduledAt) {
+    window.dispatchEvent(new CustomEvent("scheduled-post-saved", {
+      detail: { id: newPost.id, scheduledAt: newPost.scheduledAt },
+    }));
+  }
   return newPost;
 }
 

@@ -2,12 +2,14 @@
 
 import { useState, useMemo } from "react";
 import { ImageIcon, Plus, ExternalLink, Eye, EyeOff, SquarePen } from "lucide-react";
+import { useToast } from "@/lib/toast-context";
 import { Button } from "@/components/ui/button";
 import { mockBanners, BANNER_POSITIONS } from "@/data/mock-data";
 import { PaginationBar, CountDisplay } from "@/components/ui/pagination-bar";
 import { cn } from "@/lib/utils";
 
 export default function BannersPage() {
+  const { showToast } = useToast();
   const [localBanners, setLocalBanners] = useState(mockBanners);
   const [showActive, setShowActive] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
   const [page, setPage] = useState(1);
@@ -50,15 +52,19 @@ export default function BannersPage() {
   };
 
   const handleDeleteSelected = () => {
+    const count = selectedIds.size;
     setLocalBanners((prev) => prev.filter((b) => !selectedIds.has(b.id)));
     setSelectedIds(new Set());
     setPage(1);
+    showToast(`${count}개 배너가 삭제되었습니다.`);
   };
 
   const handleDeleteAll = () => {
+    const count = localBanners.length;
     setLocalBanners([]);
     setSelectedIds(new Set());
     setPage(1);
+    showToast(`전체 배너 ${count}개가 삭제되었습니다.`);
   };
 
   const allPageSelected = paginated.length > 0 && paginated.every((b) => selectedIds.has(b.id));
