@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Settings, Shield, Trash2, Bell, Globe } from "lucide-react";
 import { useToast } from "@/lib/toast-context";
+import { recordLog } from "@/lib/audit-log-store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -135,7 +136,10 @@ export default function SettingsPage() {
 
       {/* Save Button */}
       <div className="flex justify-end">
-        <Button onClick={() => showToast("설정이 저장되었습니다.")}>설정 저장</Button>
+        <Button onClick={() => {
+          showToast("설정이 저장되었습니다.");
+          recordLog("SETTINGS_UPDATE", `시스템 설정 변경 (서류보관 ${docRetention}일, 잠금시도 ${maxLoginAttempts}회, 뉴스레터 ${defaultNewsletter})`, { targetType: "settings", targetId: "sys_001" });
+        }}>설정 저장</Button>
       </div>
     </div>
   );

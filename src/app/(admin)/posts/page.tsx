@@ -11,7 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { mockPosts, POST_CATEGORIES, type PostStatus, type Post } from "@/data/mock-data";
 import { cn } from "@/lib/utils";
 import { getAllPosts, publishScheduledPosts, hideExpiredPosts, deletePost } from "@/lib/post-store";
+import { getSession, getAllAdmins } from "@/lib/auth-store";
 import { useToast } from "@/lib/toast-context";
+import { recordLog } from "@/lib/audit-log-store";
 import { PaginationBar, CountDisplay } from "@/components/ui/pagination-bar";
 
 const statusConfig: Record<PostStatus, { label: string; variant: "success" | "secondary" | "warning" | "destructive" }> = {
@@ -84,6 +86,7 @@ function HotSettingsPanel({
   const handleSave = () => {
     onChange(local);
     saveHotConditions(local);
+    recordLog("SETTINGS_UPDATE", `HOT 표시 조건 변경 (조회수: ${local.viewCount || "비활성"}, 스크랩: ${local.scrapCount || "비활성"}, 댓글: ${local.commentCount || "비활성"}, 결합: ${local.operator})`, { targetType: "settings", targetId: "hot_conditions" });
     onClose();
   };
 
@@ -203,12 +206,16 @@ export default function PostsPage() {
   const loadPosts = useCallback(() => {
     publishScheduledPosts();
     hideExpiredPosts();
-    const stored = getAllPosts();
+    const session = getSession();
+    const adminNameMap = Object.fromEntries(getAllAdmins().map((a) => [a.id, a.name]));
+    const stored = getAllPosts().filter((s) =>
+      s.status !== "DRAFT" || s.authorId === session?.adminId
+    );
     setUserPosts(
       stored.map((s) => ({
         id: s.id,
         title: s.title,
-        authorNickname: "관리자",
+        authorNickname: (s.authorId && adminNameMap[s.authorId]) || s.authorName || "관리자",
         status: s.status as PostStatus,
         category: s.category || "기타",
         viewCount: 0,
@@ -270,18 +277,22 @@ export default function PostsPage() {
 
   function handleDeleteSelected() {
     const count = selectedIds.size;
+    const deletedTitles = allPosts.filter((p) => selectedIds.has(p.id)).map((p) => p.title).join(", ");
     selectedIds.forEach((id) => {
       if (id.startsWith("post_")) deletePost(id);
     });
     setUserPosts((prev) => prev.filter((p) => !selectedIds.has(p.id)));
     setDeletedMockIds((prev) => new Set([...prev, ...Array.from(selectedIds).filter((id) => !id.startsWith("post_"))]));
+    recordLog("POST_DELETE", `게시물 삭제 (${count}개): ${deletedTitles.slice(0, 80)}${deletedTitles.length > 80 ? "..." : ""}`, { targetType: "post" });
     setSelectedIds(new Set());
     showToast(`${count}개 콘텐츠가 삭제되었습니다.`);
   }
 
   function handleDeleteAll() {
     const count = allPosts.length;
+    if (!window.confirm(`전체 콘텐츠 ${count}개를 모두 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
     allPosts.forEach((p) => { if (p.id.startsWith("post_")) deletePost(p.id); });
+    recordLog("POST_DELETE", `게시물 전체 삭제 (${count}개)`, { targetType: "post" });
     setUserPosts([]);
     setDeletedMockIds(new Set(allPosts.filter((p) => !p.id.startsWith("post_")).map((p) => p.id)));
     setSelectedIds(new Set());
@@ -456,7 +467,18 @@ export default function PostsPage() {
           )}
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px] text-sm">
+          <table className="w-full min-w-[920px] table-fixed text-sm">
+            <colgroup>
+              {isEditing && <col className="w-10" />}
+              <col className="w-[280px]" />
+              <col className="w-[100px]" />
+              <col className="w-[110px]" />
+              <col className="w-[100px]" />
+              <col className="w-[90px]" />
+              <col className="w-[70px]" />
+              <col className="w-[70px]" />
+              <col className="w-[100px]" />
+            </colgroup>
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-left">
                 {isEditing && (
@@ -469,7 +491,7 @@ export default function PostsPage() {
                     />
                   </th>
                 )}
-                <th className="px-5 py-3 text-xs font-semibold text-slate-500 w-[38%]">제목</th>
+                <th className="px-5 py-3 text-xs font-semibold text-slate-500">제목</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">작성자</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">카테고리</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">상태</th>
@@ -511,13 +533,13 @@ export default function PostsPage() {
                           />
                         </td>
                       )}
-                      <td className="px-5 py-3.5 font-medium text-slate-800">
+                      <td className="px-5 py-3.5 overflow-hidden font-medium text-slate-800">
                         <div className="flex items-center gap-2">
                           {post.isHot && <Flame className="h-3.5 w-3.5 shrink-0 text-red-500" />}
                           <span className="line-clamp-1">{post.title}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3.5 text-slate-600">{post.authorNickname}</td>
+                      <td className="px-4 py-3.5 overflow-hidden text-slate-600"><div className="truncate">{post.authorNickname}</div></td>
                       <td className="px-4 py-3.5">
                         <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-600">
                           {post.category}

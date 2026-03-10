@@ -61,6 +61,7 @@ export default function BannersPage() {
 
   const handleDeleteAll = () => {
     const count = localBanners.length;
+    if (!window.confirm(`전체 배너 ${count}개를 모두 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
     setLocalBanners([]);
     setSelectedIds(new Set());
     setPage(1);
@@ -176,7 +177,17 @@ export default function BannersPage() {
           )}
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[700px] text-sm">
+          <table className="w-full min-w-[860px] table-fixed text-sm">
+            <colgroup>
+              {isEditing && <col className="w-10" />}
+              <col className="w-[200px]" />
+              <col className="w-[120px]" />
+              <col className="w-[100px]" />
+              <col className="w-[200px]" />
+              <col className="w-[90px]" />
+              <col className="w-[80px]" />
+              <col className="w-[70px]" />
+            </colgroup>
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-left">
                 {isEditing && (
@@ -189,7 +200,7 @@ export default function BannersPage() {
                     />
                   </th>
                 )}
-                <th className="px-5 py-3 text-xs font-semibold text-slate-500 w-[25%]">배너명</th>
+                <th className="px-5 py-3 text-xs font-semibold text-slate-500">배너명</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">위치</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">상태</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">노출 기간</th>
@@ -228,7 +239,7 @@ export default function BannersPage() {
                           />
                         </td>
                       )}
-                      <td className="px-5 py-3.5 font-medium text-slate-800">{banner.title}</td>
+                      <td className="px-5 py-3.5 overflow-hidden font-medium text-slate-800"><div className="truncate">{banner.title}</div></td>
                       <td className="px-4 py-3.5">
                         <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-600">
                           {BANNER_POSITIONS[banner.position]}

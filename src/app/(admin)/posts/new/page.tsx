@@ -9,6 +9,8 @@ import Placeholder from "@tiptap/extension-placeholder";
 import Link from "@tiptap/extension-link";
 import Youtube from "@tiptap/extension-youtube";
 import Image from "@tiptap/extension-image";
+import { TextStyle } from "@tiptap/extension-text-style";
+import { Color } from "@tiptap/extension-color";
 import {
   RiBold,
   RiFileTextLine,
@@ -60,7 +62,9 @@ import {
   type StoredPost,
 } from "@/lib/post-store";
 import { getCategories } from "@/lib/category-store";
+import { getSession, type AdminSession } from "@/lib/auth-store";
 import { useToast } from "@/lib/toast-context";
+import { recordLog } from "@/lib/audit-log-store";
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -99,6 +103,7 @@ function ToolbarButton({
 }
 
 function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> | null }) {
+  const imageInputRef = useRef<HTMLInputElement>(null);
   if (!editor) return null;
 
   const addLink = () => {
@@ -108,11 +113,17 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> | null
     }
   };
 
-  const addImage = () => {
-    const url = window.prompt("이미지 URL을 입력하세요");
-    if (url) {
-      editor.chain().focus().setImage({ src: url }).run();
-    }
+  const addImage = () => imageInputRef.current?.click();
+
+  const handleImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      editor.chain().focus().setImage({ src: reader.result as string }).run();
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
   const addYoutube = () => {
@@ -215,8 +226,27 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> | null
       <ToolbarButton onClick={addImage} title="이미지 삽입">
         <RiImageAddLine className="h-4 w-4" />
       </ToolbarButton>
+      <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
       <ToolbarButton onClick={addYoutube} title="YouTube/Vimeo 영상 삽입">
         <RiYoutubeLine className="h-4 w-4" />
+      </ToolbarButton>
+      <div className="mx-1 h-5 w-px bg-slate-300" />
+      {/* 텍스트 색상 */}
+      <label title="텍스트 색상" className="relative flex h-7 w-7 cursor-pointer items-center justify-center rounded hover:bg-slate-200">
+        <span className="text-xs font-bold leading-none" style={{ color: editor.getAttributes("textStyle").color ?? "#334155" }}>A</span>
+        <span
+          className="absolute bottom-1 left-1/2 h-1 w-4 -translate-x-1/2 rounded-sm"
+          style={{ background: editor.getAttributes("textStyle").color ?? "#334155" }}
+        />
+        <input
+          type="color"
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          value={editor.getAttributes("textStyle").color ?? "#334155"}
+          onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
+        />
+      </label>
+      <ToolbarButton onClick={() => editor.chain().focus().unsetColor().run()} title="색상 초기화">
+        <span className="text-xs font-bold line-through text-slate-400">A</span>
       </ToolbarButton>
     </div>
   );
@@ -659,6 +689,7 @@ function NewPostContent() {
   const [publishEnd, setPublishEnd] = useState("");
   const [isScheduled, setIsScheduled] = useState(false);
   const [scheduledAt, setScheduledAt] = useState("");
+  const [scheduledTime, setScheduledTime] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>(EXISTING_TAGS);
   const [showConsultButton, setShowConsultButton] = useState(false);
@@ -666,6 +697,7 @@ function NewPostContent() {
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   const [showDraftList, setShowDraftList] = useState(false);
   const [draftList, setDraftList] = useState<StoredPost[]>([]);
+  const [currentSession] = useState<AdminSession | null>(() => getSession());
   const skipSubCategoryReset = useRef(false);
   const loadedFromUrl = useRef(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -711,11 +743,29 @@ function NewPostContent() {
       Link.configure({ openOnClick: false }),
       Youtube.configure({ controls: true, nocookie: true }),
       Image.configure({ inline: false, allowBase64: true }),
+      TextStyle,
+      Color,
     ],
     editorProps: {
       attributes: {
         class:
           "prose prose-sm max-w-none min-h-[400px] px-4 py-3 focus:outline-none",
+      },
+      handlePaste(view, event) {
+        const imageItem = Array.from(event.clipboardData?.items ?? []).find((item) =>
+          item.type.startsWith("image/")
+        );
+        if (!imageItem) return false;
+        event.preventDefault();
+        const file = imageItem.getAsFile();
+        if (!file) return false;
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const node = view.state.schema.nodes.image.create({ src: reader.result as string });
+          view.dispatch(view.state.tr.replaceSelectionWith(node));
+        };
+        reader.readAsDataURL(file);
+        return true;
       },
     },
     onUpdate: () => {
@@ -746,7 +796,8 @@ function NewPostContent() {
   }, []);
 
   const refreshDraftList = useCallback(() => {
-    setDraftList(getDrafts());
+    const session = getSession();
+    setDraftList(getDrafts().filter((d) => d.authorId === session?.adminId));
   }, []);
 
   const readFilesAsDataUrl = async (files: File[]) =>
@@ -781,6 +832,7 @@ function NewPostContent() {
       setPublishEnd(post.publishEnd);
       setIsScheduled(post.isScheduled);
       setScheduledAt(post.scheduledAt);
+      setScheduledTime(post.scheduledAt?.includes("T") ? post.scheduledAt.split("T")[1].substring(0, 5) : "");
       setCurrentDraftId(post.id);
       if (editor) editor.commands.setContent(post.body || "");
       setIsDirty(false);
@@ -829,7 +881,19 @@ function NewPostContent() {
       return;
     }
     setIsDirty(true);
-  }, [title, category, subCategory, thumbnailPreview, relatedLinks, attachments, publishStart, publishEnd, isScheduled, scheduledAt, tags, showConsultButton]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [title, category, subCategory, thumbnailPreview, relatedLinks, attachments, publishStart, publishEnd, isScheduled, scheduledAt, scheduledTime, tags, showConsultButton]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // publishStart가 오늘보다 1일 이상 미래이면 업로드 예약 토글 자동 활성화
+  useEffect(() => {
+    if (!publishStart) return;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const startDate = new Date(publishStart + "T00:00:00");
+    const diffDays = Math.floor((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays >= 1) {
+      setIsScheduled(true);
+    }
+  }, [publishStart]);
 
   // Warn on browser close/refresh when dirty
   useEffect(() => {
@@ -866,7 +930,7 @@ function NewPostContent() {
     if (subCategories.length > 0 && !subCategory) errs.subCategory = "세부카테고리를 선택해주세요.";
     if (!thumbnail && !thumbnailPreview) errs.thumbnail = "썸네일 이미지를 등록해주세요.";
     if (!publishStart) errs.publishPeriod = "시작일을 설정해주세요.";
-    if (isScheduled && !scheduledAt) errs.scheduledAt = "예약 발행 일시를 설정해주세요.";
+    if (isScheduled && !scheduledTime) errs.scheduledAt = "예약 시간을 입력해주세요.";
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -877,6 +941,8 @@ function NewPostContent() {
         compressImageForStorage(thumbnailPreview),
         readFilesAsDataUrl(attachments),
       ]);
+      const _session = getSession();
+      const finalScheduledAt = isScheduled && publishStart && scheduledTime ? `${publishStart}T${scheduledTime}` : "";
       const saved = upsertPost({
         id: currentDraftId,
         title: title || "제목 없음",
@@ -891,8 +957,10 @@ function NewPostContent() {
         publishStart,
         publishEnd,
         isScheduled,
-        scheduledAt,
+        scheduledAt: finalScheduledAt,
         status: "DRAFT",
+        authorId: _session?.adminId,
+        authorName: _session?.name,
       });
       setCurrentDraftId(saved.id);
       if (compressedThumbnail !== thumbnailPreview) setThumbnailPreview(compressedThumbnail);
@@ -911,6 +979,8 @@ function NewPostContent() {
         compressImageForStorage(thumbnailPreview),
         readFilesAsDataUrl(attachments),
       ]);
+      const _session = getSession();
+      const finalScheduledAt = isScheduled && publishStart && scheduledTime ? `${publishStart}T${scheduledTime}` : "";
       const saved = upsertPost({
         id: currentDraftId,
         title,
@@ -925,9 +995,13 @@ function NewPostContent() {
         publishStart,
         publishEnd,
         isScheduled,
-        scheduledAt,
+        scheduledAt: finalScheduledAt,
         status: isScheduled ? "SCHEDULED" : "PUBLISHED",
+        authorId: _session?.adminId,
+        authorName: _session?.name,
       });
+      const isNew = !currentDraftId;
+      recordLog(isNew ? "POST_CREATE" : "POST_UPDATE", `게시물 ${isScheduled ? "예약" : isNew ? "게시" : "수정"}: ${title}`, { targetType: "post", targetId: saved.id });
       setIsDirty(false);
       showToast(isScheduled ? "콘텐츠가 예약되었습니다." : "콘텐츠가 게시되었습니다.");
       router.push(`/posts/${saved.id}`);
@@ -1105,11 +1179,19 @@ function NewPostContent() {
                   </button>
                 </div>
                 {isScheduled && (
-                  <div className="mt-2">
+                  <div className="mt-2 space-y-1.5">
+                    {/* 날짜: publishStart에서 자동 설정 (읽기 전용) */}
+                    <div className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-1.5 text-xs text-slate-500">
+                      <span className="shrink-0">날짜</span>
+                      <span className="font-medium text-slate-700">
+                        {publishStart || "시작일을 먼저 입력해주세요"}
+                      </span>
+                    </div>
+                    {/* 시간: 직접 입력 */}
                     <input
-                      type="datetime-local"
-                      value={scheduledAt}
-                      onChange={(e) => setScheduledAt(e.target.value)}
+                      type="time"
+                      value={scheduledTime}
+                      onChange={(e) => { setScheduledTime(e.target.value); setErrors((p) => ({ ...p, scheduledAt: "" })); }}
                       className={cn(
                         "w-full rounded-lg border px-2 py-1.5 text-xs focus:outline-none focus:ring-1",
                         errors.scheduledAt
@@ -1324,6 +1406,7 @@ function NewPostContent() {
                       <button
                         type="button"
                         onClick={() => {
+                          recordLog("POST_DELETE", `임시저장 삭제: ${draft.title}`, { targetType: "post", targetId: draft.id });
                           deletePost(draft.id);
                           if (currentDraftId === draft.id) setCurrentDraftId(null);
                           refreshDraftList();

@@ -96,6 +96,13 @@ export const mockComments: Comment[] = [
   { id: "cmt_011", postId: "post_001", postTitle: "2026년 스타트업 투자 트렌드 분석", authorNickname: "차단된유저", content: "[삭제된 댓글입니다]", status: "DELETED", reportCount: 2, reportReason: "욕설/비하", createdAt: "2026-02-28T15:00:00Z" },
   { id: "cmt_012", postId: "post_008", postTitle: "프리시리즈A 밸류에이션 가이드", authorNickname: "박그린", content: "밸류에이션 산정 기준이 명확해서 참고하기 좋습니다.", status: "ACTIVE", reportCount: 0, reportReason: null, createdAt: "2026-02-09T10:00:00Z" },
   { id: "cmt_013", postId: "post_002", postTitle: "AI 기반 B2B SaaS 시장 전망", authorNickname: "숨김유저", content: "경쟁사 비하 내용이 포함되어 숨김 처리되었습니다.", status: "HIDDEN", reportCount: 4, reportReason: "경쟁사 비방", createdAt: "2026-02-26T09:00:00Z" },
+
+  // ── report-store.ts 신고 데이터와 연동된 댓글 ──────────────────────────────
+  { id: "cmt_044", postId: "post_003", postTitle: "시리즈A 투자 유치 성공기", authorNickname: "박그린", content: "저도 그 경험 있는데 솔직히 그냥 포기하는 게 나아요. 다들 그러잖아요.", status: "REPORTED", reportCount: 1, reportReason: "욕설/비방", createdAt: "2026-02-27T13:00:00Z" },
+  { id: "cmt_082", postId: "post_001", postTitle: "2026년 스타트업 투자 트렌드 분석", authorNickname: "최데이터", content: "지금 바로 카카오 추가하면 특별 상담 드립니다 ㅎㅎ", status: "DELETED", reportCount: 1, reportReason: "스팸/광고", createdAt: "2026-02-13T09:30:00Z" },
+  { id: "cmt_091", postId: "post_002", postTitle: "AI 기반 B2B SaaS 시장 전망", authorNickname: "최데이터", content: "이런 질문은 저한테 하세요~ 제 프로필 DM 주세요", status: "DELETED", reportCount: 1, reportReason: "스팸/광고", createdAt: "2026-02-15T07:50:00Z" },
+  { id: "cmt_105", postId: "post_008", postTitle: "프리시리즈A 밸류에이션 가이드", authorNickname: "서블루", content: "저 연락처 남겨드릴게요, 꼭 연락주세요 투자 논의해봐요", status: "ACTIVE", reportCount: 1, reportReason: "스팸/광고", createdAt: "2026-02-20T11:20:00Z" },
+  { id: "cmt_118", postId: "post_011", postTitle: "ESG 투자 동향과 기업 대응 전략", authorNickname: "양공공", content: "아 진짜 이런 글 올리는 사람들 이해 안 됨 ㅋㅋ 수준 봐라", status: "HIDDEN", reportCount: 1, reportReason: "욕설/비방", createdAt: "2026-03-03T08:45:00Z" },
 ];
 
 // ── Campaigns (캠페인/알림 발송) ──
@@ -167,7 +174,7 @@ export const mockBanners: Banner[] = [
 
 // ── Audit Logs ──
 
-export type AuditAction = "LOGIN" | "LOGOUT" | "SIGNUP" | "PROFILE_UPDATE" | "DOC_UPLOAD" | "DOC_APPROVE" | "DOC_REJECT" | "POST_CREATE" | "POST_UPDATE" | "POST_DELETE" | "COMMENT_CREATE" | "COMMENT_REPORT" | "COMMENT_DELETE" | "BADGE_GRANT" | "BADGE_REVOKE" | "CAMPAIGN_SEND" | "BANNER_CREATE" | "SETTINGS_UPDATE";
+export type AuditAction = "LOGIN" | "LOGOUT" | "SIGNUP" | "PROFILE_UPDATE" | "DOC_UPLOAD" | "DOC_APPROVE" | "DOC_REJECT" | "POST_CREATE" | "POST_UPDATE" | "POST_DELETE" | "COMMENT_CREATE" | "COMMENT_REPORT" | "COMMENT_DELETE" | "BADGE_GRANT" | "BADGE_REVOKE" | "CAMPAIGN_SEND" | "BANNER_CREATE" | "SETTINGS_UPDATE" | "USER_SUSPEND" | "USER_ACTIVATE" | "USER_WITHDRAW" | "REPORT_RESOLVE" | "REPORT_DISMISS" | "REPORT_REVIEW" | "ADMIN_CREATE" | "ADMIN_ROLE_CHANGE" | "ADMIN_STATUS_CHANGE" | "ADMIN_INFO_UPDATE" | "ADMIN_PW_RESET" | "ADMIN_DELETE" | "CATEGORY_CREATE" | "CATEGORY_UPDATE" | "CATEGORY_DELETE";
 
 export interface AuditLog {
   id: string;
@@ -200,6 +207,21 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   CAMPAIGN_SEND: "캠페인 발송",
   BANNER_CREATE: "배너 등록",
   SETTINGS_UPDATE: "설정 변경",
+  USER_SUSPEND: "회원 정지",
+  USER_ACTIVATE: "회원 활성화",
+  USER_WITHDRAW: "회원 탈퇴 처리",
+  REPORT_RESOLVE: "신고 조치완료",
+  REPORT_DISMISS: "신고 기각",
+  REPORT_REVIEW: "신고 재검토",
+  ADMIN_CREATE: "관리자 계정 생성",
+  ADMIN_ROLE_CHANGE: "관리자 역할 변경",
+  ADMIN_STATUS_CHANGE: "관리자 상태 변경",
+  ADMIN_INFO_UPDATE: "관리자 정보 수정",
+  ADMIN_PW_RESET: "관리자 비밀번호 초기화",
+  ADMIN_DELETE: "관리자 계정 삭제",
+  CATEGORY_CREATE: "카테고리 추가",
+  CATEGORY_UPDATE: "카테고리 수정",
+  CATEGORY_DELETE: "카테고리 삭제",
 };
 
 export const mockAuditLogs: AuditLog[] = [

@@ -167,9 +167,11 @@ body {
 }
 
 .ProseMirror img {
+  width: 100%;
   max-width: 100%;
   border-radius: 0.5rem;
   margin: 0.75rem 0;
+  display: block;
 }
 
 .ProseMirror iframe {

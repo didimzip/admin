@@ -141,7 +141,7 @@ export default function LoginPage() {
                 onClick={() => setShowPassword((v) => !v)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
               >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                {showPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
               </button>
             </div>
           </div>
@@ -220,9 +220,26 @@ export default function LoginPage() {
 
       {/* Hint (dev only) */}
       <div className="mt-4 rounded-lg border border-dashed border-slate-200 bg-white/60 p-3 text-xs text-slate-400">
-        <p className="font-medium text-slate-500 mb-1">테스트 계정</p>
-        <p>슈퍼관리자: admin@didimzip.com / test123!</p>
-        <p>운영관리자: operator@didimzip.com / test123!</p>
+        <p className="font-medium text-slate-500 mb-2">테스트 계정</p>
+        <div className="space-y-1.5">
+          {[
+            { label: "슈퍼관리자", email: "admin@didimzip.com", password: "test123!" },
+            { label: "운영관리자", email: "operator@didimzip.com", password: "test123!" },
+          ].map((account) => (
+            <div key={account.email} className="flex items-center justify-between gap-2">
+              <span className="text-slate-400">
+                {account.label}: {account.email} / {account.password}
+              </span>
+              <button
+                type="button"
+                onClick={() => { setEmail(account.email); setPassword(account.password); setError(null); }}
+                className="shrink-0 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-500 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+              >
+                적용
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

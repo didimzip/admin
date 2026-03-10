@@ -33,6 +33,7 @@ import {
   type Category,
   type SubCategory,
 } from "@/lib/category-store";
+import { recordLog } from "@/lib/audit-log-store";
 import { cn } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
@@ -315,6 +316,7 @@ export default function CategoriesPage() {
     setCategories(savedRef.current);
     setIsDirty(false);
     setSelectedCatId(null);
+    showToast("변경 사항이 취소되었습니다.");
   };
 
   const handleSaveAndLeave = () => { handleSave(); setShowLeaveModal(false); router.push(pendingNavHref); };
@@ -330,7 +332,9 @@ export default function CategoriesPage() {
     if (over && active.id !== over.id) {
       const oldIdx = categories.findIndex((c) => c.id === active.id);
       const newIdx = categories.findIndex((c) => c.id === over.id);
+      const name = categories[oldIdx]?.name ?? String(active.id);
       update(arrayMove(categories, oldIdx, newIdx));
+      recordLog("CATEGORY_UPDATE", `카테고리 순서 변경: "${name}" (${oldIdx + 1}번 → ${newIdx + 1}번)`, { targetType: "category", targetId: String(active.id) });
     }
   };
 
@@ -344,9 +348,12 @@ export default function CategoriesPage() {
       const subs = selectedCat!.subCategories;
       const oldIdx = subs.findIndex((s) => s.id === active.id);
       const newIdx = subs.findIndex((s) => s.id === over.id);
+      const parentName = categories.find((c) => c.id === selectedCatId)?.name ?? selectedCatId;
+      const subName = subs[oldIdx]?.name ?? String(active.id);
       update(categories.map((c) =>
         c.id === selectedCatId ? { ...c, subCategories: arrayMove(subs, oldIdx, newIdx) } : c,
       ));
+      recordLog("CATEGORY_UPDATE", `세부 카테고리 순서 변경: ${parentName} > "${subName}" (${oldIdx + 1}번 → ${newIdx + 1}번)`, { targetType: "subCategory", targetId: String(active.id) });
     }
   };
 
@@ -354,16 +361,23 @@ export default function CategoriesPage() {
   const addCategory = () => {
     const name = newCatName.trim();
     if (!name) return;
+    if (categories.some((c) => c.name === name)) {
+      showToast(`"${name}" 카테고리가 이미 존재합니다.`, "error");
+      return;
+    }
     const newCat: Category = { id: `cat_${Date.now()}`, name, subCategories: [] };
     update([...categories, newCat]);
     setNewCatName("");
     setSelectedCatId(newCat.id);
+    recordLog("CATEGORY_CREATE", `카테고리 추가: ${name}`, { targetType: "category", targetId: newCat.id });
   };
 
   const deleteCategory = (id: string) => {
     if (!confirm("카테고리를 삭제하면 세부 카테고리도 함께 삭제됩니다. 삭제하시겠습니까?")) return;
+    const name = categories.find((c) => c.id === id)?.name ?? id;
     update(categories.filter((c) => c.id !== id));
     if (selectedCatId === id) setSelectedCatId(null);
+    recordLog("CATEGORY_DELETE", `카테고리 삭제: ${name}`, { targetType: "category", targetId: id });
   };
 
   /* ── Subcategory actions ── */
@@ -371,19 +385,24 @@ export default function CategoriesPage() {
     const name = newSubName.trim();
     if (!name || !selectedCatId) return;
     const newSub: SubCategory = { id: `sub_${Date.now()}`, name };
+    const parentName = categories.find((c) => c.id === selectedCatId)?.name ?? selectedCatId;
     update(categories.map((c) =>
       c.id === selectedCatId ? { ...c, subCategories: [...c.subCategories, newSub] } : c,
     ));
     setNewSubName("");
+    recordLog("CATEGORY_CREATE", `세부 카테고리 추가: ${parentName} > ${name}`, { targetType: "subCategory", targetId: newSub.id });
   };
 
   const deleteSubCategory = (subId: string) => {
     if (!selectedCatId) return;
+    const parentName = categories.find((c) => c.id === selectedCatId)?.name ?? selectedCatId;
+    const subName = selectedCat?.subCategories.find((s) => s.id === subId)?.name ?? subId;
     update(categories.map((c) =>
       c.id === selectedCatId
         ? { ...c, subCategories: c.subCategories.filter((s) => s.id !== subId) }
         : c,
     ));
+    recordLog("CATEGORY_DELETE", `세부 카테고리 삭제: ${parentName} > ${subName}`, { targetType: "subCategory", targetId: subId });
   };
 
   /* ── Inline rename ── */
@@ -391,7 +410,15 @@ export default function CategoriesPage() {
   const commitCatRename = (id: string) => {
     const name = editingName.trim();
     const original = categories.find((c) => c.id === id)?.name ?? "";
-    if (name && name !== original) update(categories.map((c) => (c.id === id ? { ...c, name } : c)));
+    if (name && name !== original) {
+      if (categories.some((c) => c.id !== id && c.name === name)) {
+        showToast(`"${name}" 카테고리가 이미 존재합니다.`, "error");
+        setEditingCatId(null); setEditingName("");
+        return;
+      }
+      update(categories.map((c) => (c.id === id ? { ...c, name } : c)));
+      recordLog("CATEGORY_UPDATE", `카테고리 이름 변경: "${original}" → "${name}"`, { targetType: "category", targetId: id });
+    }
     setEditingCatId(null); setEditingName("");
   };
 
@@ -400,11 +427,13 @@ export default function CategoriesPage() {
     const name = editingName.trim();
     const original = selectedCat?.subCategories.find((s) => s.id === subId)?.name ?? "";
     if (name && name !== original && selectedCatId) {
+      const parentName = categories.find((c) => c.id === selectedCatId)?.name ?? selectedCatId;
       update(categories.map((c) =>
         c.id === selectedCatId
           ? { ...c, subCategories: c.subCategories.map((s) => (s.id === subId ? { ...s, name } : s)) }
           : c,
       ));
+      recordLog("CATEGORY_UPDATE", `세부 카테고리 이름 변경: ${parentName} > "${original}" → "${name}"`, { targetType: "subCategory", targetId: subId });
     }
     setEditingSubId(null); setEditingName("");
   };

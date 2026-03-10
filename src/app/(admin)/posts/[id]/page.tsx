@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getPost, deletePost, getAllPosts, type StoredPost } from "@/lib/post-store";
 import { useToast } from "@/lib/toast-context";
+import { recordLog } from "@/lib/audit-log-store";
 import { mockPosts, type Post } from "@/data/mock-data";
 import { cn } from "@/lib/utils";
 
@@ -78,7 +79,9 @@ export default function PostDetailPage() {
 
   const handleDelete = () => {
     if (!confirm("이 콘텐츠를 삭제하시겠습니까?")) return;
+    const title = storedPost?.title ?? mockPost?.title ?? id;
     deletePost(id);
+    recordLog("POST_DELETE", `게시물 삭제: ${title}`, { targetType: "post", targetId: id });
     showToast("콘텐츠가 삭제되었습니다.");
     router.push("/posts");
   };
@@ -113,7 +116,7 @@ export default function PostDetailPage() {
             콘텐츠 목록
           </h3>
         </div>
-        <div className="max-h-[calc(100vh-220px)] overflow-y-auto divide-y divide-slate-50">
+        <div className="max-h-[calc(100vh-220px)] overflow-y-auto divide-y divide-slate-50 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb:hover]:bg-slate-300">
           {allListPosts.length === 0 ? (
             <p className="px-4 py-6 text-center text-xs text-slate-400">콘텐츠가 없습니다</p>
           ) : (

@@ -163,7 +163,7 @@ export default function DashboardPage() {
                 <TableRow>
                   <TableHead>닉네임</TableHead>
                   <TableHead>소속</TableHead>
-                  <TableHead>기업유형</TableHead>
+                  <TableHead>회원유형</TableHead>
                   <TableHead>가입일</TableHead>
                 </TableRow>
               </TableHeader>

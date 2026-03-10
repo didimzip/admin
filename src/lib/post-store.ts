@@ -14,6 +14,8 @@ export type StoredPost = {
   scheduledAt: string;
   status: "DRAFT" | "PUBLISHED" | "SCHEDULED" | "HIDDEN";
   showConsultButton: boolean;
+  authorId?: string;
+  authorName?: string;
   createdAt: string;
   updatedAt: string;
 };

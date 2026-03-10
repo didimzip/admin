@@ -1,4 +1,5 @@
 // ─── Types ────────────────────────────────────────────────────────────────────
+import { recordLog } from "./audit-log-store";
 
 export type AdminRole = "SUPER_ADMIN" | "OPERATOR";
 export type AdminStatus = "ACTIVE" | "INACTIVE";
@@ -94,6 +95,14 @@ function saveSession(session: AdminSession): void {
 
 export function logout(): void {
   if (typeof window === "undefined") return;
+  const session = getSession();
+  if (session) {
+    recordLog("LOGOUT", `관리자 로그아웃: ${session.email}`, {
+      targetType: "session",
+      targetId: session.adminId,
+      actorName: session.name,
+    });
+  }
   localStorage.removeItem(SESSION_KEY);
 }
 
@@ -133,6 +142,11 @@ export function login(email: string, password: string): LoginResult {
     loginAt: now,
   };
   saveSession(session);
+  recordLog("LOGIN", `관리자 로그인: ${account.email}`, {
+    targetType: "session",
+    targetId: account.id,
+    actorName: account.name,
+  });
   return { ok: true, session };
 }
 
@@ -171,6 +185,23 @@ export function updateAdmin(
   saveAccounts(
     accounts.map((a) => (a.id === id ? { ...a, ...patch } : a))
   );
+}
+
+export function updateAdminInfo(
+  id: string,
+  patch: { name?: string; email?: string }
+): void {
+  const accounts = loadAccounts();
+  saveAccounts(accounts.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+  // 현재 세션 사용자의 정보를 변경한 경우 세션도 동기화
+  const session = getSession();
+  if (session && session.adminId === id) {
+    saveSession({
+      ...session,
+      ...(patch.name !== undefined && { name: patch.name }),
+      ...(patch.email !== undefined && { email: patch.email }),
+    });
+  }
 }
 
 export function verifyAdminPassword(id: string, password: string): boolean {

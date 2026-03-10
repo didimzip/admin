@@ -2,11 +2,13 @@
 
 import React, { useState, useEffect } from "react";
 import { getAllPosts, publishScheduledPosts } from "@/lib/post-store";
-import { getSession, logout, type AdminSession } from "@/lib/auth-store";
-import { ToastProvider } from "@/lib/toast-context";
+import { getSession, logout, verifyAdminPassword, resetAdminPassword, updateAdminInfo, type AdminSession } from "@/lib/auth-store";
+import { Lock, Eye, EyeOff } from "lucide-react";
+import { ToastProvider, useToast } from "@/lib/toast-context";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  RiUserSettingsLine,
   RiDashboardLine,
   RiTeamLine,
   RiShieldCheckLine,
@@ -57,7 +59,7 @@ const menuGroups: MenuGroup[] = [
     label: "회원 및 승인 관리",
     superAdminOnly: true,
     items: [
-      { icon: RiTeamLine, label: "회원 목록", href: "/users" },
+      { icon: RiTeamLine, label: "회원 관리", href: "/users" },
       { icon: RiShieldCheckLine, label: "인증 뱃지 관리", href: "/verifications" },
       { icon: RiFileListLine, label: "활동 추적", href: "/audit-logs" },
     ],
@@ -73,9 +75,8 @@ const menuGroups: MenuGroup[] = [
   },
   {
     label: "마케팅 및 알림",
-    superAdminOnly: true,
     items: [
-      { icon: RiMegaphoneLine, label: "타겟팅 발송", href: "/campaigns" },
+      { icon: RiMegaphoneLine, label: "마케팅 발송", href: "/campaigns" },
       { icon: RiImageLine, label: "배너 관리", href: "/banners" },
     ],
   },
@@ -252,16 +253,31 @@ function SidebarNav({
 
 // ─── Admin Layout ─────────────────────────────────────────────────────────────
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <ToastProvider>
+      <AdminLayoutInner>{children}</AdminLayoutInner>
+    </ToastProvider>
+  );
+}
+
+function AdminLayoutInner({ children }: { children: React.ReactNode }) {
+  const { showToast } = useToast();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [session, setSession] = useState<AdminSession | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [showEditInfo, setShowEditInfo] = useState(false);
+  const [eiName, setEiName] = useState("");
+  const [eiEmail, setEiEmail] = useState("");
+  const [eiCurrent, setEiCurrent] = useState("");
+  const [eiNew, setEiNew] = useState("");
+  const [eiConfirm, setEiConfirm] = useState("");
+  const [eiShowCurrent, setEiShowCurrent] = useState(false);
+  const [eiShowNew, setEiShowNew] = useState(false);
+  const [eiShowConfirm, setEiShowConfirm] = useState(false);
+  const [eiError, setEiError] = useState("");
 
   // 인증 가드
   useEffect(() => {
@@ -313,6 +329,54 @@ export default function AdminLayout({
   function handleLogout() {
     logout();
     router.replace("/login");
+  }
+
+  const eiPwRules = {
+    length: eiNew.length >= 8,
+    letter: /[a-zA-Z]/.test(eiNew),
+    number: /[0-9]/.test(eiNew),
+    special: /[^a-zA-Z0-9]/.test(eiNew),
+  };
+  const eiPwValid = Object.values(eiPwRules).every(Boolean);
+  const eiPwMatch = eiNew === eiConfirm;
+  const eiChangingPw = !!(eiCurrent || eiNew || eiConfirm);
+
+  function openEditInfo() {
+    setEiName(session?.name ?? "");
+    setEiEmail(session?.email ?? "");
+    setEiCurrent(""); setEiNew(""); setEiConfirm("");
+    setEiShowCurrent(false); setEiShowNew(false); setEiShowConfirm(false);
+    setEiError("");
+    setShowEditInfo(true);
+  }
+
+  function handleSaveInfo() {
+    if (!session) return;
+    const noChanges = eiName.trim() === (session.name ?? "").trim() && !eiCurrent && !eiNew && !eiConfirm;
+    if (noChanges) return;
+    setEiError("");
+    if (!eiName.trim()) { setEiError("이름을 입력해주세요."); return; }
+    if (eiChangingPw) {
+      if (!verifyAdminPassword(session.adminId, eiCurrent)) {
+        setEiError("현재 비밀번호가 올바르지 않습니다."); return;
+      }
+      if (!eiPwValid) { setEiError("새 비밀번호가 규칙을 충족하지 않습니다."); return; }
+      if (!eiPwMatch) { setEiError("비밀번호가 일치하지 않습니다."); return; }
+      resetAdminPassword(session.adminId, eiNew);
+    }
+    updateAdminInfo(session.adminId, { name: eiName.trim() });
+    setSession(getSession());
+    window.dispatchEvent(new Event("posts-updated"));
+    closeEditInfo();
+    showToast("정보가 수정되었습니다.");
+  }
+
+  function closeEditInfo() {
+    setShowEditInfo(false);
+    setEiName(""); setEiEmail("");
+    setEiCurrent(""); setEiNew(""); setEiConfirm("");
+    setEiShowCurrent(false); setEiShowNew(false); setEiShowConfirm(false);
+    setEiError("");
   }
 
   // 인증 확인 전 로딩 스크린
@@ -377,7 +441,19 @@ export default function AdminLayout({
           </div>
 
           {/* Sidebar Footer */}
-          <div className="border-t border-slate-200 p-3">
+          <div className="border-t border-slate-200 p-3 space-y-0.5">
+            {role !== "SUPER_ADMIN" && (
+              <button
+                onClick={openEditInfo}
+                className={cn(
+                  "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700",
+                  collapsed && "justify-center"
+                )}
+              >
+                <RiUserSettingsLine className="h-[18px] w-[18px] shrink-0" />
+                {!collapsed && <span>내 정보 수정</span>}
+              </button>
+            )}
             <button
               onClick={handleLogout}
               className={cn(
@@ -407,7 +483,16 @@ export default function AdminLayout({
           <div className="flex-1 overflow-y-auto scrollbar-hide py-3">
             <SidebarNav onItemClick={() => setMobileOpen(false)} role={role} />
           </div>
-          <div className="border-t border-slate-200 p-3">
+          <div className="border-t border-slate-200 p-3 space-y-0.5">
+            {role !== "SUPER_ADMIN" && (
+              <button
+                onClick={() => { setMobileOpen(false); openEditInfo(); }}
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700"
+              >
+                <RiUserSettingsLine className="h-[18px] w-[18px] shrink-0" />
+                <span>내 정보 수정</span>
+              </button>
+            )}
             <button
               onClick={handleLogout}
               className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700"
@@ -418,6 +503,105 @@ export default function AdminLayout({
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* 내 정보 수정 모달 (이름/이메일 + 선택적 비밀번호 변경) */}
+      {showEditInfo && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) closeEditInfo(); }}>
+          <div className="w-full max-w-sm rounded-xl bg-white shadow-xl">
+            <div className="border-b border-slate-100 px-5 py-4">
+              <h2 className="text-sm font-semibold text-slate-900">내 정보 수정</h2>
+            </div>
+            <div className="space-y-3 px-5 py-4">
+                {/* 이름 */}
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">이름</label>
+                  <input type="text" value={eiName} onChange={(e) => { setEiName(e.target.value); setEiError(""); }} autoFocus
+                    onKeyDown={(e) => e.key === "Enter" && handleSaveInfo()}
+                    className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm focus:border-indigo-400 focus:outline-none" />
+                </div>
+                {/* 이메일 (읽기 전용) */}
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-600">이메일</label>
+                  <input type="email" value={eiEmail} readOnly
+                    className="h-9 w-full rounded-lg border border-slate-100 bg-slate-50 px-3 text-sm text-slate-400 cursor-not-allowed" />
+                  <p className="mt-1 text-[11px] text-slate-400">이메일은 관리자 페이지에서만 변경할 수 있습니다.</p>
+                </div>
+                {/* 비밀번호 변경 구분선 */}
+                <div className="border-t border-slate-100 pt-3">
+                  <p className="mb-2 text-xs font-medium text-slate-500">비밀번호 변경 <span className="font-normal text-slate-400">(변경하지 않을 경우 비워두세요)</span></p>
+                  {/* 현재 비밀번호 */}
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Lock className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                      <input type={eiShowCurrent ? "text" : "password"} value={eiCurrent}
+                        onChange={(e) => { setEiCurrent(e.target.value); setEiError(""); }}
+                        onKeyDown={(e) => e.key === "Enter" && handleSaveInfo()}
+                        placeholder="현재 비밀번호"
+                        className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-9 text-sm focus:border-indigo-400 focus:outline-none" />
+                      <button type="button" onClick={() => setEiShowCurrent((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                        {eiShowCurrent ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                    {/* 새 비밀번호 */}
+                    <div>
+                      <div className="relative">
+                        <Lock className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                        <input type={eiShowNew ? "text" : "password"} value={eiNew}
+                          onChange={(e) => { setEiNew(e.target.value); setEiError(""); }}
+                          onKeyDown={(e) => e.key === "Enter" && handleSaveInfo()}
+                          placeholder="새 비밀번호"
+                          className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-9 text-sm focus:border-indigo-400 focus:outline-none" />
+                        <button type="button" onClick={() => setEiShowNew((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                          {eiShowNew ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                        </button>
+                      </div>
+                      {eiNew && (
+                        <div className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-0.5">
+                          {([["length","8자 이상"],["letter","영문 포함"],["number","숫자 포함"],["special","특수문자 포함"]] as const).map(([k, label]) => (
+                            <span key={k} className={cn("flex items-center gap-1 text-[11px]", eiPwRules[k] ? "text-emerald-600" : "text-slate-400")}>
+                              <svg viewBox="0 0 16 16" className="h-3 w-3 shrink-0" fill="none">
+                                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
+                                {eiPwRules[k] && <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />}
+                              </svg>
+                              {label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {/* 새 비밀번호 확인 */}
+                    <div>
+                      <div className="relative">
+                        <Lock className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                        <input type={eiShowConfirm ? "text" : "password"} value={eiConfirm}
+                          onChange={(e) => { setEiConfirm(e.target.value); setEiError(""); }}
+                          onKeyDown={(e) => e.key === "Enter" && handleSaveInfo()}
+                          placeholder="새 비밀번호 확인"
+                          className={cn("h-9 w-full rounded-lg border bg-white pl-8 pr-9 text-sm focus:outline-none",
+                            eiConfirm && !eiPwMatch ? "border-red-300 focus:border-red-400" : "border-slate-200 focus:border-indigo-400")} />
+                        <button type="button" onClick={() => setEiShowConfirm((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                          {eiShowConfirm ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                        </button>
+                      </div>
+                      {eiConfirm && !eiPwMatch && <p className="mt-1 text-xs text-red-500">비밀번호가 일치하지 않습니다.</p>}
+                    </div>
+                  </div>
+                </div>
+                {eiError && <p className="text-xs text-red-500">{eiError}</p>}
+                <div className="flex justify-end gap-2 pt-1">
+                  <button onClick={closeEditInfo} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">취소</button>
+                  <button
+                    onClick={handleSaveInfo}
+                    disabled={!eiName.trim() || (eiName.trim() === (session?.name ?? "").trim() && !eiCurrent && !eiNew && !eiConfirm)}
+                    className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300">
+                    저장
+                  </button>
+                </div>
+              </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <div
@@ -467,10 +651,8 @@ export default function AdminLayout({
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto bg-gray-50 p-4 sm:p-6">
-          <ToastProvider>
-            {children}
-          </ToastProvider>
+        <main className="flex-1 overflow-y-auto bg-gray-50 p-4 sm:p-6 [scrollbar-gutter:stable]">
+          {children}
         </main>
       </div>
     </div>

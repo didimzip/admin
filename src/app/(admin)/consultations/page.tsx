@@ -3,9 +3,7 @@
 import React, { useState, useMemo } from "react";
 import {
   RiCustomerService2Line,
-  RiSearchLine,
   RiCloseLine,
-  RiDownloadLine,
   RiTimeLine,
   RiCheckboxCircleLine,
   RiRefreshLine,
@@ -14,11 +12,31 @@ import {
   RiUserLine,
   RiFileTextLine,
   RiMessageLine,
+  RiBriefcaseLine,
+  RiHistoryLine,
 } from "react-icons/ri";
-import { Button } from "@/components/ui/button";
+import { X, Download, ChevronDown, ChevronUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { PaginationBar, CountDisplay } from "@/components/ui/pagination-bar";
+import { useToast } from "@/lib/toast-context";
 import { cn } from "@/lib/utils";
+
+// ─── Export Fields ────────────────────────────────────────────────────────────
+
+const EXPORT_FIELDS = [
+  { key: "name",         label: "신청자명" },
+  { key: "email",        label: "이메일" },
+  { key: "phone",        label: "전화번호" },
+  { key: "company",      label: "회사" },
+  { key: "jobTitle",     label: "직책" },
+  { key: "postTitle",    label: "관련 콘텐츠" },
+  { key: "postCategory", label: "카테고리" },
+  { key: "status",       label: "상태" },
+  { key: "adminMemo",    label: "관리자 메모" },
+  { key: "createdAt",    label: "신청일" },
+] as const;
+type ExportFieldKey = (typeof EXPORT_FIELDS)[number]["key"];
+const ALL_EXPORT_KEYS = EXPORT_FIELDS.map((f) => f.key) as ExportFieldKey[];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,14 +61,25 @@ type Consultation = {
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 
 const MOCK_CONSULTATIONS: Consultation[] = [
-  { id: "c001", name: "김민준", email: "minjun.kim@startup.io", phone: "010-1234-5678", company: "넥스트벤처스", jobTitle: "대표이사", postTitle: "2025 스타트업 VC 투자 트렌드 분석", postCategory: "인사이트", message: "안녕하세요. 저희 스타트업이 시리즈A 투자를 준비 중인데, 현재 시장 트렌드와 VC 미팅 전략에 대해 상담을 받고 싶습니다. 가능하면 이번 주 중으로 미팅을 진행하고 싶습니다.", status: "PENDING", adminMemo: "", createdAt: "2026-03-05T09:14:00Z", updatedAt: "2026-03-05T09:14:00Z" },
+  // 김민준 — 3회 상담
+  { id: "c001", name: "김민준", email: "minjun.kim@startup.io", phone: "010-1234-5678", company: "넥스트벤처스", jobTitle: "대표이사", postTitle: "2026 스타트업 VC 투자 트렌드 분석", postCategory: "인사이트", message: "안녕하세요. 저희 스타트업이 시리즈A 투자를 준비 중인데, 현재 시장 트렌드와 VC 미팅 전략에 대해 상담을 받고 싶습니다. 가능하면 이번 주 중으로 미팅을 진행하고 싶습니다.", status: "PENDING", adminMemo: "", createdAt: "2026-03-05T09:14:00Z", updatedAt: "2026-03-05T09:14:00Z" },
+  { id: "c001b", name: "김민준", email: "minjun.kim@startup.io", phone: "010-1234-5678", company: "넥스트벤처스", jobTitle: "대표이사", postTitle: "B2B SaaS 기업의 ARR 성장 전략", postCategory: "인사이트", message: "지난번 상담 이후 IR 자료를 보완했습니다. 이번에는 ARR 성장 전략과 리텐션 개선 방법에 대해 구체적인 피드백을 받고 싶습니다.", status: "COMPLETED", adminMemo: "2/10 화상 미팅 완료. 리텐션 전략 공유, 후속 자료 이메일 발송.", createdAt: "2026-02-08T10:30:00Z", updatedAt: "2026-02-10T14:00:00Z" },
+  { id: "c001c", name: "김민준", email: "minjun.kim@startup.io", phone: "010-1234-5678", company: "넥스트벤처스", jobTitle: "대표이사", postTitle: "IR 피칭 완벽 가이드: 투자자를 설득하는 법", postCategory: "인사이트", message: "처음으로 상담 요청드립니다. IR 자료 구성과 투자자 미팅 준비 방법에 대해 전반적인 가이드를 받고 싶습니다.", status: "COMPLETED", adminMemo: "1/15 전화 상담 완료. IR 자료 템플릿 공유.", createdAt: "2026-01-14T09:00:00Z", updatedAt: "2026-01-15T11:00:00Z" },
+
+  // 이수연 — 2회 상담
   { id: "c002", name: "이수연", email: "suyeon.lee@fintech.co.kr", phone: "010-2345-6789", company: "핀테크솔루션", jobTitle: "CFO", postTitle: "글로벌 핀테크 규제 변화와 대응 전략", postCategory: "인사이트", message: "규제 샌드박스 신청 절차와 해외 진출 시 필요한 인허가 관련하여 전문가 조언을 구하고 싶습니다. 구체적인 사례 기반으로 상담해주시면 감사하겠습니다.", status: "IN_PROGRESS", adminMemo: "3/6 오후 2시 화상 미팅 예정. 자료 준비 중.", createdAt: "2026-03-04T14:22:00Z", updatedAt: "2026-03-05T10:00:00Z" },
+  { id: "c002b", name: "이수연", email: "suyeon.lee@fintech.co.kr", phone: "010-2345-6789", company: "핀테크솔루션", jobTitle: "CFO", postTitle: "핀테크 라이선스 취득 절차 총정리", postCategory: "투자정보", message: "전자금융업 라이선스 취득 요건과 소요 기간에 대해 문의드립니다. 현재 내부적으로 검토 중인 단계입니다.", status: "COMPLETED", adminMemo: "관련 법무팀 연결 완료. 2/20 답변 발송.", createdAt: "2026-02-18T11:00:00Z", updatedAt: "2026-02-20T16:00:00Z" },
+
+  // 박준혁 — 2회 상담
   { id: "c003", name: "박준혁", email: "junhyuk.park@healthtech.kr", phone: "010-3456-7890", company: "헬스케어이노베이션", jobTitle: "CTO", postTitle: "헬스케어 스타트업 엑셀러레이터 프로그램 가이드", postCategory: "투자정보", message: "저희 회사가 헬스케어 AI 솔루션을 개발 중인데, 엑셀러레이터 프로그램 지원 자격 요건과 선발 과정에 대해 더 자세히 알고 싶습니다.", status: "COMPLETED", adminMemo: "3/3 전화 상담 완료. 프로그램 지원서 안내 이메일 발송 완료.", createdAt: "2026-03-03T11:05:00Z", updatedAt: "2026-03-03T16:30:00Z" },
+  { id: "c003b", name: "박준혁", email: "junhyuk.park@healthtech.kr", phone: "010-3456-7890", company: "헬스케어이노베이션", jobTitle: "CTO", postTitle: "의료 AI 스타트업 규제 샌드박스 활용 가이드", postCategory: "인사이트", message: "의료기기 AI 소프트웨어 허가 절차와 규제 샌드박스를 통한 임상 데이터 수집 방법에 대해 문의드립니다.", status: "COMPLETED", adminMemo: "1/25 이메일 답변 완료.", createdAt: "2026-01-23T13:00:00Z", updatedAt: "2026-01-25T10:00:00Z" },
+
+  // 단일 상담 고객들
   { id: "c004", name: "최지은", email: "jieun.choi@esginvest.com", phone: "010-4567-8901", company: "ESG인베스트먼트", jobTitle: "투자팀장", postTitle: "ESG 경영 도입 사례와 투자자 설득 전략", postCategory: "인사이트", message: "ESG 평가 기준과 실제 투자 심사 시 중점적으로 보는 항목이 무엇인지 궁금합니다. 포트폴리오 기업들에게 ESG 가이드라인을 제시하려고 합니다.", status: "PENDING", adminMemo: "", createdAt: "2026-03-05T08:30:00Z", updatedAt: "2026-03-05T08:30:00Z" },
   { id: "c005", name: "정승우", email: "seungwoo.jung@saas.io", phone: "010-5678-9012", company: "클라우드SaaS", jobTitle: "세일즈 디렉터", postTitle: "B2B SaaS 기업의 ARR 성장 전략", postCategory: "인사이트", message: "현재 ARR 5억 수준에서 다음 단계로 성장하기 위한 영업 전략과 파트너십 구축 방법에 대해 실질적인 조언을 원합니다.", status: "IN_PROGRESS", adminMemo: "담당자 배정 완료. 초기 자료 수집 중.", createdAt: "2026-03-04T16:45:00Z", updatedAt: "2026-03-05T09:00:00Z" },
   { id: "c006", name: "한나영", email: "nayoung.han@ailab.kr", phone: "010-6789-0123", company: "AI연구소", jobTitle: "연구원", postTitle: "2025 AI 스타트업 투자 현황과 전망", postCategory: "투자정보", message: "AI 분야 스타트업으로서 투자 유치 시 기술 평가 기준과 데모데이 발표 팁에 대해 알고 싶습니다.", status: "COMPLETED", adminMemo: "이메일로 자료 전달 완료. 후속 상담 불필요.", createdAt: "2026-03-02T13:20:00Z", updatedAt: "2026-03-02T17:00:00Z" },
   { id: "c007", name: "오재현", email: "jaehyun.oh@globalvc.com", phone: "010-7890-1234", company: "글로벌벤처캐피탈", jobTitle: "심사역", postTitle: "글로벌 스타트업 네트워킹 이벤트 안내", postCategory: "이벤트", message: "이벤트 참가 기업 선발 기준과 VC와의 1:1 매칭 방식에 대해 상세히 알고 싶습니다. 저희 포트폴리오 기업들도 참여시키고 싶습니다.", status: "PENDING", adminMemo: "", createdAt: "2026-03-05T07:55:00Z", updatedAt: "2026-03-05T07:55:00Z" },
-  { id: "c008", name: "임서현", email: "seohyun.lim@accel.kr", phone: "010-8901-2345", company: "어클레러레이터K", jobTitle: "프로그램 매니저", postTitle: "스타트업 엑셀러레이터 선발 기준 공개", postCategory: "공지사항", message: "프로그램 지원 서류 양식과 심사 일정 관련하여 추가 문의드립니다. 공고에 나와있는 내용 외에 더 준비해야 할 사항이 있는지 궁금합니다.", status: "CANCELLED", adminMemo: "문의자가 직접 취소 요청.", createdAt: "2026-03-01T10:10:00Z", updatedAt: "2026-03-01T11:00:00Z" },
+  { id: "c008", name: "임서현", email: "seohyun.lim@accel.kr", phone: "010-8901-2345", company: "어클레러레이터K", jobTitle: "프로그램 매니저", postTitle: "스타트업 엑셀러레이터 선발 기준 공개", postCategory: "공지사항", message: "프로그램 지원 서류 양식과 심사 일정 관련하여 추가 문의드립니다.", status: "CANCELLED", adminMemo: "문의자가 직접 취소 요청.", createdAt: "2026-03-01T10:10:00Z", updatedAt: "2026-03-01T11:00:00Z" },
   { id: "c009", name: "강민서", email: "minseo.kang@gov.kr", phone: "010-9012-3456", company: "중소벤처기업부", jobTitle: "사무관", postTitle: "2025 스타트업 정부 지원 정책 총정리", postCategory: "인사이트", message: "정책 내용 중 일부 해석에 대한 공식 입장이 필요합니다. 자료 인용 허가 관련해서도 문의드립니다.", status: "IN_PROGRESS", adminMemo: "법무팀 검토 의뢰 중.", createdAt: "2026-03-04T09:30:00Z", updatedAt: "2026-03-04T15:00:00Z" },
   { id: "c010", name: "윤지호", email: "jiho.yoon@demo.io", phone: "010-0123-4567", company: "데모데이랩", jobTitle: "대표", postTitle: "IR 피칭 완벽 가이드: 투자자를 설득하는 법", postCategory: "인사이트", message: "IR 자료 첨삭 및 피칭 연습 프로그램이 있는지 궁금합니다. 다음 달 데모데이를 앞두고 준비 중입니다.", status: "COMPLETED", adminMemo: "피칭 클리닉 일정 안내 완료. 3/10 참가 확정.", createdAt: "2026-03-01T14:00:00Z", updatedAt: "2026-03-02T10:00:00Z" },
   { id: "c011", name: "송예린", email: "yerin.song@scaleup.kr", phone: "010-1111-2222", company: "스케일업파트너스", jobTitle: "파트너", postTitle: "해외 진출 스타트업의 글로벌 네트워킹 전략", postCategory: "네트워킹", message: "동남아 시장 진출을 위한 현지 파트너 연결 서비스가 있는지 문의합니다.", status: "PENDING", adminMemo: "", createdAt: "2026-03-05T11:00:00Z", updatedAt: "2026-03-05T11:00:00Z" },
@@ -60,10 +89,10 @@ const MOCK_CONSULTATIONS: Consultation[] = [
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<ConsultStatus, { label: string; color: string; icon: React.ReactNode }> = {
-  PENDING: { label: "대기중", color: "bg-amber-100 text-amber-700", icon: <RiTimeLine className="h-3 w-3" /> },
-  IN_PROGRESS: { label: "처리중", color: "bg-blue-100 text-blue-700", icon: <RiRefreshLine className="h-3 w-3" /> },
-  COMPLETED: { label: "완료", color: "bg-green-100 text-green-700", icon: <RiCheckboxCircleLine className="h-3 w-3" /> },
-  CANCELLED: { label: "취소", color: "bg-slate-100 text-slate-500", icon: <RiCloseLine className="h-3 w-3" /> },
+  PENDING:     { label: "대기중", color: "bg-amber-100 text-amber-700",  icon: <RiTimeLine className="h-3 w-3" /> },
+  IN_PROGRESS: { label: "처리중", color: "bg-blue-100 text-blue-700",    icon: <RiRefreshLine className="h-3 w-3" /> },
+  COMPLETED:   { label: "완료",   color: "bg-green-100 text-green-700",  icon: <RiCheckboxCircleLine className="h-3 w-3" /> },
+  CANCELLED:   { label: "취소",   color: "bg-slate-100 text-slate-500",  icon: <RiCloseLine className="h-3 w-3" /> },
 };
 
 function StatusBadge({ status }: { status: ConsultStatus }) {
@@ -81,34 +110,135 @@ function formatDate(iso: string) {
   });
 }
 
-// ─── Detail Drawer (fixed, slides in from right) ─────────────────────────────
+function formatDateShort(iso: string) {
+  return new Date(iso).toLocaleDateString("ko-KR", {
+    year: "numeric", month: "long", day: "numeric",
+  });
+}
+
+// ─── Consultation Timeline (이력 탭용) ────────────────────────────────────────
+
+function ConsultationTimeline({
+  items,
+  currentId,
+  onSelect,
+}: {
+  items: Consultation[];
+  currentId: string;
+  onSelect: (item: Consultation) => void;
+}) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  return (
+    <div className="space-y-2">
+      {items.map((item, idx) => {
+        const isExpanded = expandedId === item.id;
+        return (
+          <div key={item.id} className="flex gap-3">
+            {/* 타임라인 세로선 */}
+            <div className="flex flex-col items-center pt-1">
+              <div className={cn(
+                "h-2.5 w-2.5 shrink-0 rounded-full border-2",
+                item.status === "COMPLETED"  ? "border-green-400 bg-green-100" :
+                item.status === "IN_PROGRESS" ? "border-blue-400 bg-blue-100" :
+                item.status === "PENDING"    ? "border-amber-400 bg-amber-100" :
+                "border-slate-300 bg-slate-100"
+              )} />
+              {idx < items.length - 1 && (
+                <div className="mt-1 w-px flex-1 bg-slate-200" />
+              )}
+            </div>
+
+            {/* 카드 */}
+            <div className="mb-3 flex-1">
+              <button
+                onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                className="w-full text-left"
+              >
+                <div className={cn(
+                  "rounded-xl border px-3.5 py-3 transition-colors",
+                  "border-slate-100 bg-slate-50 hover:bg-slate-100"
+                )}>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="line-clamp-1 text-xs font-medium text-slate-700">{item.postTitle}</p>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <StatusBadge status={item.status} />
+                      {isExpanded ? <ChevronUp className="h-3 w-3 text-slate-400" /> : <ChevronDown className="h-3 w-3 text-slate-400" />}
+                    </div>
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-slate-400">{formatDateShort(item.createdAt)}</p>
+                </div>
+              </button>
+
+              {isExpanded && (
+                <div className="mt-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-3 space-y-3">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">상담 내용</p>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-600">{item.message}</p>
+                  </div>
+                  {item.adminMemo && (
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">관리자 메모</p>
+                      <p className="mt-1 text-xs text-slate-500">{item.adminMemo}</p>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => onSelect(item)}
+                    className="text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+                  >
+                    이 상담으로 전환 →
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Detail Drawer ────────────────────────────────────────────────────────────
 
 function DetailDrawer({
   item,
+  customerHistory,
   onClose,
   onStatusChange,
   onMemoChange,
+  onSelectItem,
 }: {
   item: Consultation | null;
+  customerHistory: Consultation[];
   onClose: () => void;
   onStatusChange: (id: string, status: ConsultStatus) => void;
   onMemoChange: (id: string, memo: string) => void;
+  onSelectItem: (item: Consultation) => void;
 }) {
   const [memo, setMemo] = useState("");
-  const [memoSaved, setMemoSaved] = useState(false);
+  const [activeTab, setActiveTab] = useState<"current" | "history">("current");
 
   React.useEffect(() => {
-    if (item) { setMemo(item.adminMemo); setMemoSaved(false); }
-  }, [item?.id, item?.adminMemo]);
+    if (item) {
+      setMemo(item.adminMemo);
+      setActiveTab("current");
+    }
+  }, [item?.id]);
+
+  React.useEffect(() => {
+    if (item) setMemo(item.adminMemo);
+  }, [item?.adminMemo]);
 
   const saveMemo = () => {
     if (!item) return;
     onMemoChange(item.id, memo);
-    setMemoSaved(true);
-    setTimeout(() => setMemoSaved(false), 2000);
   };
 
   const isOpen = !!item;
+  const historyCount = customerHistory.length;
+  const firstConsult = customerHistory.length > 0
+    ? customerHistory[customerHistory.length - 1]
+    : item;
 
   return (
     <>
@@ -124,117 +254,210 @@ function DetailDrawer({
       {/* Drawer panel */}
       <div
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex w-[400px] flex-col bg-white shadow-[-8px_0_40px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-in-out",
+          "fixed inset-y-0 right-0 z-50 flex w-full max-w-[540px] flex-col bg-white shadow-[-8px_0_40px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-in-out",
           isOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
         {item && (
           <>
-            {/* Header */}
+            {/* ── 드로어 헤더 ── */}
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4">
               <div className="flex items-center gap-2">
                 <RiMessageLine className="h-4 w-4 text-indigo-600" />
                 <span className="text-sm font-semibold text-slate-900">상담 상세</span>
               </div>
               <button
-                type="button"
                 onClick={onClose}
                 className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
               >
-                <RiCloseLine className="h-4 w-4" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-              {/* Status row */}
-              <div className="flex items-center justify-between">
-                <StatusBadge status={item.status} />
-                <select
-                  value={item.status}
-                  onChange={(e) => onStatusChange(item.id, e.target.value as ConsultStatus)}
-                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                >
-                  <option value="PENDING">대기중</option>
-                  <option value="IN_PROGRESS">처리중</option>
-                  <option value="COMPLETED">완료</option>
-                  <option value="CANCELLED">취소</option>
-                </select>
-              </div>
-
-              {/* Requester info */}
-              <div className="rounded-xl bg-slate-50 p-4 space-y-2.5">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">신청자 정보</p>
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex items-center gap-2 text-slate-700">
-                    <RiUserLine className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                    <span className="font-medium">{item.name}</span>
-                    <span className="text-slate-400">· {item.jobTitle}</span>
+            {/* ── 고객 컨텍스트 헤더 (항상 표시) ── */}
+            <div className="shrink-0 border-b border-slate-100 bg-slate-50 px-6 py-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-600">
+                  {item.name.charAt(0)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold text-slate-900">{item.name}</span>
+                    {(historyCount + 1) > 1 && (
+                      <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-semibold text-indigo-600">
+                        총 {historyCount + 1}회 상담
+                      </span>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2 text-slate-600">
-                    <RiFileTextLine className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                    {item.company}
+                  <div className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-500">
+                    <span className="flex items-center gap-1.5">
+                      <RiFileTextLine className="h-3 w-3 shrink-0 text-slate-400" />
+                      {item.company}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <RiBriefcaseLine className="h-3 w-3 shrink-0 text-slate-400" />
+                      {item.jobTitle}
+                    </span>
+                    <span className="flex items-center gap-1.5 col-span-2 truncate">
+                      <RiMailLine className="h-3 w-3 shrink-0 text-slate-400" />
+                      {item.email}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <RiPhoneLine className="h-3 w-3 shrink-0 text-slate-400" />
+                      {item.phone}
+                    </span>
+                    {firstConsult && historyCount > 0 && (
+                      <span className="flex items-center gap-1.5 text-slate-400">
+                        <RiHistoryLine className="h-3 w-3 shrink-0" />
+                        최초 {formatDateShort(firstConsult.createdAt)}
+                      </span>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2 text-slate-600">
-                    <RiMailLine className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                    {item.email}
+                </div>
+              </div>
+            </div>
+
+            {/* ── 탭 바 ── */}
+            <div className="flex shrink-0 border-b border-slate-100 px-6">
+              <button
+                onClick={() => setActiveTab("current")}
+                className={cn(
+                  "pb-3 pt-3.5 text-xs font-semibold transition-colors border-b-2 mr-5",
+                  activeTab === "current"
+                    ? "border-indigo-600 text-indigo-600"
+                    : "border-transparent text-slate-400 hover:text-slate-600"
+                )}
+              >
+                현재 상담
+              </button>
+              <button
+                onClick={() => setActiveTab("history")}
+                className={cn(
+                  "pb-3 pt-3.5 text-xs font-semibold transition-colors border-b-2",
+                  activeTab === "history"
+                    ? "border-indigo-600 text-indigo-600"
+                    : "border-transparent text-slate-400 hover:text-slate-600"
+                )}
+              >
+                이전 이력
+                {historyCount > 0 && (
+                  <span className={cn(
+                    "ml-1.5 rounded-full px-1.5 py-0.5 text-[10px]",
+                    activeTab === "history" ? "bg-indigo-100 text-indigo-600" : "bg-slate-100 text-slate-500"
+                  )}>
+                    {historyCount}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* ── 탭 콘텐츠 (스크롤) ── */}
+            <div className="flex-1 overflow-y-auto">
+
+              {/* 현재 상담 탭 */}
+              {activeTab === "current" && (
+                <div className="px-6 py-5 space-y-5">
+                  {/* 상태 변경 */}
+                  <div className="flex items-center justify-between">
+                    <StatusBadge status={item.status} />
+                    <select
+                      value={item.status}
+                      onChange={(e) => onStatusChange(item.id, e.target.value as ConsultStatus)}
+                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                    >
+                      <option value="PENDING">대기중</option>
+                      <option value="IN_PROGRESS">처리중</option>
+                      <option value="COMPLETED">완료</option>
+                      <option value="CANCELLED">취소</option>
+                    </select>
                   </div>
-                  <div className="flex items-center gap-2 text-slate-600">
-                    <RiPhoneLine className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                    {item.phone}
+
+                  {/* 관련 콘텐츠 */}
+                  <div>
+                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">관련 콘텐츠</p>
+                    <p className="text-sm font-medium leading-snug text-slate-800">{item.postTitle}</p>
+                    <span className="mt-1 inline-block rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-500">
+                      {item.postCategory}
+                    </span>
+                  </div>
+
+                  {/* 상담 내용 */}
+                  <div>
+                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">상담 내용</p>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-3 text-xs leading-relaxed text-slate-700">
+                      {item.message}
+                    </div>
+                  </div>
+
+                  {/* 관리자 메모 */}
+                  <div>
+                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">관리자 메모</p>
+                    <textarea
+                      value={memo}
+                      onChange={(e) => setMemo(e.target.value)}
+                      rows={3}
+                      placeholder="내부용 메모를 입력하세요..."
+                      className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-700 placeholder:text-slate-300 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                    />
+                    <div className="mt-1.5 flex justify-end gap-2">
+                      <button
+                        onClick={() => setMemo(item.adminMemo)}
+                        className="rounded-lg border border-slate-200 px-3 py-1 text-xs text-slate-500 hover:bg-slate-50 transition-colors"
+                      >
+                        취소
+                      </button>
+                      <button
+                        onClick={saveMemo}
+                        disabled={memo === item.adminMemo}
+                        className={cn(
+                          "rounded-lg px-3 py-1 text-xs font-medium transition-colors",
+                          memo !== item.adminMemo
+                            ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                            : "cursor-not-allowed bg-slate-100 text-slate-400"
+                        )}
+                      >
+                        저장
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 타임스탬프 */}
+                  <div className="space-y-1 border-t border-slate-100 pt-3">
+                    <div className="flex justify-between text-[11px] text-slate-400">
+                      <span>신청일</span><span>{formatDate(item.createdAt)}</span>
+                    </div>
+                    <div className="flex justify-between text-[11px] text-slate-400">
+                      <span>최종 수정</span><span>{formatDate(item.updatedAt)}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* Related post */}
-              <div>
-                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">관련 콘텐츠</p>
-                <p className="text-sm font-medium leading-snug text-slate-800">{item.postTitle}</p>
-                <span className="mt-1 inline-block rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-500">
-                  {item.postCategory}
-                </span>
-              </div>
-
-              {/* Message */}
-              <div>
-                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">상담 내용</p>
-                <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-3 text-xs leading-relaxed text-slate-700">
-                  {item.message}
+              {/* 이전 이력 탭 */}
+              {activeTab === "history" && (
+                <div className="px-6 py-5">
+                  {historyCount === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <RiHistoryLine className="mb-3 h-10 w-10 text-slate-200" />
+                      <p className="text-sm text-slate-400">이전 상담 이력이 없습니다.</p>
+                      <p className="mt-1 text-xs text-slate-300">이 고객의 첫 번째 상담입니다.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="mb-4 text-xs text-slate-400">
+                        현재 상담을 제외한 <span className="font-semibold text-slate-600">{historyCount}건</span>의 이전 상담 이력입니다.
+                      </p>
+                      <ConsultationTimeline
+                        items={customerHistory}
+                        currentId={item.id}
+                        onSelect={(prev) => {
+                          onSelectItem(prev);
+                        }}
+                      />
+                    </>
+                  )}
                 </div>
-              </div>
-
-              {/* Admin memo */}
-              <div>
-                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">관리자 메모</p>
-                <textarea
-                  value={memo}
-                  onChange={(e) => setMemo(e.target.value)}
-                  rows={3}
-                  placeholder="내부용 메모를 입력하세요..."
-                  className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-700 placeholder:text-slate-300 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                />
-                <div className="mt-1.5 flex items-center justify-between">
-                  {memoSaved
-                    ? <span className="text-[11px] text-green-600">저장되었습니다.</span>
-                    : <span />}
-                  <button
-                    onClick={saveMemo}
-                    className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
-                  >
-                    메모 저장
-                  </button>
-                </div>
-              </div>
-
-              {/* Timestamps */}
-              <div className="space-y-1 border-t border-slate-100 pt-3">
-                <div className="flex justify-between text-[11px] text-slate-400">
-                  <span>신청일</span><span>{formatDate(item.createdAt)}</span>
-                </div>
-                <div className="flex justify-between text-[11px] text-slate-400">
-                  <span>최종 수정</span><span>{formatDate(item.updatedAt)}</span>
-                </div>
-              </div>
+              )}
             </div>
           </>
         )}
@@ -246,12 +469,32 @@ function DetailDrawer({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ConsultationsPage() {
+  const { showToast } = useToast();
   const [data, setData] = useState<Consultation[]>(MOCK_CONSULTATIONS);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ConsultStatus | "ALL">("ALL");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [selectedItem, setSelectedItem] = useState<Consultation | null>(null);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportStatusSet, setExportStatusSet] = useState<Set<ConsultStatus>>(
+    new Set(["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"])
+  );
+  const [selectedExportFields, setSelectedExportFields] = useState<Set<ExportFieldKey>>(new Set(ALL_EXPORT_KEYS));
+
+  // 이메일 기준 고객 그룹 맵 (이력 조회용)
+  const customerMap = useMemo(() => {
+    const map = new Map<string, Consultation[]>();
+    data.forEach((c) => {
+      const list = map.get(c.email) ?? [];
+      list.push(c);
+      map.set(c.email, list);
+    });
+    map.forEach((list) =>
+      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    );
+    return map;
+  }, [data]);
 
   const filtered = useMemo(() => {
     return data.filter((c) => {
@@ -271,41 +514,48 @@ export default function ConsultationsPage() {
   const pagedItems = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   const counts = useMemo(() => ({
-    all: data.length,
-    pending: data.filter((c) => c.status === "PENDING").length,
+    all:        data.length,
+    pending:    data.filter((c) => c.status === "PENDING").length,
     inProgress: data.filter((c) => c.status === "IN_PROGRESS").length,
-    completed: data.filter((c) => c.status === "COMPLETED").length,
+    completed:  data.filter((c) => c.status === "COMPLETED").length,
   }), [data]);
+
+  const exportData = data.filter((c) => exportStatusSet.has(c.status));
 
   const handleStatusChange = (id: string, status: ConsultStatus) => {
     const now = new Date().toISOString();
     setData((prev) => prev.map((c) => (c.id === id ? { ...c, status, updatedAt: now } : c)));
     setSelectedItem((prev) => (prev?.id === id ? { ...prev, status, updatedAt: now } : prev));
+    showToast(`상태가 "${STATUS_CONFIG[status].label}"(으)로 변경되었습니다.`);
   };
 
   const handleMemoChange = (id: string, adminMemo: string) => {
     const now = new Date().toISOString();
     setData((prev) => prev.map((c) => (c.id === id ? { ...c, adminMemo, updatedAt: now } : c)));
     setSelectedItem((prev) => (prev?.id === id ? { ...prev, adminMemo, updatedAt: now } : prev));
+    showToast("메모가 저장되었습니다.");
   };
 
-  const handleExport = () => {
-    const headers = ["ID", "이름", "이메일", "전화번호", "회사", "직책", "관련콘텐츠", "카테고리", "상태", "메모", "신청일"];
-    const rows = filtered.map((c) => [
-      c.id, c.name, c.email, c.phone, c.company, c.jobTitle,
-      c.postTitle, c.postCategory, STATUS_CONFIG[c.status].label,
-      c.adminMemo, formatDate(c.createdAt),
-    ]);
-    const csv = [headers, ...rows]
-      .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
-      .join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const handleConfirmExport = () => {
+    if (selectedExportFields.size === 0) return;
+    const orderedFields = ALL_EXPORT_KEYS.filter((k) => selectedExportFields.has(k));
+    const headers = orderedFields.map((k) => EXPORT_FIELDS.find((f) => f.key === k)!.label);
+    const rows = exportData.map((c) => orderedFields.map((k) => {
+      if (k === "status") return STATUS_CONFIG[c.status].label;
+      if (k === "createdAt") return formatDate(c.createdAt);
+      const v = String(c[k as keyof Consultation] ?? "");
+      return v.includes(",") || v.includes('"') || v.includes("\n") ? `"${v.replace(/"/g, '""')}"` : v;
+    }));
+    const csv = "\uFEFF" + [headers, ...rows].map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = `consultations_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+    setShowExportModal(false);
+    showToast(`${exportData.length}개 상담 데이터를 내보냈습니다.`);
   };
 
   return (
@@ -316,25 +566,36 @@ export default function ConsultationsPage() {
           <h2 className="text-xl font-bold text-slate-900">상담 관리</h2>
           <p className="mt-0.5 text-sm text-slate-500">콘텐츠를 통해 접수된 상담 신청을 관리합니다.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleExport}>
-          <RiDownloadLine className="mr-1.5 h-4 w-4" />
+        <button
+          onClick={() => setShowExportModal(true)}
+          className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+        >
+          <Download className="h-3.5 w-3.5" />
           CSV 내보내기
-        </Button>
+        </button>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-4">
         {[
-          { label: "전체", value: counts.all, color: "text-slate-700", bg: "bg-slate-50 border-slate-200" },
-          { label: "대기중", value: counts.pending, color: "text-amber-700", bg: "bg-amber-50 border-amber-200" },
-          { label: "처리중", value: counts.inProgress, color: "text-blue-700", bg: "bg-blue-50 border-blue-200" },
-          { label: "완료", value: counts.completed, color: "text-green-700", bg: "bg-green-50 border-green-200" },
-        ].map((card) => (
-          <div key={card.label} className={cn("rounded-xl border p-4", card.bg)}>
-            <p className="text-xs text-slate-500">{card.label}</p>
-            <p className={cn("mt-1 text-2xl font-bold", card.color)}>{card.value}</p>
-          </div>
-        ))}
+          { label: "전체 상담", value: counts.all,        icon: RiCustomerService2Line, bg: "bg-blue-50 border-blue-200",     color: "text-blue-600" },
+          { label: "대기중",    value: counts.pending,    icon: RiTimeLine,             bg: "bg-amber-50 border-amber-200",   color: "text-amber-600" },
+          { label: "처리중",    value: counts.inProgress, icon: RiRefreshLine,          bg: "bg-indigo-50 border-indigo-200", color: "text-indigo-600" },
+          { label: "완료",      value: counts.completed,  icon: RiCheckboxCircleLine,   bg: "bg-green-50 border-green-200",   color: "text-green-600" },
+        ].map((card) => {
+          const Icon = card.icon;
+          return (
+            <div key={card.label} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4">
+              <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border", card.bg)}>
+                <Icon className={cn("h-5 w-5", card.color)} />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">{card.label}</p>
+                <p className="text-2xl font-bold text-slate-900">{card.value}</p>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Filters */}
@@ -345,31 +606,25 @@ export default function ConsultationsPage() {
               key={s}
               onClick={() => { setStatusFilter(s); setPage(1); }}
               className={cn(
-                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
                 statusFilter === s ? "bg-indigo-600 text-white" : "text-slate-500 hover:text-slate-700"
               )}
             >
               {s === "ALL" ? "전체" : STATUS_CONFIG[s].label}
+              {s === "PENDING" && counts.pending > 0 && (
+                <span className="ml-1 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] text-white">
+                  {counts.pending}
+                </span>
+              )}
             </button>
           ))}
         </div>
-        <div className="relative ml-auto">
-          <RiSearchLine className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <Input
-            placeholder="이름, 이메일, 회사, 내용 검색"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="h-9 w-64 pl-8 text-sm"
-          />
-        </div>
-        {(search || statusFilter !== "ALL") && (
-          <button
-            onClick={() => { setSearch(""); setStatusFilter("ALL"); setPage(1); }}
-            className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs text-slate-400 transition-colors hover:text-slate-600"
-          >
-            <RiCloseLine className="h-3.5 w-3.5" /> 초기화
-          </button>
-        )}
+        <Input
+          placeholder="이름, 이메일, 회사, 내용 검색..."
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          className="ml-auto h-9 w-64 text-sm"
+        />
       </div>
 
       {/* Table */}
@@ -380,19 +635,26 @@ export default function ConsultationsPage() {
             <CountDisplay total={filtered.length} />
           </div>
           <select
-              value={pageSize}
-              onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
-              className="h-7 cursor-pointer rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-600 hover:border-slate-300 focus:outline-none"
-            >
-              <option value={10}>10개씩</option>
-              <option value={20}>20개씩</option>
-              <option value={30}>30개씩</option>
-              <option value={40}>40개씩</option>
-              <option value={50}>50개씩</option>
-            </select>
+            value={pageSize}
+            onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+            className="h-7 cursor-pointer rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-600 hover:border-slate-300 focus:outline-none"
+          >
+            <option value={10}>10개씩</option>
+            <option value={20}>20개씩</option>
+            <option value={30}>30개씩</option>
+            <option value={40}>40개씩</option>
+            <option value={50}>50개씩</option>
+          </select>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[700px] text-sm">
+          <table className="w-full min-w-[760px] table-fixed text-sm">
+            <colgroup>
+              <col className="w-[160px]" />
+              <col className="w-[150px]" />
+              <col className="w-[220px]" />
+              <col className="w-[90px]" />
+              <col className="w-[120px]" />
+            </colgroup>
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-left">
                 <th className="px-5 py-3 text-xs font-semibold text-slate-500">신청자</th>
@@ -400,13 +662,12 @@ export default function ConsultationsPage() {
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">관련 콘텐츠</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">상태</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">신청일</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500">처리</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {pagedItems.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-16 text-center text-sm text-slate-400">
+                  <td colSpan={5} className="py-16 text-center text-sm text-slate-400">
                     <RiCustomerService2Line className="mx-auto mb-3 h-10 w-10 opacity-20" />
                     검색 결과가 없습니다.
                   </td>
@@ -414,49 +675,47 @@ export default function ConsultationsPage() {
               ) : (
                 pagedItems.map((c) => {
                   const isCancelled = c.status === "CANCELLED";
+                  const consultCount = customerMap.get(c.email)?.length ?? 1;
                   return (
-                  <tr
-                    key={c.id}
-                    onClick={() => setSelectedItem(selectedItem?.id === c.id ? null : c)}
-                    className={cn(
-                      "cursor-pointer transition-colors hover:bg-slate-50",
-                      selectedItem?.id === c.id && "bg-indigo-50/60 hover:bg-indigo-50",
-                      isCancelled && "bg-slate-50/80 opacity-60"
-                    )}
-                  >
-                    <td className="px-5 py-3.5">
-                      <div className={cn("font-medium", isCancelled ? "text-slate-400" : "text-slate-800")}>{c.name}</div>
-                      <div className="text-xs text-slate-400">{c.email}</div>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className={cn(isCancelled ? "text-slate-400" : "text-slate-700")}>{c.company}</div>
-                      <div className="text-xs text-slate-400">{c.jobTitle}</div>
-                    </td>
-                    <td className="px-4 py-3.5 max-w-[200px]">
-                      <p className={cn("line-clamp-1", isCancelled ? "text-slate-400" : "text-slate-700")}>{c.postTitle}</p>
-                      <span className="inline-block mt-0.5 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-500">
-                        {c.postCategory}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 whitespace-nowrap">
-                      <StatusBadge status={c.status} />
-                    </td>
-                    <td className="px-4 py-3.5 text-xs text-slate-500 whitespace-nowrap">
-                      {formatDate(c.createdAt)}
-                    </td>
-                    <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
-                      <select
-                        value={c.status}
-                        onChange={(e) => handleStatusChange(c.id, e.target.value as ConsultStatus)}
-                        className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                      >
-                        <option value="PENDING">대기중</option>
-                        <option value="IN_PROGRESS">처리중</option>
-                        <option value="COMPLETED">완료</option>
-                        <option value="CANCELLED">취소</option>
-                      </select>
-                    </td>
-                  </tr>
+                    <tr
+                      key={c.id}
+                      onClick={() => setSelectedItem(selectedItem?.id === c.id ? null : c)}
+                      className={cn(
+                        "cursor-pointer transition-colors hover:bg-slate-50",
+                        selectedItem?.id === c.id && "bg-indigo-50/60 hover:bg-indigo-50",
+                        isCancelled && "opacity-60"
+                      )}
+                    >
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className={cn("font-medium", isCancelled ? "text-slate-400" : "text-slate-800")}>
+                            {c.name}
+                          </span>
+                          {consultCount > 1 && (
+                            <span className="rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-600">
+                              {consultCount}회
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-400">{c.email}</div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className={cn(isCancelled ? "text-slate-400" : "text-slate-700")}>{c.company}</div>
+                        <div className="text-xs text-slate-400">{c.jobTitle}</div>
+                      </td>
+                      <td className="overflow-hidden px-4 py-3.5">
+                        <p className={cn("line-clamp-1", isCancelled ? "text-slate-400" : "text-slate-700")}>{c.postTitle}</p>
+                        <span className="mt-0.5 inline-block rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-500">
+                          {c.postCategory}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <StatusBadge status={c.status} />
+                      </td>
+                      <td className="px-4 py-3.5 text-xs text-slate-500">
+                        {new Date(c.createdAt).toLocaleDateString("ko-KR")}
+                      </td>
+                    </tr>
                   );
                 })
               )}
@@ -464,18 +723,126 @@ export default function ConsultationsPage() {
           </table>
         </div>
         <div className="px-5 pb-4">
-          <PaginationBar total={filtered.length} page={page} pageSize={pageSize}
-            onPageChange={setPage} />
+          <PaginationBar total={filtered.length} page={page} pageSize={pageSize} onPageChange={setPage} />
         </div>
       </div>
 
-      {/* Slide-in drawer from right */}
+      {/* Detail Drawer */}
       <DetailDrawer
         item={selectedItem}
+        customerHistory={
+          selectedItem
+            ? (customerMap.get(selectedItem.email) ?? []).filter((c) => c.id !== selectedItem.id)
+            : []
+        }
         onClose={() => setSelectedItem(null)}
         onStatusChange={handleStatusChange}
         onMemoChange={handleMemoChange}
+        onSelectItem={(prev) => setSelectedItem(prev)}
       />
+
+      {/* CSV 내보내기 모달 */}
+      {showExportModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowExportModal(false); }}
+        >
+          <div className="w-full max-w-sm rounded-xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50">
+                  <Download className="h-4 w-4 text-indigo-600" />
+                </div>
+                <h3 className="text-sm font-semibold text-slate-900">CSV 내보내기 설정</h3>
+              </div>
+              <button onClick={() => setShowExportModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto px-5 py-4 space-y-4">
+              {/* 내보낼 대상 */}
+              <div>
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700">
+                    <input type="checkbox" className="h-3.5 w-3.5 accent-indigo-600"
+                      checked={exportStatusSet.size === 4}
+                      onChange={(e) => setExportStatusSet(
+                        e.target.checked ? new Set(["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"]) : new Set()
+                      )}
+                    />
+                    내보낼 대상 (전체 선택)
+                  </label>
+                  <span className="text-xs text-slate-400">{exportStatusSet.size}/4</span>
+                </div>
+                <div className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2.5">
+                  {(["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as ConsultStatus[]).map((s) => (
+                    <label key={s} className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" className="h-3.5 w-3.5 accent-indigo-600"
+                        checked={exportStatusSet.has(s)}
+                        onChange={() => setExportStatusSet((prev) => {
+                          const next = new Set(prev);
+                          next.has(s) ? next.delete(s) : next.add(s);
+                          return next;
+                        })}
+                      />
+                      <span className="text-xs text-slate-700">{STATUS_CONFIG[s].label}</span>
+                      <span className="text-xs text-slate-400">({data.filter((c) => c.status === s).length})</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-slate-500">
+                총 <span className="font-semibold text-indigo-600">{exportData.length}건</span>을 내보냅니다.
+              </p>
+              {/* 내보낼 필드 */}
+              <div>
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700">
+                    <input type="checkbox" className="h-3.5 w-3.5 accent-indigo-600"
+                      checked={selectedExportFields.size === ALL_EXPORT_KEYS.length}
+                      onChange={(e) => setSelectedExportFields(e.target.checked ? new Set(ALL_EXPORT_KEYS) : new Set())}
+                    />
+                    전체 선택
+                  </label>
+                  <span className="text-xs text-slate-400">{selectedExportFields.size}/{ALL_EXPORT_KEYS.length}</span>
+                </div>
+                <div className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2.5">
+                  {EXPORT_FIELDS.map(({ key, label }) => (
+                    <label key={key} className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" className="h-3.5 w-3.5 accent-indigo-600"
+                        checked={selectedExportFields.has(key)}
+                        onChange={() => setSelectedExportFields((prev) => {
+                          const next = new Set(prev);
+                          next.has(key) ? next.delete(key) : next.add(key);
+                          return next;
+                        })}
+                      />
+                      <span className="text-xs text-slate-700">{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3.5">
+              <button onClick={() => setShowExportModal(false)}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+                취소
+              </button>
+              <button onClick={handleConfirmExport}
+                disabled={selectedExportFields.size === 0 || exportStatusSet.size === 0}
+                className={cn(
+                  "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+                  selectedExportFields.size > 0 && exportStatusSet.size > 0
+                    ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                    : "cursor-not-allowed bg-slate-100 text-slate-400"
+                )}
+              >
+                내보내기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

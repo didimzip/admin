@@ -7,8 +7,11 @@ export type UserRole = "MEMBER" | "ADMIN";
 // Auth verification status
 export type AuthStatus = "NONE" | "PENDING" | "VERIFIED";
 
-// Company type (기업 유형)
-export type CompanyType = "스타트업" | "투자사" | "공공기관" | "전문직" | "기타";
+// Member status
+export type MemberStatus = "ACTIVE" | "SUSPENDED" | "WITHDRAWN";
+
+// Company / member type (회원 유형)
+export type CompanyType = "스타트업" | "투자사" | "공공기관" | "전문직" | "기타" | "일반 회원";
 
 // Document type for verification
 export type DocType = "BIZ_REG" | "CARD";
@@ -58,7 +61,9 @@ export interface UserWithProfile {
   provider: AuthProvider;
   role: UserRole;
   authStatus: AuthStatus;
+  status: MemberStatus;
   createdAt: string;
+  lastActivityAt: string;
   nickname: string;
   realName: string;
   companyType: CompanyType;
@@ -66,4 +71,11 @@ export interface UserWithProfile {
   position: string;
   jobCategory: string;
   hasBadge: boolean;
+  suspendedReason?: string;
+  documents?: Array<{
+    fileUrl: string;
+    docType: DocType;
+    status: DocStatus;
+    uploadedAt: string;
+  }>;
 }

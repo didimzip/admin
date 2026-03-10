@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       "닉네임",
       "실명",
       "이메일",
-      "기업유형",
+      "회원유형",
       "회사명",
       "직책",
       "직종",

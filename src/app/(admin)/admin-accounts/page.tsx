@@ -14,12 +14,15 @@ import {
   EyeOff,
   X,
   Users,
+  Pencil,
 } from "lucide-react";
 import { useToast } from "@/lib/toast-context";
+import { recordLog } from "@/lib/audit-log-store";
 import {
   getAllAdmins,
   createAdmin,
   updateAdmin,
+  updateAdminInfo,
   resetAdminPassword,
   verifyAdminPassword,
   deleteAdmins,
@@ -76,6 +79,92 @@ function RoleBadge({ role }: { role: AdminRole }) {
       <UserCog className="h-3 w-3" />
       운영관리자
     </span>
+  );
+}
+
+// ─── 이름/이메일 수정 모달 ────────────────────────────────────────────────────
+
+function EditInfoModal({
+  target,
+  onClose,
+  onConfirm,
+}: {
+  target: AdminAccount;
+  onClose: () => void;
+  onConfirm: (patch: { name: string; email: string }) => void;
+}) {
+  const isProtected = target.email === PROTECTED_EMAIL;
+  const [name, setName] = useState(target.name);
+  const [email, setEmail] = useState(target.email);
+  const [error, setError] = useState("");
+
+  const noChanges =
+    name.trim() === target.name.trim() &&
+    email.trim() === target.email.trim();
+
+  const handleSubmit = () => {
+    if (noChanges) return;
+    if (!name.trim()) { setError("이름을 입력해주세요."); return; }
+    if (!email.trim() || !email.includes("@")) { setError("올바른 이메일을 입력해주세요."); return; }
+    onConfirm({ name: name.trim(), email: email.trim() });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="w-full max-w-sm rounded-xl bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <h2 className="text-sm font-semibold text-slate-900">계정 정보 수정</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="space-y-3 px-5 py-4">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-600">이름</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => { setName(e.target.value); setError(""); }}
+              onKeyDown={handleKeyDown}
+              autoFocus
+              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm focus:border-indigo-400 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-600">이메일</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setError(""); }}
+              onKeyDown={handleKeyDown}
+              disabled={isProtected}
+              className={cn(
+                "h-9 w-full rounded-lg border border-slate-200 px-3 text-sm focus:border-indigo-400 focus:outline-none",
+                isProtected ? "bg-slate-50 text-slate-400 cursor-not-allowed" : "bg-white"
+              )}
+            />
+            {isProtected && <p className="mt-1 text-[11px] text-slate-400">보호된 계정은 이메일을 변경할 수 없습니다.</p>}
+          </div>
+          {error && <p className="text-xs text-red-500">{error}</p>}
+          <div className="flex justify-end gap-2 pt-1">
+            <button onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">취소</button>
+            <button
+              onClick={handleSubmit}
+              disabled={noChanges || !name.trim()}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed"
+            >
+              저장
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -138,7 +227,8 @@ function ResetPasswordModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -171,7 +261,7 @@ function ResetPasswordModal({
                 className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-9 text-sm focus:border-indigo-400 focus:outline-none"
               />
               <button type="button" onClick={() => setShowCurrentPw((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                {showCurrentPw ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                {showCurrentPw ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
               </button>
             </div>
           </div>
@@ -190,7 +280,7 @@ function ResetPasswordModal({
                 className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-9 text-sm focus:border-indigo-400 focus:outline-none"
               />
               <button type="button" onClick={() => setShowNewPw((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                {showNewPw ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                {showNewPw ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
               </button>
             </div>
             <PasswordRuleCheck password={newPw} />
@@ -215,7 +305,7 @@ function ResetPasswordModal({
                 )}
               />
               <button type="button" onClick={() => setShowConfirmPw((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                {showConfirmPw ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                {showConfirmPw ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
               </button>
             </div>
             {confirmPw && !isMatch && (
@@ -313,7 +403,8 @@ function AddAdminPanel({
     }
 
     const passwordToUse = password.trim() || DEFAULT_PASSWORD;
-    createAdmin({ name: name.trim(), email: email.trim(), role, password: passwordToUse }, currentAdminId);
+    const newAdmin = createAdmin({ name: name.trim(), email: email.trim(), role, password: passwordToUse }, currentAdminId);
+    recordLog("ADMIN_CREATE", `관리자 계정 생성: ${newAdmin.name} (${newAdmin.email}, ${role === "SUPER_ADMIN" ? "슈퍼관리자" : "운영관리자"})`, { targetType: "admin", targetId: newAdmin.id });
     onAdded();
     onClose();
   }
@@ -387,7 +478,7 @@ function AddAdminPanel({
               onClick={() => setShowPw((v) => !v)}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
             >
-              {showPw ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              {showPw ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
             </button>
           </div>
           <PasswordRuleCheck password={password} />
@@ -425,6 +516,7 @@ export default function AdminAccountsPage() {
   const [admins, setAdmins] = useState<AdminAccount[]>(() => getAllAdmins());
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [resetTarget, setResetTarget] = useState<AdminAccount | null>(null);
+  const [editTarget, setEditTarget] = useState<AdminAccount | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -454,7 +546,9 @@ export default function AdminAccountsPage() {
 
   const handleDeleteSelected = () => {
     const count = selectedIds.size;
+    const deletedNames = admins.filter((a) => selectedIds.has(a.id)).map((a) => a.name).join(", ");
     deleteAdmins([...selectedIds]);
+    recordLog("ADMIN_DELETE", `관리자 계정 삭제 (${count}명): ${deletedNames}`, { targetType: "admin" });
     setSelectedIds(new Set());
     setIsEditing(false);
     refresh();
@@ -462,9 +556,13 @@ export default function AdminAccountsPage() {
   };
 
   const handleDeleteAll = () => {
-    const ids = admins.filter(isDeletable).map((a) => a.id);
+    const deletable = admins.filter(isDeletable);
+    const ids = deletable.map((a) => a.id);
     const count = ids.length;
+    if (!window.confirm(`삭제 가능한 계정 ${count}개를 모두 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+    const deletedNames = deletable.map((a) => a.name).join(", ");
     deleteAdmins(ids);
+    recordLog("ADMIN_DELETE", `관리자 계정 전체 삭제 (${count}명): ${deletedNames}`, { targetType: "admin" });
     setSelectedIds(new Set());
     setIsEditing(false);
     refresh();
@@ -587,7 +685,17 @@ export default function AdminAccountsPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[700px] text-sm">
+          <table className="w-full min-w-[900px] table-fixed text-sm">
+            <colgroup>
+              {isEditing && <col className="w-10" />}
+              <col className="w-[160px]" />
+              <col className="w-[170px]" />
+              <col className="w-[110px]" />
+              <col className="w-[80px]" />
+              <col className="w-[130px]" />
+              <col className="w-[100px]" />
+              {!isEditing && <col className="w-[150px]" />}
+            </colgroup>
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-left">
                 {isEditing && (
@@ -640,22 +748,22 @@ export default function AdminAccountsPage() {
                         )}
                       </td>
                     )}
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-slate-800">{admin.name}</span>
+                    <td className="px-5 py-3.5 overflow-hidden">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <span className="min-w-0 truncate font-medium text-slate-800">{admin.name}</span>
                         {isSelf && (
-                          <span className="rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-medium text-indigo-600">
+                          <span className="shrink-0 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-medium text-indigo-600">
                             나
                           </span>
                         )}
                         {admin.email === PROTECTED_EMAIL && (
-                          <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                          <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
                             보호됨
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3.5 text-slate-600">{admin.email}</td>
+                    <td className="px-4 py-3.5 overflow-hidden text-slate-600"><div className="truncate">{admin.email}</div></td>
                     <td className="px-4 py-3.5">
                       <RoleBadge role={admin.role} />
                     </td>
@@ -693,6 +801,7 @@ export default function AdminAccountsPage() {
                               const newRole: AdminRole =
                                 admin.role === "SUPER_ADMIN" ? "OPERATOR" : "SUPER_ADMIN";
                               updateAdmin(admin.id, { role: newRole });
+                              recordLog("ADMIN_ROLE_CHANGE", `${admin.name} 역할 변경: ${admin.role === "SUPER_ADMIN" ? "슈퍼관리자 → 운영관리자" : "운영관리자 → 슈퍼관리자"}`, { targetType: "admin", targetId: admin.id });
                               refresh();
                               showToast(newRole === "SUPER_ADMIN" ? `${admin.name}을(를) 슈퍼관리자로 변경했습니다.` : `${admin.name}을(를) 운영관리자로 변경했습니다.`);
                             }}
@@ -709,6 +818,7 @@ export default function AdminAccountsPage() {
                             onClick={() => {
                               const newStatus = admin.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
                               updateAdmin(admin.id, { status: newStatus });
+                              recordLog("ADMIN_STATUS_CHANGE", `${admin.name} 계정 ${newStatus === "ACTIVE" ? "활성화" : "비활성화"}`, { targetType: "admin", targetId: admin.id });
                               refresh();
                               showToast(newStatus === "ACTIVE" ? `${admin.name} 계정을 활성화했습니다.` : `${admin.name} 계정을 비활성화했습니다.`);
                             }}
@@ -725,6 +835,15 @@ export default function AdminAccountsPage() {
                               : <Power className="h-3.5 w-3.5" />}
                           </button>
                         )}
+
+                        {/* 정보 수정 */}
+                        <button
+                          onClick={() => setEditTarget(admin)}
+                          title="이름/이메일 수정"
+                          className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
 
                         {/* 비밀번호 변경 */}
                         <button
@@ -744,6 +863,23 @@ export default function AdminAccountsPage() {
         </div>
       </div>
 
+      {/* 이름/이메일 수정 모달 */}
+      {editTarget && (
+        <EditInfoModal
+          target={editTarget}
+          onClose={() => setEditTarget(null)}
+          onConfirm={(patch) => {
+            const isSelf = editTarget.id === session?.adminId;
+            updateAdminInfo(editTarget.id, patch);
+            recordLog("ADMIN_INFO_UPDATE", `${editTarget.name} 계정 정보 수정${patch.name !== editTarget.name ? ` (이름: ${editTarget.name} → ${patch.name})` : ""}${patch.email !== editTarget.email ? ` (이메일: ${editTarget.email} → ${patch.email})` : ""}`, { targetType: "admin", targetId: editTarget.id });
+            setEditTarget(null);
+            refresh();
+            showToast("계정 정보가 수정되었습니다.");
+            if (isSelf) setTimeout(() => window.location.reload(), 1500);
+          }}
+        />
+      )}
+
       {/* 비밀번호 변경/초기화 모달 */}
       {resetTarget && (
         <ResetPasswordModal
@@ -752,12 +888,15 @@ export default function AdminAccountsPage() {
           onClose={() => setResetTarget(null)}
           onConfirm={(newPw) => {
             resetAdminPassword(resetTarget.id, newPw);
+            const isSelf = resetTarget.id === session.adminId;
+            recordLog("ADMIN_PW_RESET", `${resetTarget.name} 비밀번호 변경${isSelf ? " (본인)" : ""}`, { targetType: "admin", targetId: resetTarget.id });
             setResetTarget(null);
             refresh();
             showToast("비밀번호가 변경되었습니다.");
           }}
           onForceReset={() => {
             resetAdminPassword(resetTarget.id, DEFAULT_RESET_PASSWORD);
+            recordLog("ADMIN_PW_RESET", `${resetTarget.name} 비밀번호 기본값 초기화`, { targetType: "admin", targetId: resetTarget.id });
             setResetTarget(null);
             refresh();
             showToast(`${resetTarget.name} 계정의 비밀번호를 초기화했습니다.`);
