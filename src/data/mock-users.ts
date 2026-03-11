@@ -40,6 +40,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "대표이사",
     jobCategory: "IT/소프트웨어",
     hasBadge: true,
+    phone: "010-2345-0001",
+    marketingConsent: true,
     documents: [
       { fileUrl: "https://storage.didimzip.kr/docs/usr_001/biz_reg_20260116.pdf", docType: "BIZ_REG", status: "APPROVED", uploadedAt: "2026-01-16T10:00:00Z" },
     ],
@@ -60,6 +62,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "CTO",
     jobCategory: "IT/소프트웨어",
     hasBadge: true,
+    phone: "010-8765-0002",
+    marketingConsent: true,
     documents: [
       { fileUrl: "https://storage.didimzip.kr/docs/usr_002/biz_reg_20260121.pdf", docType: "BIZ_REG", status: "APPROVED", uploadedAt: "2026-01-21T09:00:00Z" },
       { fileUrl: "https://storage.didimzip.kr/docs/usr_002/card_20260121.jpg", docType: "CARD", status: "APPROVED", uploadedAt: "2026-01-21T09:05:00Z" },
@@ -98,6 +102,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "팀장",
     jobCategory: "IT/소프트웨어",
     hasBadge: false,
+    phone: "010-5432-0004",
+    marketingConsent: false,
     suspendedReason: "서비스 이용약관 위반 (스팸성 게시글 반복 작성)",
     documents: [
       { fileUrl: "https://storage.didimzip.kr/docs/usr_004/biz_reg_20260206.pdf", docType: "BIZ_REG", status: "PENDING", uploadedAt: "2026-02-06T11:00:00Z" },
@@ -119,6 +125,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "리드개발자",
     jobCategory: "IT/소프트웨어",
     hasBadge: true,
+    phone: "010-1111-0005",
+    marketingConsent: true,
     documents: [
       { fileUrl: "https://storage.didimzip.kr/docs/usr_005/biz_reg_20260211.pdf", docType: "BIZ_REG", status: "APPROVED", uploadedAt: "2026-02-11T08:00:00Z" },
     ],
@@ -158,6 +166,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "파트너",
     jobCategory: "금융/투자",
     hasBadge: true,
+    phone: "010-3333-0007",
+    marketingConsent: true,
     documents: [
       { fileUrl: "https://storage.didimzip.kr/docs/usr_007/biz_reg_20260106.pdf", docType: "BIZ_REG", status: "APPROVED", uploadedAt: "2026-01-06T09:30:00Z" },
       { fileUrl: "https://storage.didimzip.kr/docs/usr_007/card_20260106.jpg", docType: "CARD", status: "APPROVED", uploadedAt: "2026-01-06T09:35:00Z" },
@@ -179,6 +189,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "심사역",
     jobCategory: "금융/투자",
     hasBadge: true,
+    phone: "010-4444-0008",
+    marketingConsent: true,
     documents: [
       { fileUrl: "https://storage.didimzip.kr/docs/usr_008/biz_reg_20260113.pdf", docType: "BIZ_REG", status: "APPROVED", uploadedAt: "2026-01-13T10:00:00Z" },
     ],
@@ -216,6 +228,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "이사",
     jobCategory: "컨설팅",
     hasBadge: false,
+    phone: "010-5555-0010",
+    marketingConsent: false,
     suspendedReason: "허위 정보 등록 (회사명 및 직책 허위 기재)",
     documents: [
       { fileUrl: "https://storage.didimzip.kr/docs/usr_010/card_20260204.jpg", docType: "CARD", status: "PENDING", uploadedAt: "2026-02-04T14:00:00Z" },
@@ -237,6 +251,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "애널리스트",
     jobCategory: "금융/투자",
     hasBadge: true,
+    phone: "010-6666-0011",
+    marketingConsent: true,
     documents: [
       { fileUrl: "https://storage.didimzip.kr/docs/usr_011/biz_reg_20260221.pdf", docType: "BIZ_REG", status: "APPROVED", uploadedAt: "2026-02-21T09:00:00Z" },
     ],
@@ -259,6 +275,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "사무관",
     jobCategory: "공공/행정",
     hasBadge: true,
+    phone: "010-7777-0012",
+    marketingConsent: true,
     documents: [
       { fileUrl: "https://storage.didimzip.kr/docs/usr_012/card_20260109.jpg", docType: "CARD", status: "APPROVED", uploadedAt: "2026-01-09T09:00:00Z" },
     ],
@@ -279,6 +297,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "연구원",
     jobCategory: "공공/행정",
     hasBadge: true,
+    phone: "010-8888-0013",
+    marketingConsent: true,
     documents: [
       { fileUrl: "https://storage.didimzip.kr/docs/usr_013/card_20260119.jpg", docType: "CARD", status: "APPROVED", uploadedAt: "2026-01-19T11:00:00Z" },
     ],
@@ -316,6 +336,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "과장",
     jobCategory: "마케팅",
     hasBadge: false,
+    phone: "010-9999-0015",
+    marketingConsent: false,
     suspendedReason: "타 회원 신고 접수 (부적절한 메시지 반복 발송)",
     documents: [
       { fileUrl: "https://storage.didimzip.kr/docs/usr_015/card_20260213.jpg", docType: "CARD", status: "PENDING", uploadedAt: "2026-02-13T10:00:00Z" },
@@ -337,6 +359,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "선임연구원",
     jobCategory: "컨설팅",
     hasBadge: true,
+    phone: "010-1234-0016",
+    marketingConsent: true,
     documents: [
       { fileUrl: "https://storage.didimzip.kr/docs/usr_016/card_20260226.jpg", docType: "CARD", status: "APPROVED", uploadedAt: "2026-02-26T09:00:00Z" },
     ],
@@ -359,6 +383,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "변호사",
     jobCategory: "법률",
     hasBadge: true,
+    phone: "010-2222-0017",
+    marketingConsent: true,
     documents: [
       { fileUrl: "https://storage.didimzip.kr/docs/usr_017/biz_reg_20260111.pdf", docType: "BIZ_REG", status: "APPROVED", uploadedAt: "2026-01-11T10:00:00Z" },
       { fileUrl: "https://storage.didimzip.kr/docs/usr_017/card_20260111.jpg", docType: "CARD", status: "APPROVED", uploadedAt: "2026-01-11T10:05:00Z" },
@@ -380,6 +406,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "세무사",
     jobCategory: "회계/세무",
     hasBadge: true,
+    phone: "010-3456-0018",
+    marketingConsent: true,
     documents: [
       { fileUrl: "https://storage.didimzip.kr/docs/usr_018/biz_reg_20260123.pdf", docType: "BIZ_REG", status: "APPROVED", uploadedAt: "2026-01-23T09:00:00Z" },
     ],
@@ -400,6 +428,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "컨설턴트",
     jobCategory: "컨설팅",
     hasBadge: false,
+    phone: "010-4567-0019",
+    marketingConsent: false,
     suspendedReason: "계정 도용 의심 (비정상적인 로그인 패턴 감지)",
   },
   {
@@ -418,6 +448,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "변리사",
     jobCategory: "법률",
     hasBadge: false,
+    phone: "010-5678-0020",
+    marketingConsent: true,
     documents: [
       { fileUrl: "https://storage.didimzip.kr/docs/usr_020/biz_reg_20260215.pdf", docType: "BIZ_REG", status: "PENDING", uploadedAt: "2026-02-15T10:00:00Z" },
     ],
@@ -438,6 +470,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "공인회계사",
     jobCategory: "회계/세무",
     hasBadge: true,
+    phone: "010-6789-0021",
+    marketingConsent: true,
     documents: [
       { fileUrl: "https://storage.didimzip.kr/docs/usr_021/biz_reg_20260219.pdf", docType: "BIZ_REG", status: "APPROVED", uploadedAt: "2026-02-19T09:00:00Z" },
       { fileUrl: "https://storage.didimzip.kr/docs/usr_021/card_20260219.jpg", docType: "CARD", status: "APPROVED", uploadedAt: "2026-02-19T09:10:00Z" },
@@ -478,6 +512,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "교수",
     jobCategory: "기타",
     hasBadge: true,
+    phone: "010-7890-0023",
+    marketingConsent: true,
     documents: [
       { fileUrl: "https://storage.didimzip.kr/docs/usr_023/card_20260207.jpg", docType: "CARD", status: "APPROVED", uploadedAt: "2026-02-07T14:00:00Z" },
     ],
@@ -515,6 +551,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "사무국장",
     jobCategory: "HR/인사",
     hasBadge: false,
+    phone: "010-8901-0025",
+    marketingConsent: true,
     documents: [
       { fileUrl: "https://storage.didimzip.kr/docs/usr_025/card_20260223.jpg", docType: "CARD", status: "PENDING", uploadedAt: "2026-02-23T09:00:00Z" },
     ],
@@ -535,6 +573,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "대표",
     jobCategory: "디자인",
     hasBadge: true,
+    phone: "010-9012-0026",
+    marketingConsent: true,
     documents: [
       { fileUrl: "https://storage.didimzip.kr/docs/usr_026/biz_reg_20260302.pdf", docType: "BIZ_REG", status: "APPROVED", uploadedAt: "2026-03-02T10:00:00Z" },
     ],
@@ -557,6 +597,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "",
     jobCategory: "기타",
     hasBadge: false,
+    phone: "010-0123-0027",
+    marketingConsent: true,
   },
   {
     id: "usr_028",
@@ -574,6 +616,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "",
     jobCategory: "기타",
     hasBadge: false,
+    phone: "010-1357-0028",
+    marketingConsent: false,
   },
   {
     id: "usr_029",
@@ -612,6 +656,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "공동창업자",
     jobCategory: "IT/소프트웨어",
     hasBadge: true,
+    phone: "010-2468-0030",
+    marketingConsent: true,
     documents: [
       { fileUrl: "https://storage.didimzip.kr/docs/usr_030/biz_reg_20260303.pdf", docType: "BIZ_REG", status: "APPROVED", uploadedAt: "2026-03-03T10:00:00Z" },
       { fileUrl: "https://storage.didimzip.kr/docs/usr_030/card_20260303.jpg", docType: "CARD", status: "APPROVED", uploadedAt: "2026-03-03T10:10:00Z" },
@@ -635,6 +681,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "변호사",
     jobCategory: "법률",
     hasBadge: false,
+    phone: "010-3579-0031",
+    marketingConsent: true,
     documents: [
       { fileUrl: "https://storage.didimzip.kr/docs/usr_031/biz_reg_20260305.pdf", docType: "BIZ_REG", status: "PENDING", uploadedAt: "2026-03-05T09:00:00Z" },
     ],
@@ -657,6 +705,8 @@ export const mockUsers: UserWithProfile[] = [
     position: "UX 디자이너",
     jobCategory: "디자인",
     hasBadge: false,
+    phone: "010-4680-0032",
+    marketingConsent: false,
     documents: [
       { fileUrl: "https://storage.didimzip.kr/docs/usr_032/card_20260307.jpg", docType: "CARD", status: "REJECTED", uploadedAt: "2026-03-07T09:00:00Z" },
     ],

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Send, FileText, Mail, MessageCircle, Plus, Search, SquarePen } from "lucide-react";
+import { Send, FileText, Mail, MessageCircle, MessageSquare, Plus, Search, SquarePen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getAllCampaigns, deleteCampaign, type StoredCampaign } from "@/lib/campaign-store";
@@ -21,7 +21,8 @@ const statusConfig: Record<CampaignStatus, { label: string; variant: "success" |
 
 const channelConfig: Record<CampaignChannel, { label: string; icon: typeof Mail }> = {
   EMAIL: { label: "이메일", icon: Mail },
-  ALIMTALK: { label: "알림톡", icon: MessageCircle },
+  BRANDMSG: { label: "브랜드 메시지", icon: MessageCircle },
+  SMS: { label: "문자", icon: MessageSquare },
   PUSH: { label: "푸시", icon: Send },
 };
 
@@ -134,7 +135,7 @@ export default function CampaignsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-slate-900">마케팅 발송</h2>
-          <p className="mt-0.5 text-sm text-slate-500">타겟 회원에게 이메일·알림톡·푸시를 발송하고 성과를 분석합니다.</p>
+          <p className="mt-0.5 text-sm text-slate-500">타겟 회원에게 이메일·문자·브랜드 메시지·푸시를 발송하고 성과를 분석합니다.</p>
         </div>
         <Button
           size="sm"
@@ -253,12 +254,12 @@ export default function CampaignsPage() {
           )}
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1060px] table-fixed text-sm">
+          <table className="w-full min-w-[1080px] table-fixed text-sm">
             <colgroup>
               {isEditing && <col className="w-[44px]" />}
-              <col className="w-[200px]" />
-              <col className="w-[80px]" />
-              <col className="w-[150px]" />
+              <col className="w-[170px]" />
+              <col className="w-[130px]" />
+              <col className="w-[130px]" />
               <col className="w-[75px]" />
               <col className="w-[75px]" />
               <col className="w-[65px]" />
@@ -297,7 +298,7 @@ export default function CampaignsPage() {
               ) : (
                 paginated.map((camp) => {
                   const sc = statusConfig[camp.status];
-                  const ch = channelConfig[camp.channel];
+                  const ch = channelConfig[camp.channel] ?? channelConfig.EMAIL;
                   const ChIcon = ch.icon;
                   const filterParts = getFilterDisplayParts(camp.targetFilter);
                   const isSelected = selectedIds.has(camp.id);

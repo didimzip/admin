@@ -28,6 +28,9 @@ import {
   RiArrowRightDoubleLine,
   RiApps2Line,
   RiAdminLine,
+  RiUserStarLine,
+  RiQuestionAnswerLine,
+  RiGroupLine,
 } from "react-icons/ri";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -71,6 +74,14 @@ const menuGroups: MenuGroup[] = [
       { icon: RiApps2Line, label: "카테고리 관리", href: "/categories" },
       { icon: RiMessage2Line, label: "댓글/신고 관리", href: "/comments" },
       { icon: RiCustomerService2Line, label: "상담 관리", href: "/consultations" },
+    ],
+  },
+  {
+    label: "멘토링 및 커뮤니티",
+    items: [
+      { icon: RiUserStarLine, label: "멘토 관리", href: "/mentors" },
+      { icon: RiQuestionAnswerLine, label: "멘토 Q&A", href: "/mentor-qna" },
+      { icon: RiGroupLine, label: "스터디 관리", href: "/studies" },
     ],
   },
   {

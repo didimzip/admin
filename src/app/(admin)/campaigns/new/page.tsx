@@ -7,6 +7,7 @@ import {
   Check,
   Mail,
   MessageCircle,
+  MessageSquare,
   Send,
   Calendar,
   ChevronRight,
@@ -14,6 +15,11 @@ import {
   Save,
   Eye,
   X,
+  Smartphone,
+  CheckCircle2,
+  Loader2,
+  Lock,
+  Info,
 } from "lucide-react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -42,12 +48,15 @@ import {
   upsertCampaign,
   computeTargetCount,
   getTargetUsers,
+  getTargetUsersForSms,
+  computeTargetCountForSms,
   getCampaign,
   getAllCampaigns,
   deleteCampaign,
   type StoredCampaign,
   type CampaignTargetFilter,
 } from "@/lib/campaign-store";
+import { getSystemSettings, isBrandMsgEnabled } from "@/lib/system-settings-store";
 import { getSession } from "@/lib/auth-store";
 import { COMPANY_TYPES, JOB_CATEGORIES } from "@/data/mock-users";
 import { useToast } from "@/lib/toast-context";
@@ -56,6 +65,14 @@ import type { AuthStatus } from "@/types/user";
 import type { CampaignChannel } from "@/data/mock-data";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+type BrandMsgType = "U_FT" | "U_FI" | "U_FW";
+type SmsSubType = "SMS" | "LMS" | "MMS";
+
+type BrandMsgButton = {
+  name: string;
+  url: string;
+};
 
 type FormData = {
   title: string;
@@ -66,6 +83,13 @@ type FormData = {
   sendType: "IMMEDIATE" | "SCHEDULED";
   scheduledDate: string;
   scheduledTime: string;
+  brandMsgType: BrandMsgType;
+  brandMsgImageData: string;
+  brandMsgButtons: BrandMsgButton[];
+  smsSubType: SmsSubType;
+  smsImageData: string;
+  smsTestOnly: boolean;
+  smsTestPhone: string;
 };
 
 const INITIAL_FORM: FormData = {
@@ -77,6 +101,13 @@ const INITIAL_FORM: FormData = {
   sendType: "IMMEDIATE",
   scheduledDate: "",
   scheduledTime: "09:00",
+  brandMsgType: "U_FT",
+  brandMsgImageData: "",
+  brandMsgButtons: [],
+  smsSubType: "SMS",
+  smsImageData: "",
+  smsTestOnly: false,
+  smsTestPhone: "",
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -93,9 +124,12 @@ const CHANNEL_OPTIONS: {
   label: string;
   icon: typeof Mail;
   desc: string;
+  disabled?: boolean;
+  disabledReason?: string;
 }[] = [
   { value: "EMAIL", label: "이메일", icon: Mail, desc: "HTML/텍스트 뉴스레터" },
-  { value: "ALIMTALK", label: "알림톡", icon: MessageCircle, desc: "카카오 알림톡" },
+  { value: "BRANDMSG", label: "브랜드 메시지", icon: MessageCircle, desc: "카카오톡 채널 마케팅 메시지", disabled: true, disabledReason: "카카오톡 채널 친구 5만 이상 시 사용 가능" },
+  { value: "SMS", label: "문자", icon: MessageSquare, desc: "SMS/LMS/MMS 문자 발송" },
   { value: "PUSH", label: "푸시", icon: Send, desc: "앱 푸시 알림" },
 ];
 
@@ -112,6 +146,36 @@ const BADGE_OPTIONS: { value: boolean | null; label: string }[] = [
   { value: false, label: "뱃지 없음" },
 ];
 
+// ─── SMS Helpers ──────────────────────────────────────────────────────────────
+
+function getByteLength(str: string): number {
+  let bytes = 0;
+  for (let i = 0; i < str.length; i++) {
+    bytes += str.charCodeAt(i) > 127 ? 2 : 1;
+  }
+  return bytes;
+}
+
+function getAutoSmsType(msg: string, hasImage: boolean): SmsSubType {
+  if (hasImage) return "MMS";
+  return getByteLength(msg) > 90 ? "LMS" : "SMS";
+}
+
+function getSmsCost(type: SmsSubType): number {
+  switch (type) {
+    case "SMS": return 13;
+    case "LMS": return 29;
+    case "MMS": return 60;
+  }
+}
+
+function formatPhone(value: string): string {
+  const d = value.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 7) return `${d.slice(0, 3)}-${d.slice(3)}`;
+  return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
+}
+
 // ─── Validation ───────────────────────────────────────────────────────────────
 
 function validateStep(step: number, form: FormData): Record<string, string> {
@@ -122,10 +186,19 @@ function validateStep(step: number, form: FormData): Record<string, string> {
   if (step === 3) {
     if (form.channel === "EMAIL") {
       if (!form.message.subject.trim()) errors.subject = "이메일 제목을 입력해주세요.";
-      if (!form.message.body.trim()) errors.body = "이메일 본문을 입력해주세요.";
-    } else if (form.channel === "ALIMTALK") {
-      if (!form.message.body.trim()) errors.body = "알림톡 내용을 입력해주세요.";
-      if (form.message.body.length > 1000) errors.body = "1000자 이내로 작성해주세요.";
+      const hasImage = form.message.body.includes("<img");
+      const bodyText = form.message.body.replace(/<[^>]*>/g, "").trim();
+      if (!bodyText && !hasImage) errors.body = "이메일 본문을 입력해주세요.";
+    } else if (form.channel === "BRANDMSG") {
+      if (!form.message.body.trim()) errors.body = "브랜드 메시지 내용을 입력해주세요.";
+      const maxLen = form.brandMsgType === "U_FT" ? 400 : 76;
+      if (form.message.body.length > maxLen) errors.body = `${maxLen}자 이내로 작성해주세요.`;
+    } else if (form.channel === "SMS") {
+      if (!form.message.body.trim()) errors.body = "문자 메시지 내용을 입력해주세요.";
+      if (form.smsSubType === "MMS" && !form.smsImageData) errors.smsImage = "MMS 이미지를 업로드해주세요.";
+      if ((form.smsSubType === "LMS" || form.smsSubType === "MMS") && !form.message.subject.trim()) {
+        errors.subject = "LMS/MMS 제목을 입력해주세요.";
+      }
     } else if (form.channel === "PUSH") {
       if (!form.message.subject.trim()) errors.subject = "알림 제목을 입력해주세요.";
       if (form.message.subject.length > 50) errors.subject = "제목은 50자 이내여야 합니다.";
@@ -142,6 +215,52 @@ function validateStep(step: number, form: FormData): Record<string, string> {
     }
   }
   return errors;
+}
+
+/** 현재 스텝의 필수 항목이 모두 채워졌는지 실시간 체크 (버튼 비활성화 용) */
+function isStepComplete(step: number, form: FormData, targetCount?: number): boolean {
+  if (step === 1) {
+    return !!form.title.trim();
+  }
+  if (step === 2) {
+    // 타겟 설정: 필수 없음, 항상 통과
+    return true;
+  }
+  if (step === 3) {
+    if (form.channel === "EMAIL") {
+      const hasImage = form.message.body.includes("<img");
+      const bodyText = form.message.body.replace(/<[^>]*>/g, "").trim();
+      return !!form.message.subject.trim() && (!!bodyText || hasImage);
+    }
+    if (form.channel === "BRANDMSG") {
+      const maxLen = form.brandMsgType === "U_FT" ? 400 : 76;
+      return !!form.message.body.trim() && form.message.body.length <= maxLen;
+    }
+    if (form.channel === "SMS") {
+      if (!form.message.body.trim()) return false;
+      if (form.smsSubType === "MMS" && !form.smsImageData) return false;
+      if ((form.smsSubType === "LMS" || form.smsSubType === "MMS") && !form.message.subject.trim()) return false;
+      return true;
+    }
+    if (form.channel === "PUSH") {
+      return (
+        !!form.message.subject.trim() &&
+        form.message.subject.length <= 50 &&
+        !!form.message.body.trim() &&
+        form.message.body.length <= 200
+      );
+    }
+  }
+  if (step === 4) {
+    if ((targetCount ?? 0) === 0) return false;
+    if (form.sendType === "SCHEDULED") {
+      if (!form.scheduledDate) return false;
+      const dt = new Date(`${form.scheduledDate}T${form.scheduledTime || "09:00"}`);
+      if (dt <= new Date()) return false;
+    }
+    return true;
+  }
+  return true;
 }
 
 // ─── Email Rich Editor ────────────────────────────────────────────────────────
@@ -266,6 +385,26 @@ function EmailBodyEditor({
         reader.readAsDataURL(file);
         return true;
       },
+      handleDOMEvents: {
+        dragenter(_view, event) { event.preventDefault(); return true; },
+        dragover(_view, event) { event.preventDefault(); if (event.dataTransfer) event.dataTransfer.dropEffect = "copy"; return true; },
+        drop(view, event) {
+          const files = event.dataTransfer?.files;
+          if (!files?.length) return false;
+          const file = Array.from(files).find((f) => f.type.startsWith("image/"));
+          if (!file) return false;
+          event.preventDefault();
+          event.stopPropagation();
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const node = view.state.schema.nodes.image.create({ src: reader.result as string });
+            const dropPos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.to;
+            view.dispatch(view.state.tr.insert(dropPos, node));
+          };
+          reader.readAsDataURL(file);
+          return true;
+        },
+      },
     },
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
@@ -283,10 +422,12 @@ function EmailBodyEditor({
   return (
     <div className={cn("overflow-hidden rounded-lg border", error ? "border-red-400" : "border-slate-200 focus-within:border-indigo-400")}>
       <EmailEditorToolbar editor={editor} />
-      <EditorContent
-        editor={editor}
-        className="min-h-[280px] px-4 py-3 text-sm"
-      />
+      <div
+        className="min-h-[280px] cursor-text px-4 py-3 text-sm [&_.tiptap]:min-h-[256px] [&_.tiptap]:outline-none"
+        onClick={() => editor?.commands.focus()}
+      >
+        <EditorContent editor={editor} />
+      </div>
     </div>
   );
 }
@@ -485,7 +626,17 @@ function EmailPreview({
   );
 }
 
-function AlimtalkPreview({ body }: { body: string }) {
+function BrandMsgPreview({
+  body,
+  msgType,
+  imageData,
+  buttons,
+}: {
+  body: string;
+  msgType: BrandMsgType;
+  imageData?: string;
+  buttons?: BrandMsgButton[];
+}) {
   return (
     <div className="mx-auto w-48">
       <div className="overflow-hidden rounded-3xl border-4 border-slate-700 bg-slate-800 shadow-xl">
@@ -494,18 +645,49 @@ function AlimtalkPreview({ body }: { body: string }) {
             <span>9:41</span>
             <span>●●●</span>
           </div>
-          <div className="rounded-xl bg-[#FEE500] px-2 py-1">
-            <p className="text-[9px] font-bold text-slate-800">카카오 알림톡</p>
+          {/* 채널 헤더 */}
+          <div className="mb-1.5 flex items-center gap-1.5 px-0.5">
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#FEE500]">
+              <span className="text-[7px] font-bold text-slate-800">D</span>
+            </div>
+            <span className="text-[9px] font-semibold text-slate-700">DidimZip</span>
           </div>
-          <div className="mt-1.5 rounded-xl bg-white p-2.5 shadow-sm">
-            <p className="mb-1 text-[9px] font-semibold text-slate-700">DidimZip</p>
-            <p className="whitespace-pre-wrap text-[9px] leading-relaxed text-slate-600">
-              {body || "(알림톡 내용이 여기에\n표시됩니다)"}
-            </p>
+          {/* 메시지 카드 */}
+          <div className="overflow-hidden rounded-xl bg-white shadow-sm">
+            {/* 광고 표기 */}
+            <div className="bg-slate-50 px-2.5 py-1">
+              <p className="text-[7px] text-slate-400">(광고) DidimZip</p>
+            </div>
+            {/* 와이드 이미지 상단 */}
+            {(msgType === "U_FW" || msgType === "U_FI") && imageData && (
+              <div className={cn("w-full bg-slate-200", msgType === "U_FW" ? "aspect-[2/1]" : "aspect-square")}>
+                <img src={imageData} alt="" className="h-full w-full object-cover" />
+              </div>
+            )}
+            {/* 본문 */}
+            <div className="px-2.5 py-2">
+              <p className="whitespace-pre-wrap text-[9px] leading-relaxed text-slate-600">
+                {body || "(브랜드 메시지 내용이 여기에\n표시됩니다)"}
+              </p>
+            </div>
+            {/* 버튼 */}
+            {buttons && buttons.length > 0 && (
+              <div className="border-t border-slate-100 px-2.5 py-1.5 space-y-1">
+                {buttons.map((btn, i) => (
+                  <div key={i} className="rounded-md bg-slate-50 py-1 text-center text-[8px] font-medium text-slate-600">
+                    {btn.name || "버튼"}
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* 수신 거부 */}
+            <div className="border-t border-slate-100 px-2.5 py-1">
+              <p className="text-[6px] text-slate-300">채널 차단 | 수신거부 0808-XXX-XXXX</p>
+            </div>
           </div>
         </div>
       </div>
-      <p className="mt-2 text-center text-xs text-slate-400">카카오 알림톡 미리보기</p>
+      <p className="mt-2 text-center text-xs text-slate-400">카카오 브랜드 메시지 미리보기</p>
     </div>
   );
 }
@@ -537,6 +719,65 @@ function PushPreview({ subject, body }: { subject: string; body: string }) {
         </div>
       </div>
       <p className="mt-2 text-center text-xs text-slate-400">앱 푸시 알림 미리보기</p>
+    </div>
+  );
+}
+
+function SmsPreview({
+  body,
+  smsType,
+  subject,
+  imageData,
+}: {
+  body: string;
+  smsType: SmsSubType;
+  subject?: string;
+  imageData?: string;
+}) {
+  const byteLen = getByteLength(body);
+  return (
+    <div className="mx-auto w-48">
+      <div className="overflow-hidden rounded-3xl border-4 border-slate-700 bg-slate-800 shadow-xl">
+        <div className="bg-slate-100 p-2">
+          <div className="mb-1.5 flex justify-between px-1 text-[8px] text-slate-400">
+            <span>9:41</span>
+            <span>●●●</span>
+          </div>
+          <div className="overflow-hidden rounded-xl bg-white shadow-sm">
+            {/* 발신 정보 */}
+            <div className="flex items-center gap-1.5 border-b border-slate-100 px-2.5 py-1.5">
+              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-green-500">
+                <MessageSquare className="h-3 w-3 text-white" />
+              </div>
+              <span className="text-[9px] font-semibold text-slate-700">DidimZip</span>
+              <span className="ml-auto rounded bg-slate-100 px-1 py-0.5 text-[7px] text-slate-400">{smsType}</span>
+            </div>
+            {/* MMS 이미지 */}
+            {smsType === "MMS" && imageData && (
+              <div className="aspect-[4/3] w-full bg-slate-200">
+                <img src={imageData} alt="" className="h-full w-full object-cover" />
+              </div>
+            )}
+            {/* 제목 (LMS/MMS) */}
+            {(smsType === "LMS" || smsType === "MMS") && subject && (
+              <div className="px-2.5 pt-2">
+                <p className="text-[9px] font-bold text-slate-800">{subject}</p>
+              </div>
+            )}
+            {/* 본문 */}
+            <div className="px-2.5 py-2">
+              <p className="whitespace-pre-wrap text-[9px] leading-relaxed text-slate-600">
+                {body || "(문자 메시지 내용이 여기에\n표시됩니다)"}
+              </p>
+            </div>
+            {/* 바이트 정보 */}
+            <div className="border-t border-slate-100 px-2.5 py-1">
+              <p className="text-[6px] text-slate-300">{byteLen}바이트 | 수신거부 080-XXX-XXXX</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p className="mt-2 text-center text-xs text-slate-400">문자 메시지 미리보기</p>
     </div>
   );
 }
@@ -656,31 +897,39 @@ function Step1BasicInfo({
         <label className="mb-2 block text-sm font-medium text-slate-700">
           발송 채널 <span className="text-red-500">*</span>
         </label>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-4 gap-3">
           {CHANNEL_OPTIONS.map((ch) => {
             const Icon = ch.icon;
+            const isDisabled = ch.disabled && !isBrandMsgEnabled();
+            const isSelected = form.channel === ch.value;
             return (
               <button
                 key={ch.value}
                 type="button"
-                onClick={() => onChange({ channel: ch.value })}
+                onClick={() => !isDisabled && onChange({ channel: ch.value })}
+                disabled={!!isDisabled}
                 className={cn(
-                  "flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all",
-                  form.channel === ch.value
-                    ? "border-indigo-500 bg-indigo-50"
-                    : "border-slate-200 bg-white hover:border-indigo-200"
+                  "relative flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all",
+                  isDisabled
+                    ? "cursor-not-allowed border-slate-200 bg-slate-50 opacity-60"
+                    : isSelected
+                    ? "cursor-pointer border-indigo-500 bg-indigo-50"
+                    : "cursor-pointer border-slate-200 bg-white hover:border-indigo-200"
                 )}
               >
+                {isDisabled && (
+                  <Lock className="absolute right-2 top-2 h-3.5 w-3.5 text-slate-400" />
+                )}
                 <div
                   className={cn(
                     "flex h-10 w-10 items-center justify-center rounded-lg",
-                    form.channel === ch.value ? "bg-indigo-100" : "bg-slate-100"
+                    isDisabled ? "bg-slate-100" : isSelected ? "bg-indigo-100" : "bg-slate-100"
                   )}
                 >
                   <Icon
                     className={cn(
                       "h-5 w-5",
-                      form.channel === ch.value ? "text-indigo-600" : "text-slate-400"
+                      isDisabled ? "text-slate-300" : isSelected ? "text-indigo-600" : "text-slate-400"
                     )}
                   />
                 </div>
@@ -688,12 +937,15 @@ function Step1BasicInfo({
                   <p
                     className={cn(
                       "text-sm font-semibold",
-                      form.channel === ch.value ? "text-indigo-700" : "text-slate-700"
+                      isDisabled ? "text-slate-400" : isSelected ? "text-indigo-700" : "text-slate-700"
                     )}
                   >
                     {ch.label}
                   </p>
-                  <p className="text-xs text-slate-400">{ch.desc}</p>
+                  <p className={cn("text-xs", isDisabled ? "text-slate-300" : "text-slate-400")}>{ch.desc}</p>
+                  {isDisabled && ch.disabledReason && (
+                    <p className="mt-1 text-[10px] leading-tight text-amber-500">{ch.disabledReason}</p>
+                  )}
                 </div>
               </button>
             );
@@ -746,6 +998,45 @@ function Step2Target({
 
   return (
     <div className="space-y-4">
+      {form.channel === "SMS" && (
+        <div className="space-y-3">
+          <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs text-blue-700 flex items-start gap-2">
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>전화번호가 등록된 활성 회원에게만 발송됩니다. 전화번호 미등록 회원은 발송 대상에서 자동 제외됩니다.</span>
+          </div>
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.smsTestOnly ?? false}
+                  onChange={(e) => onChange({ smsTestOnly: e.target.checked, smsTestPhone: e.target.checked ? (form.smsTestPhone || "") : "" })}
+                  className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                />
+                <span className="text-sm font-medium text-amber-800">테스트 발송 모드</span>
+              </label>
+            </div>
+            {form.smsTestOnly && (
+              <div className="mt-3">
+                <p className="mb-2 text-xs text-amber-700">아래 번호로만 발송됩니다. 회원 필터는 무시됩니다.</p>
+                <div className="flex items-center gap-2">
+                  <Smartphone className="h-4 w-4 text-amber-600 shrink-0" />
+                  <input
+                    type="text"
+                    value={form.smsTestPhone || ""}
+                    onChange={(e) => onChange({ smsTestPhone: formatPhone(e.target.value) })}
+                    placeholder="010-0000-0000"
+                    className="w-48 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  />
+                  {(form.smsTestPhone || "").replace(/-/g, "").length >= 10 && (
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <SectionCard title="회원 유형">
         <p className="mb-3 text-xs text-slate-400">여러 개 선택 가능. 선택하지 않으면 전체 대상입니다.</p>
         <div className="flex flex-wrap gap-2">
@@ -837,10 +1128,12 @@ function Step3Message({
   form,
   errors,
   onChange,
+  onTestSend,
 }: {
   form: FormData;
   errors: Record<string, string>;
   onChange: (patch: Partial<FormData>) => void;
+  onTestSend?: () => void;
 }) {
   const updateMsg = (patch: Partial<StoredCampaign["message"]>) =>
     onChange({ message: { ...form.message, ...patch } });
@@ -888,36 +1181,401 @@ function Step3Message({
         </SectionCard>
       )}
 
-      {form.channel === "ALIMTALK" && (
-        <SectionCard title="알림톡 작성">
-          <div className="mb-3 rounded-lg border border-amber-100 bg-amber-50 p-3 text-xs text-amber-700">
-            <strong>안내:</strong> 카카오 알림톡은 사전 심사된 템플릿만 발송 가능합니다.
-            실제 발송 시 카카오 비즈니스 채널 등록 및 템플릿 심사가 필요합니다.
+      {form.channel === "BRANDMSG" && (
+        <SectionCard title="브랜드 메시지 작성">
+          {/* 안내 배너 */}
+          <div className="mb-4 space-y-2">
+            <div className="rounded-lg border border-amber-100 bg-amber-50 p-3 text-xs text-amber-700">
+              <strong>채널 친구 전용:</strong> 카카오톡 채널을 친구 추가한 회원에게만 발송됩니다.
+              발송 시 <code className="rounded bg-amber-100 px-1">(광고)</code> 표기와 수신거부 안내가 자동 포함됩니다.
+            </div>
+            <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs text-blue-700">
+              <strong>발송 가능 시간:</strong> 오전 8시 ~ 오후 9시 (심야 시간 발송 불가)
+            </div>
           </div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-700">
-            알림톡 내용 <span className="text-red-500">*</span>
-          </label>
-          <textarea
-            value={form.message.body}
-            onChange={(e) => updateMsg({ body: e.target.value })}
-            placeholder="알림톡 내용을 작성해주세요. (최대 1000자)"
-            rows={10}
-            maxLength={1000}
-            className={cn(
-              "w-full resize-none rounded-lg border bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none",
-              errors.body ? "border-red-400" : "border-slate-200"
-            )}
-          />
-          <div className="mt-1 flex items-center justify-between">
-            {errors.body ? <p className="text-xs text-red-500">{errors.body}</p> : <span />}
-            <span
+
+          {/* 메시지 유형 선택 */}
+          <div className="mb-4">
+            <label className="mb-2 block text-sm font-medium text-slate-700">메시지 유형</label>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { value: "U_FT" as BrandMsgType, label: "텍스트", desc: "최대 400자" },
+                { value: "U_FI" as BrandMsgType, label: "이미지", desc: "이미지 + 400자" },
+                { value: "U_FW" as BrandMsgType, label: "와이드 이미지", desc: "와이드 이미지 + 76자" },
+              ]).map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => {
+                    onChange({ brandMsgType: opt.value });
+                    if (opt.value === "U_FW" && form.message.body.length > 76) {
+                      updateMsg({ body: form.message.body.slice(0, 76) });
+                    }
+                  }}
+                  className={cn(
+                    "rounded-lg border-2 p-3 text-left transition-all",
+                    form.brandMsgType === opt.value
+                      ? "border-indigo-500 bg-indigo-50"
+                      : "border-slate-200 hover:border-indigo-200"
+                  )}
+                >
+                  <p className={cn("text-sm font-medium", form.brandMsgType === opt.value ? "text-indigo-700" : "text-slate-700")}>{opt.label}</p>
+                  <p className="mt-0.5 text-[11px] text-slate-400">{opt.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 이미지 업로드 (IMAGE / WIDE 유형) */}
+          {(form.brandMsgType === "U_FI" || form.brandMsgType === "U_FW") && (
+            <div className="mb-4">
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                이미지 <span className="text-red-500">*</span>
+              </label>
+              {form.brandMsgImageData ? (
+                <div className="relative">
+                  <div className={cn(
+                    "overflow-hidden rounded-lg border border-slate-200 bg-slate-100",
+                    form.brandMsgType === "U_FW" ? "aspect-[2/1]" : "aspect-square max-w-[200px]"
+                  )}>
+                    <img src={form.brandMsgImageData} alt="" className="h-full w-full object-cover" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onChange({ brandMsgImageData: "" })}
+                    className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white shadow-sm hover:bg-red-600"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ) : (
+                <label
+                  className={cn(
+                    "flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed bg-slate-50 py-8 transition-colors",
+                    form.brandMsgType === "U_FW" ? "aspect-[2/1]" : "",
+                    "border-slate-300 hover:border-indigo-300 hover:bg-indigo-50/30",
+                  )}
+                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("border-indigo-400", "bg-indigo-50/50"); }}
+                  onDragLeave={(e) => { e.currentTarget.classList.remove("border-indigo-400", "bg-indigo-50/50"); }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.remove("border-indigo-400", "bg-indigo-50/50");
+                    const file = e.dataTransfer.files?.[0];
+                    if (!file || !file.type.startsWith("image/")) return;
+                    const reader = new FileReader();
+                    reader.onload = () => onChange({ brandMsgImageData: reader.result as string });
+                    reader.readAsDataURL(file);
+                  }}
+                >
+                  <RiImageAddLine className="mb-2 h-8 w-8 text-slate-300" />
+                  <p className="text-sm text-slate-500">클릭하거나 이미지를 드래그하세요</p>
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    {form.brandMsgType === "U_FW" ? "권장: 가로형 2:1 비율" : "권장: 정사각형 1:1 비율"}
+                  </p>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = () => onChange({ brandMsgImageData: reader.result as string });
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+          )}
+
+          {/* 본문 */}
+          <div className="mb-4">
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              메시지 내용 <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={form.message.body}
+              onChange={(e) => updateMsg({ body: e.target.value })}
+              placeholder="브랜드 메시지 내용을 작성해주세요."
+              rows={form.brandMsgType === "U_FW" ? 3 : 8}
+              maxLength={form.brandMsgType === "U_FW" ? 76 : 400}
               className={cn(
-                "text-xs",
-                form.message.body.length > 900 ? "text-amber-500" : "text-slate-400"
+                "w-full resize-none rounded-lg border bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none",
+                errors.body ? "border-red-400" : "border-slate-200"
+              )}
+            />
+            <div className="mt-1 flex items-center justify-between">
+              {errors.body ? <p className="text-xs text-red-500">{errors.body}</p> : <span />}
+              {(() => {
+                const maxLen = form.brandMsgType === "U_FW" ? 76 : 400;
+                const warnAt = Math.floor(maxLen * 0.9);
+                return (
+                  <span className={cn("text-xs", form.message.body.length > warnAt ? "text-amber-500" : "text-slate-400")}>
+                    {form.message.body.length} / {maxLen}
+                  </span>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* 버튼 설정 (최대 2개) */}
+          <div className="mb-4">
+            <div className="mb-1.5 flex items-center justify-between">
+              <label className="text-sm font-medium text-slate-700">버튼 (선택, 최대 2개)</label>
+              {form.brandMsgButtons.length < 2 && (
+                <button
+                  type="button"
+                  onClick={() => onChange({ brandMsgButtons: [...form.brandMsgButtons, { name: "", url: "" }] })}
+                  className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                >
+                  + 버튼 추가
+                </button>
+              )}
+            </div>
+            {form.brandMsgButtons.length === 0 && (
+              <p className="text-xs text-slate-400">버튼을 추가하면 메시지 하단에 링크 버튼이 표시됩니다.</p>
+            )}
+            <div className="space-y-2">
+              {form.brandMsgButtons.map((btn, idx) => (
+                <div key={idx} className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div className="flex-1 space-y-2">
+                    <input
+                      type="text"
+                      value={btn.name}
+                      onChange={(e) => {
+                        const updated = [...form.brandMsgButtons];
+                        updated[idx] = { ...updated[idx], name: e.target.value };
+                        onChange({ brandMsgButtons: updated });
+                      }}
+                      placeholder="버튼 텍스트 (예: 자세히 보기)"
+                      className="h-8 w-full rounded border border-slate-200 bg-white px-2.5 text-sm focus:border-indigo-400 focus:outline-none"
+                    />
+                    <input
+                      type="url"
+                      value={btn.url}
+                      onChange={(e) => {
+                        const updated = [...form.brandMsgButtons];
+                        updated[idx] = { ...updated[idx], url: e.target.value };
+                        onChange({ brandMsgButtons: updated });
+                      }}
+                      placeholder="https://..."
+                      className="h-8 w-full rounded border border-slate-200 bg-white px-2.5 text-sm focus:border-indigo-400 focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onChange({ brandMsgButtons: form.brandMsgButtons.filter((_, i) => i !== idx) })}
+                    className="mt-1 text-slate-300 hover:text-red-400"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 테스트 발송 버튼 */}
+          <div className="border-t border-slate-100 pt-4">
+            <button
+              type="button"
+              onClick={onTestSend}
+              disabled={!form.message.body.trim()}
+              className={cn(
+                "flex w-full items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 py-2.5 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-100",
+                !form.message.body.trim() && "cursor-not-allowed opacity-40"
               )}
             >
-              {form.message.body.length} / 1000
-            </span>
+              <Smartphone className="h-4 w-4" />
+              테스트 발송
+            </button>
+            <p className="mt-1.5 text-center text-[11px] text-slate-400">
+              입력한 번호로 브랜드 메시지 발송을 시뮬레이션합니다
+            </p>
+          </div>
+        </SectionCard>
+      )}
+
+      {form.channel === "SMS" && (
+        <SectionCard title="문자 메시지 작성">
+          {/* 안내 배너 */}
+          <div className="mb-4 space-y-2">
+            <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs text-blue-700">
+              <strong>자동 전환:</strong> 90바이트 이하 SMS, 초과 시 LMS 자동 전환. 이미지 첨부 시 MMS.
+            </div>
+            <div className="rounded-lg border border-amber-100 bg-amber-50 p-3 text-xs text-amber-700">
+              <strong>(광고)</strong> 표기 + 수신거부 080 번호가 자동 포함됩니다.
+              정보통신망법에 따라 21:00~08:00 광고 문자 발송이 금지됩니다.
+            </div>
+          </div>
+
+          {/* 발신번호 */}
+          <div className="mb-4">
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">발신번호</label>
+            <div className="flex h-9 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500">
+              {getSystemSettings().solapiSender || "(시스템 설정에서 발신번호를 등록하세요)"}
+            </div>
+          </div>
+
+          {/* 문자 종류 선택 */}
+          <div className="mb-4">
+            <label className="mb-2 block text-sm font-medium text-slate-700">문자 종류</label>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { value: "SMS" as SmsSubType, label: "SMS", desc: "90바이트 이하" },
+                { value: "LMS" as SmsSubType, label: "LMS", desc: "2,000바이트 이하" },
+                { value: "MMS" as SmsSubType, label: "MMS", desc: "이미지 + 2,000바이트" },
+              ]).map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onChange({ smsSubType: opt.value })}
+                  className={cn(
+                    "rounded-lg border-2 p-3 text-left transition-all",
+                    form.smsSubType === opt.value
+                      ? "border-indigo-500 bg-indigo-50"
+                      : "border-slate-200 hover:border-indigo-200"
+                  )}
+                >
+                  <p className={cn("text-sm font-medium", form.smsSubType === opt.value ? "text-indigo-700" : "text-slate-700")}>{opt.label}</p>
+                  <p className="mt-0.5 text-[11px] text-slate-400">{opt.desc}</p>
+                  <p className="mt-0.5 text-[11px] font-medium text-emerald-600">{getSmsCost(opt.value)}원/건</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* LMS/MMS 제목 */}
+          {(form.smsSubType === "LMS" || form.smsSubType === "MMS") && (
+            <div className="mb-4">
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                제목 <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={form.message.subject}
+                onChange={(e) => updateMsg({ subject: e.target.value })}
+                placeholder="LMS/MMS 제목을 입력하세요"
+                maxLength={44}
+                className={cn(
+                  "h-9 w-full rounded-lg border bg-white px-3 text-sm focus:border-indigo-400 focus:outline-none",
+                  errors.subject ? "border-red-400" : "border-slate-200"
+                )}
+              />
+              {errors.subject && <p className="mt-1 text-xs text-red-500">{errors.subject}</p>}
+            </div>
+          )}
+
+          {/* MMS 이미지 업로드 */}
+          {form.smsSubType === "MMS" && (
+            <div className="mb-4">
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                이미지 <span className="text-red-500">*</span>
+              </label>
+              {form.smsImageData ? (
+                <div className="relative">
+                  <div className="aspect-[4/3] max-w-[240px] overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+                    <img src={form.smsImageData} alt="" className="h-full w-full object-cover" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onChange({ smsImageData: "" })}
+                    className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white shadow-sm hover:bg-red-600"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ) : (
+                <label
+                  className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 py-8 transition-colors hover:border-indigo-300 hover:bg-indigo-50/30"
+                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("border-indigo-400", "bg-indigo-50/50"); }}
+                  onDragLeave={(e) => { e.currentTarget.classList.remove("border-indigo-400", "bg-indigo-50/50"); }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.remove("border-indigo-400", "bg-indigo-50/50");
+                    const file = e.dataTransfer.files?.[0];
+                    if (!file || !file.type.startsWith("image/")) return;
+                    const reader = new FileReader();
+                    reader.onload = () => onChange({ smsImageData: reader.result as string });
+                    reader.readAsDataURL(file);
+                  }}
+                >
+                  <RiImageAddLine className="mb-2 h-8 w-8 text-slate-300" />
+                  <p className="text-sm text-slate-500">클릭하거나 이미지를 드래그하세요</p>
+                  <p className="mt-1 text-[11px] text-slate-400">최대 300KB, JPG/PNG</p>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = () => onChange({ smsImageData: reader.result as string });
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                </label>
+              )}
+              {errors.smsImage && <p className="mt-1 text-xs text-red-500">{errors.smsImage}</p>}
+            </div>
+          )}
+
+          {/* 메시지 본문 */}
+          <div className="mb-4">
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              메시지 내용 <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={form.message.body}
+              onChange={(e) => {
+                updateMsg({ body: e.target.value });
+                // 자동 SMS/LMS 전환
+                const autoType = getAutoSmsType(e.target.value, !!form.smsImageData);
+                if (autoType !== form.smsSubType && form.smsSubType !== "MMS") {
+                  onChange({ smsSubType: autoType });
+                }
+              }}
+              placeholder="문자 메시지 내용을 입력해주세요."
+              rows={6}
+              className={cn(
+                "w-full resize-none rounded-lg border bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none",
+                errors.body ? "border-red-400" : "border-slate-200"
+              )}
+            />
+            <div className="mt-1 flex items-center justify-between">
+              {errors.body ? <p className="text-xs text-red-500">{errors.body}</p> : <span />}
+              <div className="flex items-center gap-2">
+                <span className={cn(
+                  "text-xs",
+                  getByteLength(form.message.body) > 90 ? "text-amber-500" : "text-slate-400"
+                )}>
+                  {getByteLength(form.message.body)}바이트
+                </span>
+                <Badge variant="secondary" className="text-[10px]">
+                  {getAutoSmsType(form.message.body, !!form.smsImageData)}
+                </Badge>
+              </div>
+            </div>
+          </div>
+
+          {/* 테스트 발송 */}
+          <div className="border-t border-slate-100 pt-4">
+            <button
+              type="button"
+              onClick={onTestSend}
+              disabled={!form.message.body.trim()}
+              className={cn(
+                "flex w-full items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 py-2.5 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-100",
+                !form.message.body.trim() && "cursor-not-allowed opacity-40"
+              )}
+            >
+              <Smartphone className="h-4 w-4" />
+              테스트 발송
+            </button>
+            <p className="mt-1.5 text-center text-[11px] text-slate-400">
+              솔라피를 통해 테스트 발송
+            </p>
           </div>
         </SectionCard>
       )}
@@ -1096,6 +1754,20 @@ function Step4Send({
             ...(form.channel === "EMAIL"
               ? [{ label: "이메일 제목", value: form.message.subject || "—" }]
               : []),
+            ...(form.channel === "SMS"
+              ? [
+                  { label: "문자 종류", value: form.smsSubType },
+                  { label: "건당 비용", value: `${getSmsCost(form.smsSubType)}원` },
+                  {
+                    label: "예상 총 비용",
+                    value: (
+                      <span className="font-bold text-emerald-600">
+                        {(getSmsCost(form.smsSubType) * targetCount).toLocaleString()}원
+                      </span>
+                    ),
+                  },
+                ]
+              : []),
             {
               label: "예상 수신자",
               value: (
@@ -1126,6 +1798,11 @@ function Step4Send({
             수신자가 0명입니다. 타겟 설정 단계로 돌아가 필터를 조정해주세요.
           </div>
         )}
+        {form.channel === "SMS" && (
+          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            정보통신망법에 따라 21:00~08:00 광고 문자 발송이 금지됩니다.
+          </div>
+        )}
       </SectionCard>
     </div>
   );
@@ -1154,6 +1831,13 @@ function buildInitialState(
           scheduledTime: scheduledDt
             ? `${String(scheduledDt.getHours()).padStart(2, "0")}:${String(scheduledDt.getMinutes()).padStart(2, "0")}`
             : "09:00",
+          brandMsgType: "U_FT",
+          brandMsgImageData: "",
+          brandMsgButtons: [],
+          smsSubType: (c as unknown as { smsType?: SmsSubType }).smsType ?? "SMS",
+          smsImageData: (c as unknown as { smsImageData?: string }).smsImageData ?? "",
+          smsTestOnly: false,
+          smsTestPhone: "",
         },
         draftId: editId,
       };
@@ -1184,6 +1868,10 @@ function NewCampaignContent() {
   const [myDrafts, setMyDrafts] = useState<StoredCampaign[]>([]);
   const [isDirty, setIsDirty] = useState(false);
   const [pendingNavTarget, setPendingNavTarget] = useState<string | null>(null);
+  const [showTestSend, setShowTestSend] = useState(false);
+  const [testPhone, setTestPhone] = useState("");
+  const [testSendPhase, setTestSendPhase] = useState<"input" | "sending" | "done">("input");
+  const [testSendResult, setTestSendResult] = useState<string>("");
   const isDirtyRef = useRef(false);
   isDirtyRef.current = isDirty;
 
@@ -1206,8 +1894,14 @@ function NewCampaignContent() {
     setIsDirty(true);
   };
 
-  const targetCount = useMemo(() => computeTargetCount(form.targetFilter), [form.targetFilter]);
+  const targetCount = useMemo(() => {
+    if (form.channel === "SMS" && form.smsTestOnly) {
+      return (form.smsTestPhone || "").replace(/-/g, "").length >= 10 ? 1 : 0;
+    }
+    return form.channel === "SMS" ? computeTargetCountForSms(form.targetFilter) : computeTargetCount(form.targetFilter);
+  }, [form.targetFilter, form.channel, form.smsTestOnly, form.smsTestPhone]);
   const previewUsers = useMemo(() => getTargetUsers(form.targetFilter), [form.targetFilter]);
+  const canProceed = isStepComplete(step, form, targetCount);
 
   const handleNext = () => {
     const errs = validateStep(step, form);
@@ -1241,6 +1935,15 @@ function NewCampaignContent() {
       sentCount: status === "SENT" ? targetCount : 0,
       failedCount: 0,
       failedEmails: [],
+      ...(form.channel === "SMS" ? {
+        smsType: form.smsSubType,
+        smsSender: getSystemSettings().solapiSender,
+        smsImageData: form.smsImageData || undefined,
+        smsByteCount: getByteLength(form.message.body),
+        smsUnitCost: getSmsCost(form.smsSubType),
+        smsTotalCost: getSmsCost(form.smsSubType) * targetCount,
+        failedPhones: [],
+      } : {}),
       openRate: 0,
       message: form.message,
       sendType: form.sendType,
@@ -1271,6 +1974,13 @@ function NewCampaignContent() {
       scheduledTime: scheduledDt
         ? `${String(scheduledDt.getHours()).padStart(2, "0")}:${String(scheduledDt.getMinutes()).padStart(2, "0")}`
         : "09:00",
+      brandMsgType: "U_FT",
+      brandMsgImageData: "",
+      brandMsgButtons: [],
+      smsSubType: draft.smsType ?? "SMS",
+      smsImageData: draft.smsImageData ?? "",
+      smsTestOnly: false,
+      smsTestPhone: "",
     });
     setDraftId(draft.id);
     setStep(1);
@@ -1328,8 +2038,51 @@ function NewCampaignContent() {
         showToast(`이메일을 ${sent}명에게 발송했습니다.${failed > 0 ? ` (${failed}명 실패)` : ""}`, "success");
         setIsDirty(false);
         setSentCampaignId(saved.id);
+      } else if (form.channel === "SMS" && form.sendType === "IMMEDIATE") {
+        // SMS 즉시 발송: 솔라피 API Route를 통해 실제 발송
+        const phones = form.smsTestOnly
+          ? [(form.smsTestPhone || "").replace(/-/g, "")]
+          : getTargetUsersForSms(form.targetFilter).map((u) => u.phone!);
+        const settings = getSystemSettings();
+        const res = await fetch("/api/sms/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            apiKey: settings.solapiApiKey,
+            apiSecret: settings.solapiApiSecret,
+            sender: settings.solapiSender,
+            receivers: phones,
+            msg: form.message.body,
+            subject: form.message.subject || undefined,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          showToast(data.error ?? "SMS 발송에 실패했습니다.", "error");
+          setIsSubmitting(false);
+          return;
+        }
+        const { sent, failed, failedPhones, failedReasons } = data as { sent: number; failed: number; failedPhones: string[]; failedReasons?: string[] };
+        const saved = upsertCampaign({
+          ...buildPayload("SENT"),
+          sentCount: sent,
+          failedCount: failed,
+          failedPhones: failedPhones ?? [],
+          failedReasons: failedReasons ?? [],
+        });
+        recordLog("CAMPAIGN_SEND", `문자 발송: ${form.title} (성공: ${sent}명${failed > 0 ? `, 실패: ${failed}명` : ""})`, {
+          targetType: "campaign",
+          targetId: saved.id,
+        });
+        if (sent === 0 && failed > 0) {
+          showToast("문자 발송에 실패했습니다. 상세 페이지에서 원인을 확인하세요.", "error");
+        } else {
+          showToast(`문자를 ${sent}명에게 발송했습니다.${failed > 0 ? ` (${failed}명 실패)` : ""}`, "success");
+        }
+        setIsDirty(false);
+        setSentCampaignId(saved.id);
       } else {
-        // 이메일 외 채널 or 예약 발송: 저장만
+        // 기타 채널 or 예약 발송: 저장만
         const isSent = form.sendType === "IMMEDIATE";
         const saved = upsertCampaign(buildPayload(isSent ? "SENT" : "SCHEDULED"));
         recordLog("CAMPAIGN_SEND", `마케팅 발송: ${form.title} (대상: ${targetCount}명)`, {
@@ -1488,6 +2241,10 @@ function NewCampaignContent() {
           } else {
             // 앞으로 이동: 현재 스텝부터 목표 직전까지 순서대로 검증
             for (let i = step; i < s; i++) {
+              if (!isStepComplete(i, form, targetCount)) {
+                setStep(i);
+                return;
+              }
               const errs = validateStep(i, form);
               if (Object.keys(errs).length > 0) {
                 setErrors(errs);
@@ -1511,7 +2268,16 @@ function NewCampaignContent() {
             <Step2Target form={form} onChange={updateForm} />
           )}
           {step === 3 && (
-            <Step3Message form={form} errors={errors} onChange={updateForm} />
+            <Step3Message
+              form={form}
+              errors={errors}
+              onChange={updateForm}
+              onTestSend={() => {
+                setTestPhone("");
+                setTestSendPhase("input");
+                setShowTestSend(true);
+              }}
+            />
           )}
           {step === 4 && (
             <Step4Send
@@ -1548,14 +2314,24 @@ function NewCampaignContent() {
           {step === 4 ? (
             <Button
               onClick={handleConfirm}
-              disabled={isSubmitting}
-              className="bg-indigo-600 hover:bg-indigo-700"
+              disabled={isSubmitting || !canProceed}
+              className={cn(
+                "bg-indigo-600 hover:bg-indigo-700",
+                !canProceed && "cursor-not-allowed opacity-50"
+              )}
             >
               <Send className="mr-1.5 h-4 w-4" />
               {form.sendType === "IMMEDIATE" ? "즉시 발송" : "예약 발송 확정"}
             </Button>
           ) : (
-            <Button onClick={handleNext} className="bg-indigo-600 hover:bg-indigo-700">
+            <Button
+              onClick={handleNext}
+              disabled={!canProceed}
+              className={cn(
+                "bg-indigo-600 hover:bg-indigo-700",
+                !canProceed && "cursor-not-allowed opacity-50"
+              )}
+            >
               다음
               <ChevronRight className="ml-1.5 h-4 w-4" />
             </Button>
@@ -1650,11 +2426,218 @@ function NewCampaignContent() {
                   recipients={previewUsers}
                 />
               )}
-              {form.channel === "ALIMTALK" && <AlimtalkPreview body={form.message.body} />}
+              {form.channel === "BRANDMSG" && (
+                <BrandMsgPreview
+                  body={form.message.body}
+                  msgType={form.brandMsgType}
+                  imageData={form.brandMsgImageData}
+                  buttons={form.brandMsgButtons}
+                />
+              )}
+              {form.channel === "SMS" && (
+                <SmsPreview
+                  body={form.message.body}
+                  smsType={form.smsSubType}
+                  subject={form.message.subject}
+                  imageData={form.smsImageData}
+                />
+              )}
               {form.channel === "PUSH" && (
                 <PushPreview subject={form.message.subject} body={form.message.body} />
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 브랜드 메시지 테스트 발송 모달 */}
+      {showTestSend && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget && testSendPhase !== "sending") setShowTestSend(false); }}
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+            {/* 헤더 */}
+            <div className="flex items-center justify-between border-b px-5 py-4">
+              <div className="flex items-center gap-2">
+                {form.channel === "SMS" ? (
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-100">
+                    <MessageSquare className="h-4 w-4 text-green-600" />
+                  </div>
+                ) : (
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#FEE500]">
+                    <MessageCircle className="h-4 w-4 text-slate-800" />
+                  </div>
+                )}
+                <h3 className="text-base font-semibold text-slate-900">
+                  {form.channel === "SMS" ? "문자 테스트 발송" : "브랜드 메시지 테스트 발송"}
+                </h3>
+              </div>
+              {testSendPhase !== "sending" && (
+                <button
+                  onClick={() => setShowTestSend(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            {/* 입력 단계 */}
+            {testSendPhase === "input" && (
+              <div className="p-5">
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">수신 번호</label>
+                <input
+                  type="tel"
+                  value={testPhone}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/[^0-9]/g, "");
+                    if (v.length <= 11) {
+                      const formatted = v.length > 7
+                        ? `${v.slice(0, 3)}-${v.slice(3, 7)}-${v.slice(7)}`
+                        : v.length > 3
+                        ? `${v.slice(0, 3)}-${v.slice(3)}`
+                        : v;
+                      setTestPhone(formatted);
+                    }
+                  }}
+                  placeholder="010-1234-5678"
+                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm focus:border-indigo-400 focus:outline-none"
+                />
+                <p className="mt-1.5 text-[11px] text-slate-400">
+                  실제 발송은 되지 않으며, 발송 프로세스를 시뮬레이션합니다
+                </p>
+
+                {/* 미리보기 */}
+                <div className="mt-5 rounded-xl border border-slate-100 bg-slate-50 p-4">
+                  <p className="mb-3 text-center text-xs font-medium text-slate-500">발송될 내용</p>
+                  {form.channel === "SMS" ? (
+                    <SmsPreview
+                      body={form.message.body}
+                      smsType={form.smsSubType}
+                      subject={form.message.subject}
+                      imageData={form.smsImageData}
+                    />
+                  ) : (
+                    <BrandMsgPreview
+                      body={form.message.body}
+                      msgType={form.brandMsgType}
+                      imageData={form.brandMsgImageData}
+                      buttons={form.brandMsgButtons}
+                    />
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setTestSendPhase("sending");
+                    if (form.channel === "SMS") {
+                      try {
+                        const settings = getSystemSettings();
+                        const res = await fetch("/api/sms/test", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            apiKey: settings.solapiApiKey,
+                            apiSecret: settings.solapiApiSecret,
+                            sender: settings.solapiSender,
+                            receiver: testPhone,
+                            msg: form.message.body,
+                            subject: form.message.subject || undefined,
+                          }),
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                          setTestSendResult(data.simulated ? "시뮬레이션" : "테스트모드");
+                        }
+                      } catch {
+                        // fallback
+                      }
+                      setTestSendPhase("done");
+                    } else {
+                      setTimeout(() => setTestSendPhase("done"), 2000);
+                    }
+                  }}
+                  disabled={testPhone.replace(/-/g, "").length < 10}
+                  className={cn(
+                    "mt-5 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-colors",
+                    form.channel === "SMS"
+                      ? "bg-green-500 text-white hover:bg-green-600"
+                      : "bg-[#FEE500] text-slate-800 hover:bg-[#F5DB00]",
+                    testPhone.replace(/-/g, "").length < 10 && "cursor-not-allowed opacity-40"
+                  )}
+                >
+                  <Send className="h-4 w-4" />
+                  테스트 발송하기
+                </button>
+              </div>
+            )}
+
+            {/* 발송 중 */}
+            {testSendPhase === "sending" && (
+              <div className="flex flex-col items-center justify-center py-16 px-5">
+                <div className="relative">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#FEE500]/20">
+                    <Loader2 className="h-8 w-8 animate-spin text-[#C4A900]" />
+                  </div>
+                </div>
+                <p className="mt-5 text-sm font-semibold text-slate-800">
+                  {form.channel === "SMS" ? "문자 메시지를 발송하고 있습니다..." : "브랜드 메시지를 발송하고 있습니다..."}
+                </p>
+                <p className="mt-1.5 text-xs text-slate-400">{testPhone} 으로 전송 중</p>
+              </div>
+            )}
+
+            {/* 발송 완료 */}
+            {testSendPhase === "done" && (
+              <div className="p-5">
+                <div className="flex flex-col items-center py-6">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
+                    <CheckCircle2 className="h-7 w-7 text-emerald-600" />
+                  </div>
+                  <p className="mt-4 text-sm font-semibold text-slate-800">테스트 발송이 완료되었습니다</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    {testPhone} 으로 발송됨 ({testSendResult || "시뮬레이션"})
+                  </p>
+                </div>
+
+                {/* 발송 결과 요약 */}
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    <div>
+                      <p className="text-lg font-bold text-emerald-600">1</p>
+                      <p className="text-[11px] text-slate-500">발송 성공</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-slate-300">0</p>
+                      <p className="text-[11px] text-slate-500">발송 실패</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-slate-800">{form.message.body.length}자</p>
+                      <p className="text-[11px] text-slate-500">메시지 길이</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTestSendPhase("input")}
+                    className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                  >
+                    다시 발송
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowTestSend(false)}
+                    className="flex-1 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
+                  >
+                    확인
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

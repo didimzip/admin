@@ -767,6 +767,26 @@ function NewPostContent() {
         reader.readAsDataURL(file);
         return true;
       },
+      handleDOMEvents: {
+        dragenter(_view, event) { event.preventDefault(); return true; },
+        dragover(_view, event) { event.preventDefault(); if (event.dataTransfer) event.dataTransfer.dropEffect = "copy"; return true; },
+        drop(view, event) {
+          const files = event.dataTransfer?.files;
+          if (!files?.length) return false;
+          const file = Array.from(files).find((f) => f.type.startsWith("image/"));
+          if (!file) return false;
+          event.preventDefault();
+          event.stopPropagation();
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const node = view.state.schema.nodes.image.create({ src: reader.result as string });
+            const dropPos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.to;
+            view.dispatch(view.state.tr.insert(dropPos, node));
+          };
+          reader.readAsDataURL(file);
+          return true;
+        },
+      },
     },
     onUpdate: () => {
       if (!skipDirtyRef.current && dirtyTrackingEnabled.current) setIsDirty(true);
@@ -892,6 +912,8 @@ function NewPostContent() {
     const diffDays = Math.floor((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     if (diffDays >= 1) {
       setIsScheduled(true);
+    } else {
+      setIsScheduled(false);
     }
   }, [publishStart]);
 
@@ -925,7 +947,9 @@ function NewPostContent() {
   const validate = () => {
     const errs: Record<string, string> = {};
     if (!title.trim()) errs.title = "제목을 입력해주세요.";
-    if (!editor?.getText().trim()) errs.body = "본문 내용을 입력해주세요.";
+    const bodyHtml = editor?.getHTML() ?? "";
+    const hasImage = bodyHtml.includes("<img");
+    if (!editor?.getText().trim() && !hasImage) errs.body = "본문 내용을 입력해주세요.";
     if (!category) errs.category = "카테고리를 선택해주세요.";
     if (subCategories.length > 0 && !subCategory) errs.subCategory = "세부카테고리를 선택해주세요.";
     if (!thumbnail && !thumbnailPreview) errs.thumbnail = "썸네일 이미지를 등록해주세요.";
@@ -1086,7 +1110,12 @@ function NewPostContent() {
               )}
             >
               <EditorToolbar editor={editor} />
-              <EditorContent editor={editor} className="min-h-[400px]" />
+              <div
+                className="min-h-[400px] cursor-text [&_.tiptap]:min-h-[400px] [&_.tiptap]:outline-none"
+                onClick={() => editor?.commands.focus()}
+              >
+                <EditorContent editor={editor} />
+              </div>
             </div>
             {errors.body && <p className="mt-1 text-xs text-red-500">{errors.body}</p>}
           </div>

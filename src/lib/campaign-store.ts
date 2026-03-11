@@ -14,7 +14,7 @@ export type CampaignTargetFilter = {
 export type CampaignMessage = {
   senderName: string;
   subject: string; // 이메일 제목 or 푸시 제목
-  body: string;    // 이메일 본문 / 알림톡 내용 / 푸시 내용
+  body: string;    // 이메일 본문 / 브랜드 메시지 내용 / 푸시 내용
 };
 
 export type StoredCampaign = {
@@ -28,6 +28,14 @@ export type StoredCampaign = {
   sentCount: number;
   failedCount: number;
   failedEmails: string[];
+  smsType?: "SMS" | "LMS" | "MMS";
+  smsSender?: string;
+  smsImageData?: string;
+  smsByteCount?: number;
+  smsUnitCost?: number;
+  smsTotalCost?: number;
+  failedPhones?: string[];
+  failedReasons?: string[];
   openRate: number;
   message: CampaignMessage;
   sendType: "IMMEDIATE" | "SCHEDULED";
@@ -76,7 +84,17 @@ function loadAll(): StoredCampaign[] {
   if (typeof window === "undefined") return mockCampaigns.map(migrateFromMock);
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as StoredCampaign[];
+    if (raw) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const parsed = JSON.parse(raw) as any[];
+      // FRIENDTALK → BRANDMSG 마이그레이션
+      let dirty = false;
+      for (const c of parsed) {
+        if (c.channel === "FRIENDTALK") { c.channel = "BRANDMSG"; dirty = true; }
+      }
+      if (dirty) localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+      return parsed as StoredCampaign[];
+    }
     const migrated = mockCampaigns.map(migrateFromMock);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
     return migrated;
@@ -165,4 +183,12 @@ export function getTargetUsers(filter: CampaignTargetFilter) {
     if (filter.hasBadge !== null && u.hasBadge !== filter.hasBadge) return false;
     return true;
   });
+}
+
+export function getTargetUsersForSms(filter: CampaignTargetFilter) {
+  return getTargetUsers(filter).filter((u) => !!u.phone);
+}
+
+export function computeTargetCountForSms(filter: CampaignTargetFilter): number {
+  return getTargetUsersForSms(filter).length;
 }
