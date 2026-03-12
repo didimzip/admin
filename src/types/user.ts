@@ -5,7 +5,7 @@ export type AuthProvider = "EMAIL" | "GOOGLE" | "KAKAO" | "NAVER";
 export type UserRole = "MEMBER" | "ADMIN";
 
 // Auth verification status
-export type AuthStatus = "NONE" | "PENDING" | "VERIFIED";
+export type AuthStatus = "NONE" | "PENDING" | "VERIFIED" | "REJECTED";
 
 // Member status
 export type MemberStatus = "ACTIVE" | "SUSPENDED" | "WITHDRAWN";
