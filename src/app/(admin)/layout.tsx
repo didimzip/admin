@@ -4,6 +4,10 @@ import React, { useState, useEffect } from "react";
 import { getAllPosts, publishScheduledPosts } from "@/lib/post-store";
 import { getSession, logout, verifyAdminPassword, resetAdminPassword, updateAdminInfo, type AdminSession } from "@/lib/auth-store";
 import { Lock, Eye, EyeOff } from "lucide-react";
+import { getAllReports } from "@/lib/report-store";
+import { getPendingConsultationCount } from "@/lib/consultation-store";
+import { getAllMentors } from "@/lib/mentor-store";
+import { getAllStudies } from "@/lib/study-store";
 import { ToastProvider, useToast } from "@/lib/toast-context";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -49,6 +53,7 @@ type MenuItem = {
   icon: typeof RiDashboardLine;
   label: string;
   href: string;
+  badge?: number;
 };
 
 type MenuGroup = {
@@ -57,7 +62,38 @@ type MenuGroup = {
   items: MenuItem[];
 };
 
-const menuGroups: MenuGroup[] = [
+function getMenuGroups(): MenuGroup[] {
+  let pendingCount = 0;
+  try { pendingCount = getAllReports().filter((r) => r.status === "PENDING").length; } catch { /* SSR safe */ }
+
+  let consultPendingCount = 0;
+  try { consultPendingCount = getPendingConsultationCount(); } catch { /* SSR safe */ }
+
+  let mentorPendingCount = 0;
+  try { mentorPendingCount = getAllMentors().filter((m) => m.status === "PENDING").length; } catch { /* SSR safe */ }
+
+  let studyPendingCount = 0;
+  try { studyPendingCount = getAllStudies().filter((s) => s.status === "PENDING").length; } catch { /* SSR safe */ }
+
+  return [
+  {
+    label: "콘텐츠 및 운영 관리",
+    items: [
+      { icon: RiFileTextLine, label: "콘텐츠 관리", href: "/posts" },
+      { icon: RiApps2Line, label: "카테고리 관리", href: "/categories" },
+      { icon: RiMessage2Line, label: "신고 관리", href: "/comments", badge: pendingCount },
+      { icon: RiMessage2Line, label: "댓글 관리", href: "/comment-list" },
+      { icon: RiCustomerService2Line, label: "상담 관리", href: "/consultations", badge: consultPendingCount },
+    ],
+  },
+  {
+    label: "멘토링 및 커뮤니티",
+    items: [
+      { icon: RiUserStarLine, label: "멘토 관리", href: "/mentors", badge: mentorPendingCount },
+      { icon: RiQuestionAnswerLine, label: "멘토 Q&A", href: "/mentor-qna" },
+      { icon: RiGroupLine, label: "스터디 관리", href: "/studies", badge: studyPendingCount },
+    ],
+  },
   {
     label: "회원 및 승인 관리",
     superAdminOnly: true,
@@ -65,23 +101,6 @@ const menuGroups: MenuGroup[] = [
       { icon: RiTeamLine, label: "회원 관리", href: "/users" },
       { icon: RiShieldCheckLine, label: "인증 뱃지 관리", href: "/verifications" },
       { icon: RiFileListLine, label: "활동 추적", href: "/audit-logs" },
-    ],
-  },
-  {
-    label: "콘텐츠 및 운영 관리",
-    items: [
-      { icon: RiFileTextLine, label: "콘텐츠 관리", href: "/posts" },
-      { icon: RiApps2Line, label: "카테고리 관리", href: "/categories" },
-      { icon: RiMessage2Line, label: "댓글/신고 관리", href: "/comments" },
-      { icon: RiCustomerService2Line, label: "상담 관리", href: "/consultations" },
-    ],
-  },
-  {
-    label: "멘토링 및 커뮤니티",
-    items: [
-      { icon: RiUserStarLine, label: "멘토 관리", href: "/mentors" },
-      { icon: RiQuestionAnswerLine, label: "멘토 Q&A", href: "/mentor-qna" },
-      { icon: RiGroupLine, label: "스터디 관리", href: "/studies" },
     ],
   },
   {
@@ -106,6 +125,7 @@ const menuGroups: MenuGroup[] = [
     ],
   },
 ];
+}
 
 // ─── SidebarNav ───────────────────────────────────────────────────────────────
 
@@ -119,14 +139,16 @@ function SidebarNav({
   role: "SUPER_ADMIN" | "OPERATOR" | null;
 }) {
   const pathname = usePathname();
+  const menuGroups = getMenuGroups();
 
   const visibleGroups = menuGroups.filter(
     (g) => !g.superAdminOnly || role === "SUPER_ADMIN"
   );
 
+  const defaultClosedGroups = new Set(["회원 및 승인 관리", "시스템 통계", "시스템 설정 및 계정"]);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
-    menuGroups.forEach((g) => { initial[g.label] = true; });
+    menuGroups.forEach((g: MenuGroup) => { initial[g.label] = !defaultClosedGroups.has(g.label); });
     return initial;
   });
 
@@ -197,13 +219,16 @@ function SidebarNav({
                       onClick={onItemClick}
                       title={item.label}
                       className={cn(
-                        "flex items-center justify-center rounded-lg py-2 transition-colors",
+                        "relative flex items-center justify-center rounded-lg py-2 transition-colors",
                         active
                           ? "bg-slate-100 text-slate-900"
                           : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
                       )}
                     >
                       <Icon className="h-[18px] w-[18px]" />
+                      {item.badge != null && item.badge > 0 && (
+                        <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500" />
+                      )}
                     </Link>
                   );
                 })}
@@ -247,7 +272,10 @@ function SidebarNav({
                           )}
                         >
                           <Icon className="h-[18px] w-[18px] shrink-0" />
-                          <span>{item.label}</span>
+                          <span className="flex-1">{item.label}</span>
+                          {item.badge != null && item.badge > 0 && (
+                            <span className="h-1.5 w-1.5 rounded-full bg-red-500 shrink-0" />
+                          )}
                         </Link>
                       );
                     })}

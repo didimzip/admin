@@ -26,6 +26,7 @@ import {
   resetAdminPassword,
   verifyAdminPassword,
   deleteAdmins,
+  restoreAdmins,
   getSession,
   type AdminAccount,
   type AdminRole,
@@ -544,30 +545,23 @@ export default function AdminAccountsPage() {
     });
   };
 
-  const handleDeleteSelected = () => {
-    const count = selectedIds.size;
-    const deletedNames = admins.filter((a) => selectedIds.has(a.id)).map((a) => a.name).join(", ");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const confirmDeleteSelected = () => {
+    const deleted = admins.filter((a) => selectedIds.has(a.id));
+    const count = deleted.length;
+    const deletedNames = deleted.map((a) => a.name).join(", ");
     deleteAdmins([...selectedIds]);
     recordLog("ADMIN_DELETE", `관리자 계정 삭제 (${count}명): ${deletedNames}`, { targetType: "admin" });
     setSelectedIds(new Set());
     setIsEditing(false);
+    setShowDeleteModal(false);
     refresh();
-    showToast(`${count}개 계정이 삭제되었습니다.`);
+    showToast(`${count}개 계정이 삭제되었습니다.`, {
+      onUndo: () => { restoreAdmins(deleted); refresh(); },
+    });
   };
 
-  const handleDeleteAll = () => {
-    const deletable = admins.filter(isDeletable);
-    const ids = deletable.map((a) => a.id);
-    const count = ids.length;
-    if (!window.confirm(`삭제 가능한 계정 ${count}개를 모두 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
-    const deletedNames = deletable.map((a) => a.name).join(", ");
-    deleteAdmins(ids);
-    recordLog("ADMIN_DELETE", `관리자 계정 전체 삭제 (${count}명): ${deletedNames}`, { targetType: "admin" });
-    setSelectedIds(new Set());
-    setIsEditing(false);
-    refresh();
-    showToast(`전체 ${count}개 계정이 삭제되었습니다.`);
-  };
 
   const deletableAdmins = admins.filter(isDeletable);
   const allDeletableSelected =
@@ -649,7 +643,13 @@ export default function AdminAccountsPage() {
           {isEditing ? (
             <div className="flex items-center gap-2">
               <button
-                onClick={handleDeleteSelected}
+                onClick={() => setSelectedIds(new Set(deletableAdmins.map((a) => a.id)))}
+                className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                전체선택
+              </button>
+              <button
+                onClick={() => setShowDeleteModal(true)}
                 disabled={selectedIds.size === 0}
                 className={cn(
                   "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
@@ -658,14 +658,7 @@ export default function AdminAccountsPage() {
                     : "cursor-not-allowed text-slate-300"
                 )}
               >
-                선택삭제{selectedIds.size > 0 && ` (${selectedIds.size})`}
-              </button>
-              <button
-                onClick={handleDeleteAll}
-                disabled={deletableAdmins.length === 0}
-                className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:bg-red-300"
-              >
-                전체삭제
+                삭제{selectedIds.size > 0 && ` (${selectedIds.size})`}
               </button>
               <button
                 onClick={() => { setIsEditing(false); setSelectedIds(new Set()); }}
@@ -904,6 +897,22 @@ export default function AdminAccountsPage() {
         />
       )}
 
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={(e) => { if (e.target === e.currentTarget) setShowDeleteModal(false); }}>
+          <div className="w-full max-w-sm rounded-xl bg-white shadow-xl">
+            <div className="px-5 pt-5 pb-4 space-y-3">
+              <h3 className="text-sm font-semibold text-slate-900">관리자 계정 삭제</h3>
+              <p className="text-sm text-slate-600">선택한 {selectedIds.size}개의 계정을 삭제하시겠습니까?</p>
+              <p className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-600">삭제 후 하단 토스트에서 실행취소할 수 있습니다.</p>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3.5">
+              <button onClick={() => setShowDeleteModal(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">취소</button>
+              <button onClick={confirmDeleteSelected} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors">삭제</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

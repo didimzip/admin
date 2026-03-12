@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Trash2, Eye, EyeOff } from "lucide-react";
+import { Search, Eye, EyeOff, SquarePen } from "lucide-react";
 import {
   RiQuestionAnswerLine,
   RiTimeLine,
@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/lib/toast-context";
 import { PaginationBar, CountDisplay } from "@/components/ui/pagination-bar";
 import { recordLog } from "@/lib/audit-log-store";
-import { getAllQuestions, deleteQuestions } from "@/lib/mentor-qna-store";
+import { getAllQuestions, deleteQuestions, restoreQuestions } from "@/lib/mentor-qna-store";
 import {
   MENTOR_CATEGORIES,
   type MentorQuestion,
@@ -33,7 +33,7 @@ import {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const PAGE_SIZE_OPTIONS = [10, 15, 20, 30];
+const PAGE_SIZE_OPTIONS = [10, 20, 30, 40, 50];
 
 type TabValue = "ALL" | QuestionStatus;
 
@@ -88,29 +88,17 @@ function ConfirmDeleteModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
-            <RiAlertLine className="h-5 w-5 text-red-600" />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-slate-900">
-              {count}개 질문 삭제
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              이 작업은 되돌릴 수 없습니다.
-            </p>
-          </div>
+      <div className="w-full max-w-sm rounded-xl bg-white shadow-xl">
+        <div className="px-5 pt-5 pb-4 space-y-3">
+          <h3 className="text-sm font-semibold text-slate-900">질문 삭제</h3>
+          <p className="text-sm text-slate-600">선택한 {count}개의 질문을 삭제하시겠습니까?</p>
+          <p className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-600">
+            삭제 후 하단 토스트에서 실행취소할 수 있습니다.
+          </p>
         </div>
-        <p className="text-sm text-slate-600 mb-5">
-          선택한 <span className="font-semibold text-red-600">{count}개</span>의
-          질문을 삭제하시겠습니까?
-        </p>
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3.5">
           <button
             onClick={onClose}
             className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
@@ -140,7 +128,7 @@ export default function MentorQnaPage() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("전체");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(15);
+  const [pageSize, setPageSize] = useState(20);
   const [editMode, setEditMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -228,6 +216,7 @@ export default function MentorQnaPage() {
 
   const confirmDelete = () => {
     const ids = Array.from(selected);
+    const deleted = questions.filter((q) => ids.includes(q.id));
     deleteQuestions(ids);
     recordLog("MENTOR_QNA_DELETE", `멘토 Q&A ${ids.length}건 삭제`, {
       targetType: "mentor-qna",
@@ -236,7 +225,9 @@ export default function MentorQnaPage() {
     setSelected(new Set());
     setEditMode(false);
     setShowDeleteModal(false);
-    showToast(`${ids.length}개의 질문이 삭제되었습니다.`);
+    showToast(`${ids.length}개의 질문이 삭제되었습니다.`, {
+      onUndo: () => { restoreQuestions(deleted); setQuestions(getAllQuestions()); },
+    });
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -310,62 +301,62 @@ export default function MentorQnaPage() {
             <h3 className="text-sm font-semibold text-slate-800">질문 목록</h3>
             <CountDisplay total={filtered.length} />
           </div>
-          <div className="flex items-center gap-2">
-            {editMode && selected.size > 0 && (
-              <span className="mr-1 text-xs font-medium text-indigo-600">
-                {selected.size}개 선택됨
-              </span>
-            )}
-            {editMode ? (
-              <>
-                <button
-                  onClick={handleDelete}
-                  disabled={selected.size === 0}
-                  className={cn(
-                    "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                    selected.size > 0
-                      ? "bg-red-50 text-red-600 hover:bg-red-100"
-                      : "cursor-not-allowed text-slate-300"
-                  )}
-                >
-                  삭제 {selected.size > 0 && `(${selected.size})`}
-                </button>
-                <button
-                  onClick={() => { setEditMode(false); setSelected(new Set()); }}
-                  className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-                >
-                  완료
-                </button>
-              </>
-            ) : (
-              <>
-                <select
-                  value={pageSize}
-                  onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
-                  className="h-7 cursor-pointer rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-600 hover:border-slate-300 focus:outline-none"
-                >
-                  {PAGE_SIZE_OPTIONS.map((s) => (
-                    <option key={s} value={s}>{s}개씩</option>
-                  ))}
-                </select>
-                <button
-                  onClick={() => setEditMode(true)}
-                  className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-                >
-                  편집
-                </button>
-              </>
-            )}
-          </div>
+          {editMode ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSelected(new Set(filtered.map((q) => q.id)))}
+                className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                전체선택
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={selected.size === 0}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  selected.size > 0
+                    ? "bg-red-50 text-red-600 hover:bg-red-100"
+                    : "cursor-not-allowed text-slate-300"
+                )}
+              >
+                삭제 {selected.size > 0 && `(${selected.size})`}
+              </button>
+              <button
+                onClick={() => { setEditMode(false); setSelected(new Set()); }}
+                className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                완료
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <select
+                value={pageSize}
+                onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+                className="h-7 cursor-pointer rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-600 hover:border-slate-300 focus:outline-none"
+              >
+                {PAGE_SIZE_OPTIONS.map((s) => (
+                  <option key={s} value={s}>{s}개씩</option>
+                ))}
+              </select>
+              <button
+                onClick={() => { setEditMode(true); setSelected(new Set()); }}
+                className="flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                <SquarePen className="h-3 w-3" />
+                편집
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] table-fixed text-sm">
-            <colgroup><col className="w-[40px]" /><col /><col className="w-[120px]" /><col className="w-[120px]" /><col className="w-[110px]" /><col className="w-[55px]" /><col className="w-[100px]" /><col className="w-[100px]" /></colgroup>
+            <colgroup>{editMode && <col className="w-[40px]" />}<col /><col className="w-[120px]" /><col className="w-[120px]" /><col className="w-[110px]" /><col className="w-[55px]" /><col className="w-[100px]" /><col className="w-[100px]" /></colgroup>
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-left">
-                <th className="px-3 py-3">
-                  {editMode && (
+                {editMode && (
+                  <th className="px-3 py-3">
                     <input
                       type="checkbox"
                       className="h-3.5 w-3.5 accent-indigo-600"
@@ -374,9 +365,9 @@ export default function MentorQnaPage() {
                       }
                       onChange={toggleSelectAll}
                     />
-                  )}
-                </th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500">
+                  </th>
+                )}
+                <th className="px-5 py-3 text-xs font-semibold text-slate-500">
                   질문 제목
                 </th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">
@@ -435,7 +426,7 @@ export default function MentorQnaPage() {
                   return (
                     <tr
                       key={q.id}
-                      onClick={() => { if (!editMode) router.push(`/mentor-qna/${q.id}`); }}
+                      onClick={() => { if (editMode) toggleSelect(q.id); else router.push(`/mentor-qna/${q.id}`); }}
                       className={cn(
                         "transition-colors hover:bg-slate-50",
                         !editMode && "cursor-pointer",
@@ -443,19 +434,19 @@ export default function MentorQnaPage() {
                       )}
                     >
                       {/* Checkbox */}
-                      <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
-                        {editMode && (
+                      {editMode && (
+                        <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             className="h-3.5 w-3.5 accent-indigo-600"
                             checked={selected.has(q.id)}
                             onChange={() => toggleSelect(q.id)}
                           />
-                        )}
-                      </td>
+                        </td>
+                      )}
 
                       {/* 질문 제목 + content preview + report badge */}
-                      <td className="overflow-hidden px-4 py-3">
+                      <td className="overflow-hidden px-5 py-3">
                         <div className="flex items-center gap-1.5">
                           <div className="truncate font-medium text-slate-800">
                             {q.title}

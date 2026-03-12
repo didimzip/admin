@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, Mail, MessageCircle, MessageSquare, Send, Pencil, Copy, Ban, Trash2, Users, CheckCircle2, XCircle, BarChart2, ChevronUp, ChevronDown, ChevronsUpDown, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Mail, MessageCircle, MessageSquare, Send, Pencil, Copy, Ban, Trash2, Users, CheckCircle2, XCircle, BarChart2, ChevronUp, ChevronDown, ChevronsUpDown, AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getCampaign, getAllCampaigns, upsertCampaign, deleteCampaign, getTargetUsers, getTargetUsersForSms, type StoredCampaign } from "@/lib/campaign-store";
 import { getAllAdmins } from "@/lib/auth-store";
+import { getSystemSettings } from "@/lib/system-settings-store";
 import { type CampaignStatus, type CampaignChannel } from "@/data/mock-data";
 import { useToast } from "@/lib/toast-context";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ export default function CampaignDetailPage() {
   const { showToast } = useToast();
   const [campaign, setCampaign] = useState<StoredCampaign | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<"content" | "history">("content");
   const [historySort, setHistorySort] = useState<{ key: "nickname" | "email" | "companyName" | "jobCategory" | "failed"; dir: "asc" | "desc" }>({ key: "failed", dir: "asc" });
   const [historyFilter, setHistoryFilter] = useState<"all" | "success" | "failed">("all");
@@ -94,6 +96,48 @@ export default function CampaignDetailPage() {
     deleteCampaign(campaign!.id);
     showToast("마케팅이 삭제되었습니다.", "success");
     router.push("/campaigns");
+  }
+
+  async function handleRefreshSmsStatus() {
+    if (!campaign?.smsGroupId) {
+      showToast("솔라피 그룹 ID가 없어 결과를 조회할 수 없습니다.", "error");
+      return;
+    }
+    setIsRefreshing(true);
+    try {
+      const settings = getSystemSettings();
+      const res = await fetch("/api/sms/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          apiKey: settings.solapiApiKey,
+          apiSecret: settings.solapiApiSecret,
+          groupId: campaign.smsGroupId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error ?? "결과 조회에 실패했습니다.", "error");
+        return;
+      }
+      const updated = upsertCampaign({
+        ...campaign,
+        sentCount: data.sent,
+        failedCount: data.failed,
+        failedPhones: data.failedPhones ?? [],
+        failedReasons: data.failedReasons ?? [],
+      });
+      setCampaign(updated);
+      if (data.pending) {
+        showToast("아직 처리 중인 건이 있습니다. 잠시 후 다시 조회해주세요.", "warning");
+      } else {
+        showToast("발송 결과가 업데이트되었습니다.", "success");
+      }
+    } catch {
+      showToast("결과 조회 중 오류가 발생했습니다.", "error");
+    } finally {
+      setIsRefreshing(false);
+    }
   }
 
   return (
@@ -169,21 +213,43 @@ export default function CampaignDetailPage() {
 
             {/* 스탯 행 (발송 완료일 때만) */}
             {campaign.status === "SENT" && (
-              <div className="grid grid-cols-4 divide-x divide-slate-100 border-t border-slate-100">
-                {[
-                  { icon: Users, label: "타겟 대상", value: `${campaign.targetCount}명`, color: "text-slate-700" },
-                  { icon: CheckCircle2, label: "발송 완료", value: `${campaign.sentCount}명`, color: "text-green-600" },
-                  { icon: XCircle, label: "발송 실패", value: hasFailed ? `${campaign.failedCount}명` : "—", color: hasFailed ? "text-red-500" : "text-slate-400" },
-                  { icon: BarChart2, label: "오픈율", value: campaign.openRate > 0 ? `${campaign.openRate}%` : "—", color: campaign.openRate > 0 ? "text-indigo-600" : "text-slate-400" },
-                ].map(({ icon: Icon, label, value, color }) => (
-                  <div key={label} className="flex items-center gap-3 px-5 py-3.5">
-                    <Icon className={cn("h-4 w-4 shrink-0", color)} />
-                    <div>
-                      <p className="text-[11px] text-slate-400">{label}</p>
-                      <p className={cn("text-base font-semibold leading-tight", color)}>{value}</p>
+              <div className="border-t border-slate-100">
+                <div className="grid grid-cols-4 divide-x divide-slate-100">
+                  {[
+                    { icon: Users, label: "타겟 대상", value: `${campaign.targetCount}명`, color: "text-slate-700" },
+                    { icon: CheckCircle2, label: "발송 완료", value: `${campaign.sentCount}명`, color: "text-green-600" },
+                    { icon: XCircle, label: "발송 실패", value: hasFailed ? `${campaign.failedCount}명` : "—", color: hasFailed ? "text-red-500" : "text-slate-400" },
+                    { icon: BarChart2, label: "오픈율", value: campaign.openRate > 0 ? `${campaign.openRate}%` : "—", color: campaign.openRate > 0 ? "text-indigo-600" : "text-slate-400" },
+                  ].map(({ icon: Icon, label, value, color }) => (
+                    <div key={label} className="flex items-center gap-3 px-5 py-3.5">
+                      <Icon className={cn("h-4 w-4 shrink-0", color)} />
+                      <div>
+                        <p className="text-[11px] text-slate-400">{label}</p>
+                        <p className={cn("text-base font-semibold leading-tight", color)}>{value}</p>
+                      </div>
                     </div>
+                  ))}
+                </div>
+                {campaign.channel === "SMS" && campaign.smsGroupId && (
+                  <div className="flex items-center justify-between border-t border-slate-100 px-5 py-2.5">
+                    <p className="text-xs text-slate-400">
+                      솔라피 그룹 ID: <span className="font-mono text-slate-500">{campaign.smsGroupId}</span>
+                    </p>
+                    <button
+                      onClick={handleRefreshSmsStatus}
+                      disabled={isRefreshing}
+                      className={cn(
+                        "flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
+                        isRefreshing
+                          ? "cursor-not-allowed border-slate-200 text-slate-400"
+                          : "border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                      )}
+                    >
+                      <RefreshCw className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")} />
+                      {isRefreshing ? "조회 중..." : "결과 새로고침"}
+                    </button>
                   </div>
-                ))}
+                )}
               </div>
             )}
           </div>
@@ -228,9 +294,10 @@ export default function CampaignDetailPage() {
                 발송 내용
               </button>
               {campaign.status === "SENT" && (() => {
-                const count = campaign.channel === "SMS"
-                  ? getTargetUsersForSms(campaign.targetFilter).length
-                  : getTargetUsers(campaign.targetFilter).length;
+                const count = campaign.sentRecipients?.length
+                  ?? (campaign.channel === "SMS"
+                    ? getTargetUsersForSms(campaign.targetFilter).length
+                    : getTargetUsers(campaign.targetFilter).length);
                 return (
                   <button
                     onClick={() => setActiveTab("history")}
@@ -325,7 +392,7 @@ export default function CampaignDetailPage() {
             {activeTab === "history" && campaign.status === "SENT" && (() => {
               const isSms = campaign.channel === "SMS";
               const failedSet = isSms
-                ? new Set(campaign.failedPhones ?? [])
+                ? new Set((campaign.failedPhones ?? []).map((p) => p.replace(/-/g, "")))
                 : new Set(campaign.failedEmails ?? []);
               const toggleSort = (key: typeof historySort.key) => {
                 setHistorySort((prev) =>
@@ -340,17 +407,25 @@ export default function CampaignDetailPage() {
                   ? <ChevronUp className="h-3 w-3 text-indigo-500" />
                   : <ChevronDown className="h-3 w-3 text-indigo-500" />;
               };
-              const targetUsers = isSms
-                ? getTargetUsersForSms(campaign.targetFilter)
-                : getTargetUsers(campaign.targetFilter);
-              const allTargets = targetUsers
-                .map((u) => ({
-                  nickname: u.nickname ?? "—",
-                  email: isSms ? (u.phone ?? "—") : u.email,
-                  companyName: u.companyName ?? "—",
-                  jobCategory: u.jobCategory ?? "—",
-                  failed: isSms ? failedSet.has(u.phone ?? "") : failedSet.has(u.email),
-                }))
+              // sentRecipients가 있으면 그대로 사용, 없으면 필터에서 재계산 (하위호환)
+              const allTargets = (campaign.sentRecipients && campaign.sentRecipients.length > 0
+                ? campaign.sentRecipients.map((r) => ({
+                    ...r,
+                    failed: isSms
+                      ? failedSet.has(r.email.replace(/-/g, ""))
+                      : failedSet.has(r.email),
+                  }))
+                : (isSms
+                    ? getTargetUsersForSms(campaign.targetFilter)
+                    : getTargetUsers(campaign.targetFilter)
+                  ).map((u) => ({
+                    nickname: u.nickname ?? "—",
+                    email: isSms ? (u.phone ?? "—") : u.email,
+                    companyName: u.companyName ?? "—",
+                    jobCategory: u.jobCategory ?? "—",
+                    failed: isSms ? failedSet.has((u.phone ?? "").replace(/-/g, "")) : failedSet.has(u.email),
+                  }))
+              )
                 .sort((a, b) => {
                   const { key, dir } = historySort;
                   let cmp = 0;

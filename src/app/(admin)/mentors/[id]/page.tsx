@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   XCircle,
   Ban,
-  Star,
   Building2,
   Briefcase,
   Clock,
@@ -40,11 +39,13 @@ import {
   updateMentorStatus,
   deleteMentors,
 } from "@/lib/mentor-store";
+import { getAllQuestions } from "@/lib/mentor-qna-store";
 import {
   MENTOR_CATEGORIES,
   type Mentor,
   type MentorStatus,
   type MentorCategory,
+  type MentorQuestion,
 } from "@/data/mock-data";
 
 /* ── Status badge config ── */
@@ -78,6 +79,9 @@ export default function MentorDetailPage() {
   const [modalRejectReason, setModalRejectReason] = useState("");
   const [modalSuspendReason, setModalSuspendReason] = useState("");
 
+  /* ── Q&A answered list ── */
+  const [answeredQna, setAnsweredQna] = useState<MentorQuestion[]>([]);
+
   /* ── Load mentor ── */
   useEffect(() => {
     const m = getMentor(id);
@@ -85,6 +89,9 @@ export default function MentorDetailPage() {
     if (m) {
       setAdminMemo(m.adminMemo ?? "");
     }
+    // 이 멘토가 답변한 Q&A 목록
+    const questions = getAllQuestions();
+    setAnsweredQna(questions.filter((q) => q.mentorId === id && q.status === "ANSWERED").sort((a, b) => b.answeredAt.localeCompare(a.answeredAt)));
     setLoading(false);
   }, [id]);
 
@@ -124,12 +131,37 @@ export default function MentorDetailPage() {
 
   function handleSave() {
     if (!mentor) return;
+
+    // 유효성 검증
+    const name = ((form.name as string) ?? mentor.name).trim();
+    const email = ((form.email as string) ?? mentor.email).trim();
+    const phone = ((form.phone as string) ?? mentor.phone).trim();
+
+    if (!name) { showToast("이름을 입력해주세요."); return; }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showToast("올바른 이메일 주소를 입력해주세요.");
+      return;
+    }
+    // 전화번호 자동 포맷 (숫자만 추출 → 010-0000-0000)
+    let formattedPhone = phone.replace(/[^0-9]/g, "");
+    if (formattedPhone.length === 11) {
+      formattedPhone = `${formattedPhone.slice(0, 3)}-${formattedPhone.slice(3, 7)}-${formattedPhone.slice(7)}`;
+    } else if (formattedPhone.length === 10) {
+      formattedPhone = `${formattedPhone.slice(0, 3)}-${formattedPhone.slice(3, 6)}-${formattedPhone.slice(6)}`;
+    } else if (formattedPhone.length > 0) {
+      showToast("올바른 전화번호를 입력해주세요.");
+      return;
+    }
+
     upsertMentor({
       ...mentor,
       ...form,
+      name,
+      email,
+      phone: formattedPhone,
       id: mentor.id,
     } as Omit<Mentor, "id" | "createdAt" | "updatedAt"> & { id: string });
-    recordLog("MENTOR_UPDATE", `멘토 "${form.name ?? mentor.name}" 정보 수정`, {
+    recordLog("MENTOR_UPDATE", `멘토 "${name}" 정보 수정`, {
       targetType: "MENTOR",
       targetId: mentor.id,
     });
@@ -244,31 +276,6 @@ export default function MentorDetailPage() {
   function fmtDate(str: string | undefined | null) {
     if (!str) return "—";
     return new Date(str).toLocaleDateString("ko-KR");
-  }
-
-  /* ── Star rendering ── */
-  function renderStars(rating: number) {
-    const full = Math.floor(rating);
-    const hasHalf = rating - full >= 0.5;
-    const empty = 5 - full - (hasHalf ? 1 : 0);
-    return (
-      <div className="flex items-center gap-0.5">
-        {Array.from({ length: full }).map((_, i) => (
-          <Star key={`f${i}`} className="h-4 w-4 fill-amber-400 text-amber-400" />
-        ))}
-        {hasHalf && (
-          <div className="relative h-4 w-4">
-            <Star className="absolute h-4 w-4 text-slate-200" />
-            <div className="absolute overflow-hidden w-[50%]">
-              <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-            </div>
-          </div>
-        )}
-        {Array.from({ length: empty }).map((_, i) => (
-          <Star key={`e${i}`} className="h-4 w-4 text-slate-200" />
-        ))}
-      </div>
-    );
   }
 
   /* ── Loading ── */
@@ -506,9 +513,9 @@ export default function MentorDetailPage() {
                   </SelectContent>
                 </Select>
               ) : (
-                <p className="mt-1 text-sm">
+                <div className="mt-1 text-sm">
                   <Badge variant="outline">{mentor.category}</Badge>
-                </p>
+                </div>
               )}
             </div>
 
@@ -621,27 +628,24 @@ export default function MentorDetailPage() {
           {/* 활동 통계 */}
           <div className="bg-white rounded-xl border shadow-sm p-6 space-y-4">
             <h2 className="text-base font-semibold flex items-center gap-2">
-              <Star className="h-4 w-4 text-slate-500" />
+              <RiChat3Line className="h-4 w-4 text-slate-500" />
               활동 통계
             </h2>
 
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="rounded-lg border p-4 text-center">
-                <p className="text-xs text-slate-500 flex items-center justify-center gap-1">
-                  <RiChat3Line className="h-3 w-3" /> 멘토링 횟수
-                </p>
-                <p className="mt-1 text-2xl font-bold text-indigo-600">
-                  {mentor.mentoringCount}
+                <p className="text-xs text-slate-500">마지막 활동일</p>
+                <p className="mt-1 text-sm font-medium">
+                  {mentor.lastActiveAt
+                    ? new Date(mentor.lastActiveAt).toLocaleDateString("ko-KR")
+                    : "—"}
                 </p>
               </div>
               <div className="rounded-lg border p-4 text-center">
-                <p className="text-xs text-slate-500">평점</p>
-                <div className="mt-1 flex flex-col items-center gap-1">
-                  {renderStars(mentor.rating)}
-                  <p className="text-lg font-bold text-amber-500">
-                    {mentor.rating.toFixed(1)}
-                  </p>
-                </div>
+                <p className="text-xs text-slate-500">Q&A 답변 수</p>
+                <p className="mt-1 text-2xl font-bold text-indigo-600">
+                  {answeredQna.length}
+                </p>
               </div>
               <div className="rounded-lg border p-4 text-center">
                 <p className="text-xs text-slate-500">신청일</p>
@@ -656,79 +660,130 @@ export default function MentorDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* Q&A 답변 목록 */}
+          <div className="bg-white rounded-xl border shadow-sm p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold flex items-center gap-2">
+                <RiChat3Line className="h-4 w-4 text-slate-500" />
+                Q&A 답변 목록
+              </h2>
+              <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-600">
+                {answeredQna.length}건
+              </span>
+            </div>
+
+            {answeredQna.length === 0 ? (
+              <div className="py-8 text-center">
+                <RiChat3Line className="mx-auto mb-2 h-8 w-8 text-slate-200" />
+                <p className="text-sm text-slate-400">아직 답변한 Q&A가 없습니다.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {answeredQna.map((q) => (
+                  <div
+                    key={q.id}
+                    className="cursor-pointer py-3 first:pt-0 last:pb-0 hover:bg-slate-50/50 -mx-2 px-2 rounded-lg transition-colors"
+                    onClick={() => router.push(`/mentor-qna/${q.id}`)}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-slate-800 line-clamp-1">{q.title}</p>
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          질문자: {q.askerNickname} · {q.askerCompany}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-xs text-slate-400">
+                          {q.answeredAt ? new Date(q.answeredAt).toLocaleDateString("ko-KR") : "—"}
+                        </p>
+                        <Badge variant="success" className="mt-0.5 text-[10px]">답변완료</Badge>
+                      </div>
+                    </div>
+                    {q.answer && (
+                      <p className="mt-1.5 text-xs text-slate-500 line-clamp-2 bg-slate-50 rounded-md px-2.5 py-1.5">
+                        {q.answer}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ── Right column ── */}
         <div className="space-y-6">
           {/* 상태 관리 */}
-          <div className="bg-white rounded-xl border shadow-sm p-6 space-y-4">
-            <h2 className="text-base font-semibold">상태 관리</h2>
+          <div className="bg-white rounded-xl border shadow-sm p-5 space-y-4">
+            <h2 className="text-sm font-semibold text-slate-800">상태 관리</h2>
 
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-500">현재 상태:</span>
-              <Badge variant={sc.variant}>{sc.label}</Badge>
+            {/* 현재 상태 표시 */}
+            <div className={cn(
+              "flex items-center gap-2.5 rounded-lg px-3.5 py-2.5",
+              mentor.status === "PENDING" && "bg-amber-50",
+              mentor.status === "APPROVED" && "bg-green-50",
+              mentor.status === "REJECTED" && "bg-red-50",
+              mentor.status === "SUSPENDED" && "bg-slate-100",
+            )}>
+              <div className={cn(
+                "h-2 w-2 rounded-full",
+                mentor.status === "PENDING" && "bg-amber-500",
+                mentor.status === "APPROVED" && "bg-green-500",
+                mentor.status === "REJECTED" && "bg-red-500",
+                mentor.status === "SUSPENDED" && "bg-slate-500",
+              )} />
+              <span className="text-sm font-medium text-slate-700">{sc.label}</span>
             </div>
 
             {/* PENDING actions */}
             {mentor.status === "PENDING" && (
-              <div className="space-y-3">
-                <Button
-                  className="w-full"
-                  variant="default"
+              <div className="flex gap-2">
+                <button
                   onClick={handleApprove}
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm font-medium text-green-700 transition-colors hover:bg-green-100"
                 >
-                  <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                  <CheckCircle2 className="h-3.5 w-3.5" />
                   승인
-                </Button>
-                <Button
-                  className="w-full"
-                  variant="destructive"
-                  onClick={() => {
-                    setModalRejectReason("");
-                    setActiveModal("reject");
-                  }}
+                </button>
+                <button
+                  onClick={() => { setModalRejectReason(""); setActiveModal("reject"); }}
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-100"
                 >
-                  <XCircle className="mr-1.5 h-4 w-4" />
+                  <XCircle className="h-3.5 w-3.5" />
                   반려
-                </Button>
+                </button>
               </div>
             )}
 
             {/* APPROVED actions */}
             {mentor.status === "APPROVED" && (
-              <Button
-                className="w-full"
-                variant="outline"
-                onClick={() => {
-                  setModalSuspendReason("");
-                  setActiveModal("suspend");
-                }}
+              <button
+                onClick={() => { setModalSuspendReason(""); setActiveModal("suspend"); }}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
               >
-                <Ban className="mr-1.5 h-4 w-4" />
-                정지
-              </Button>
+                <Ban className="h-3.5 w-3.5" />
+                활동 정지
+              </button>
             )}
 
-            {/* REJECTED: short notice in sidebar */}
+            {/* REJECTED: short notice */}
             {mentor.status === "REJECTED" && mentor.rejectReason && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-3">
-                <p className="text-xs font-medium text-red-600 mb-1">
-                  반려 사유
-                </p>
-                <p className="text-sm text-red-800">{mentor.rejectReason}</p>
+              <div className="rounded-lg border border-red-200 bg-red-50/60 px-3.5 py-3">
+                <p className="text-[11px] font-medium text-red-500 mb-1">반려 사유</p>
+                <p className="text-sm text-red-700 leading-relaxed">{mentor.rejectReason}</p>
               </div>
             )}
 
             {/* SUSPENDED actions */}
             {mentor.status === "SUSPENDED" && (
-              <Button
-                className="w-full"
-                variant="outline"
+              <button
                 onClick={() => setActiveModal("resume")}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm font-medium text-green-700 transition-colors hover:bg-green-100"
               >
-                <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                <CheckCircle2 className="h-3.5 w-3.5" />
                 활동 재개
-              </Button>
+              </button>
             )}
           </div>
 
@@ -768,9 +823,9 @@ export default function MentorDetailPage() {
                   mentor.status === "SUSPENDED" && "bg-gray-500",
                 )} />
                 <p className="text-xs text-slate-400">현재</p>
-                <p className="text-sm font-medium">
+                <div className="text-sm font-medium">
                   <Badge variant={sc.variant} className="text-xs">{sc.label}</Badge>
-                </p>
+                </div>
               </div>
             </div>
           </div>

@@ -223,3 +223,9 @@ export function deleteAdmins(ids: string[]): void {
   const accounts = loadAccounts();
   saveAccounts(accounts.filter((a) => !ids.includes(a.id)));
 }
+
+export function restoreAdmins(items: AdminAccount[]): void {
+  const current = loadAccounts();
+  const existingIds = new Set(current.map((a) => a.id));
+  saveAccounts([...items.filter((a) => !existingIds.has(a.id)), ...current]);
+}

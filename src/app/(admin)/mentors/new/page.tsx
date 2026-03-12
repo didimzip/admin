@@ -204,7 +204,7 @@ export default function MentorNewPage() {
     const now = new Date().toISOString();
 
     upsertMentor({
-      userId: "",
+      userId: `admin_${Date.now()}`, // 관리자 직접등록 (회원 연동 시 실제 userId로 교체)
       name: form.name.trim(),
       nickname: form.nickname.trim(),
       email: form.email.trim(),
@@ -218,8 +218,7 @@ export default function MentorNewPage() {
       career: form.career.trim(),
       expertise: form.expertise,
       availableTime: form.availableTime.trim(),
-      mentoringCount: 0,
-      rating: 0,
+      lastActiveAt: "",
       status: "APPROVED",
       rejectReason: "",
       adminMemo: "",

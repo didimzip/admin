@@ -6,7 +6,18 @@ function loadAll(): Mentor[] {
   if (typeof window === "undefined") return mockMentors;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as Mentor[];
+    if (raw) {
+      const stored = JSON.parse(raw) as Mentor[];
+      // mock 데이터 중 localStorage에 없는 항목 병합
+      const storedIds = new Set(stored.map((m) => m.id));
+      const missing = mockMentors.filter((m) => !storedIds.has(m.id));
+      if (missing.length > 0) {
+        const merged = [...stored, ...missing];
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+        return merged;
+      }
+      return stored;
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(mockMentors));
     return mockMentors;
   } catch {
@@ -75,6 +86,12 @@ export function deleteMentors(ids: string[]): void {
   saveAll(mentors);
 }
 
+export function restoreMentors(items: Mentor[]): void {
+  const current = loadAll();
+  const existingIds = new Set(current.map((m) => m.id));
+  saveAll([...items.filter((m) => !existingIds.has(m.id)), ...current]);
+}
+
 export function updateMentorStatus(
   id: string,
   status: MentorStatus,
@@ -85,12 +102,26 @@ export function updateMentorStatus(
   if (idx === -1) return;
 
   const now = new Date().toISOString();
+  const prev = mentors[idx];
+
+  // 승인: 최초 승인일만 기록, 재개(SUSPENDED→APPROVED) 시 기존 approvedAt 유지
+  const approvedAt =
+    status === "APPROVED" && !prev.approvedAt ? now : prev.approvedAt;
+
+  // 승인 시 이전 반려사유 초기화 / 반려 시 사유 기록
+  const nextRejectReason =
+    status === "APPROVED" || status === "SUSPENDED"
+      ? ""
+      : rejectReason !== undefined
+        ? rejectReason
+        : prev.rejectReason;
+
   mentors[idx] = {
-    ...mentors[idx],
+    ...prev,
     status,
     updatedAt: now,
-    ...(status === "APPROVED" ? { approvedAt: now } : {}),
-    ...(rejectReason !== undefined ? { rejectReason } : {}),
+    approvedAt,
+    rejectReason: nextRejectReason,
   };
   saveAll(mentors);
 }

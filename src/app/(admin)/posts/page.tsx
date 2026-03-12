@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { mockPosts, POST_CATEGORIES, type PostStatus, type Post } from "@/data/mock-data";
 import { cn } from "@/lib/utils";
-import { getAllPosts, publishScheduledPosts, hideExpiredPosts, deletePost } from "@/lib/post-store";
+import { getAllPosts, publishScheduledPosts, hideExpiredPosts, deletePost, restorePosts, updatePostCategory } from "@/lib/post-store";
+import { getCategories, type Category } from "@/lib/category-store";
 import { getSession, getAllAdmins } from "@/lib/auth-store";
 import { useToast } from "@/lib/toast-context";
 import { recordLog } from "@/lib/audit-log-store";
@@ -202,6 +203,14 @@ export default function PostsPage() {
   const [deletedMockIds, setDeletedMockIds] = useState<Set<string>>(new Set());
   const [hotConditions, setHotConditions] = useState<HotConditions>(DEFAULT_HOT);
   const [showHotSettings, setShowHotSettings] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [categoryDropdownPos, setCategoryDropdownPos] = useState<{ x: number; y: number } | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [mockCategoryOverrides, setMockCategoryOverrides] = useState<Record<string, { category: string; subCategory?: string }>>({});
+  const [pendingCategory, setPendingCategory] = useState<{ category: string; subCategory: string }>({ category: "", subCategory: "" });
+
+  const mockPostIdSet = useMemo(() => new Set(mockPosts.map((p) => p.id)), []);
 
   const loadPosts = useCallback(() => {
     publishScheduledPosts();
@@ -218,6 +227,7 @@ export default function PostsPage() {
         authorNickname: (s.authorId && adminNameMap[s.authorId]) || s.authorName || "관리자",
         status: s.status as PostStatus,
         category: s.category || "기타",
+        subCategory: s.subCategory || "",
         viewCount: 0,
         virtualViewCount: 0,
         todayViewCount: 0,
@@ -233,16 +243,27 @@ export default function PostsPage() {
 
   useEffect(() => {
     setHotConditions(loadHotConditions());
+    setCategories(getCategories());
     loadPosts();
 
     // layout.tsx에서 예약→게시 처리 후 posts-updated 이벤트를 보내면 UI 갱신
-    window.addEventListener("posts-updated", loadPosts);
-    return () => window.removeEventListener("posts-updated", loadPosts);
+    const handlePostsUpdated = () => { loadPosts(); setPage(1); };
+    window.addEventListener("posts-updated", handlePostsUpdated);
+    return () => window.removeEventListener("posts-updated", handlePostsUpdated);
   }, [loadPosts]);
 
   const allPosts = useMemo(
-    () => [...userPosts, ...mockPosts.filter((p) => !deletedMockIds.has(p.id))],
-    [userPosts, deletedMockIds]
+    () => [
+      ...userPosts,
+      ...mockPosts
+        .filter((p) => !deletedMockIds.has(p.id))
+        .map((p) => {
+          const override = mockCategoryOverrides[p.id];
+          if (!override) return p;
+          return { ...p, category: override.category, subCategory: override.subCategory ?? p.subCategory };
+        }),
+    ],
+    [userPosts, deletedMockIds, mockCategoryOverrides]
   );
 
   // Apply HOT conditions dynamically
@@ -275,29 +296,65 @@ export default function PostsPage() {
     return filtered.slice(start, start + pageSize);
   }, [filtered, page, pageSize]);
 
-  function handleDeleteSelected() {
-    const count = selectedIds.size;
+  function confirmDeleteSelected() {
+    const ids = Array.from(selectedIds);
+    if (!ids.length) return;
+    const count = ids.length;
     const deletedTitles = allPosts.filter((p) => selectedIds.has(p.id)).map((p) => p.title).join(", ");
-    selectedIds.forEach((id) => {
-      if (id.startsWith("post_")) deletePost(id);
-    });
-    setUserPosts((prev) => prev.filter((p) => !selectedIds.has(p.id)));
-    setDeletedMockIds((prev) => new Set([...prev, ...Array.from(selectedIds).filter((id) => !id.startsWith("post_"))]));
+    // 복원용: store 게시물과 mock 게시물 ID 분리
+    const mockIdSet = new Set(mockPosts.map((p) => p.id));
+    const storeIds = ids.filter((id) => !mockIdSet.has(id));
+    const mockIds = ids.filter((id) => mockIdSet.has(id));
+    const deletedStorePosts = getAllPosts().filter((p) => storeIds.includes(p.id));
+    storeIds.forEach((id) => deletePost(id));
+    setDeletedMockIds((prev) => new Set([...prev, ...mockIds]));
     recordLog("POST_DELETE", `게시물 삭제 (${count}개): ${deletedTitles.slice(0, 80)}${deletedTitles.length > 80 ? "..." : ""}`, { targetType: "post" });
     setSelectedIds(new Set());
-    showToast(`${count}개 콘텐츠가 삭제되었습니다.`);
+    setIsEditing(false);
+    setShowDeleteModal(false);
+    loadPosts();
+    showToast(`${count}개 콘텐츠가 삭제되었습니다.`, {
+      onUndo: () => {
+        restorePosts(deletedStorePosts);
+        setDeletedMockIds((prev) => { const next = new Set(prev); mockIds.forEach((id) => next.delete(id)); return next; });
+        loadPosts();
+      },
+    });
   }
 
-  function handleDeleteAll() {
-    const count = allPosts.length;
-    if (!window.confirm(`전체 콘텐츠 ${count}개를 모두 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
-    allPosts.forEach((p) => { if (p.id.startsWith("post_")) deletePost(p.id); });
-    recordLog("POST_DELETE", `게시물 전체 삭제 (${count}개)`, { targetType: "post" });
-    setUserPosts([]);
-    setDeletedMockIds(new Set(allPosts.filter((p) => !p.id.startsWith("post_")).map((p) => p.id)));
-    setSelectedIds(new Set());
-    setIsEditing(false);
-    showToast(`전체 콘텐츠 ${count}개가 삭제되었습니다.`);
+
+  function openCategoryDropdown(e: React.MouseEvent, postId: string) {
+    e.stopPropagation();
+    if (editingCategoryId === postId) {
+      setEditingCategoryId(null);
+      setCategoryDropdownPos(null);
+      return;
+    }
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setCategoryDropdownPos({ x: rect.left, y: rect.bottom + 4 });
+    setEditingCategoryId(postId);
+    const post = allPosts.find((p) => p.id === postId);
+    setPendingCategory({ category: post?.category ?? "", subCategory: post?.subCategory ?? "" });
+  }
+
+  function handleCategoryChange(postId: string, newCategory: string, newSubCategory?: string) {
+    const post = allPosts.find((p) => p.id === postId);
+    if (!post) { setEditingCategoryId(null); return; }
+    if (post.category === newCategory && (post.subCategory ?? "") === (newSubCategory ?? "")) {
+      setEditingCategoryId(null);
+      return;
+    }
+    if (mockPostIdSet.has(postId)) {
+      setMockCategoryOverrides((prev) => ({ ...prev, [postId]: { category: newCategory, subCategory: newSubCategory } }));
+    } else {
+      updatePostCategory(postId, newCategory, newSubCategory);
+      loadPosts();
+    }
+    setEditingCategoryId(null);
+    setCategoryDropdownPos(null);
+    const label = newSubCategory ? `${newCategory} / ${newSubCategory}` : newCategory;
+    recordLog("POST_UPDATE", `게시물 카테고리 변경: "${post.title}" → ${label}`, { targetType: "post", targetId: postId });
+    showToast(`카테고리가 "${label}"(으)로 변경되었습니다.`);
   }
 
   function handleToggleSelectRow(id: string) {
@@ -420,7 +477,13 @@ export default function PostsPage() {
           {isEditing ? (
             <div className="flex items-center gap-2">
               <button
-                onClick={handleDeleteSelected}
+                onClick={() => setSelectedIds(new Set(filtered.map((p) => p.id)))}
+                className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                전체선택
+              </button>
+              <button
+                onClick={() => setShowDeleteModal(true)}
                 disabled={selectedIds.size === 0}
                 className={cn(
                   "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
@@ -429,13 +492,7 @@ export default function PostsPage() {
                     : "cursor-not-allowed text-slate-300"
                 )}
               >
-                선택삭제 {selectedIds.size > 0 && `(${selectedIds.size})`}
-              </button>
-              <button
-                onClick={handleDeleteAll}
-                className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 transition-colors"
-              >
-                전체삭제
+                삭제 {selectedIds.size > 0 && `(${selectedIds.size})`}
               </button>
               <button
                 onClick={() => { setIsEditing(false); setSelectedIds(new Set()); }}
@@ -541,8 +598,17 @@ export default function PostsPage() {
                       </td>
                       <td className="px-4 py-3.5 overflow-hidden text-slate-600"><div className="truncate">{post.authorNickname}</div></td>
                       <td className="px-4 py-3.5">
-                        <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-600">
-                          {post.category}
+                        <span
+                          onClick={(e) => { if (!isEditing) { e.stopPropagation(); openCategoryDropdown(e, post.id); } }}
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors",
+                            editingCategoryId === post.id
+                              ? "border-indigo-300 bg-indigo-50 text-indigo-600"
+                              : "border-slate-200 bg-white text-slate-600",
+                            !isEditing && "cursor-pointer hover:border-indigo-300 hover:text-indigo-600"
+                          )}
+                        >
+                          {post.category}{post.subCategory ? ` / ${post.subCategory}` : ""}
                         </span>
                       </td>
                       <td className="px-4 py-3.5">
@@ -575,6 +641,87 @@ export default function PostsPage() {
             onPageChange={setPage} />
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={(e) => { if (e.target === e.currentTarget) setShowDeleteModal(false); }}>
+          <div className="w-full max-w-sm rounded-xl bg-white shadow-xl">
+            <div className="px-5 pt-5 pb-4 space-y-3">
+              <h3 className="text-sm font-semibold text-slate-900">콘텐츠 삭제</h3>
+              <p className="text-sm text-slate-600">선택한 {selectedIds.size}개의 콘텐츠를 삭제하시겠습니까?</p>
+              <p className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-600">삭제 후 하단 토스트에서 실행취소할 수 있습니다.</p>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3.5">
+              <button onClick={() => setShowDeleteModal(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">취소</button>
+              <button onClick={confirmDeleteSelected} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors">삭제</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category Change Panel */}
+      {editingCategoryId && categoryDropdownPos && (() => {
+        const selectedCatObj = categories.find((c) => c.name === pendingCategory.category);
+        const subOptions = selectedCatObj?.subCategories ?? [];
+        return (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => { setEditingCategoryId(null); setCategoryDropdownPos(null); }} />
+            <div
+              className="fixed z-50 w-[240px] rounded-xl border border-slate-200 bg-white p-3 shadow-xl"
+              style={{ left: categoryDropdownPos.x, top: categoryDropdownPos.y }}
+            >
+              <p className="mb-2 text-[11px] font-semibold text-slate-500">카테고리 변경</p>
+              <div className="space-y-2">
+                <div>
+                  <label className="mb-1 block text-[11px] font-medium text-slate-500">1차 카테고리</label>
+                  <select
+                    value={pendingCategory.category}
+                    onChange={(e) => {
+                      setPendingCategory({ category: e.target.value, subCategory: "" });
+                    }}
+                    className="h-8 w-full cursor-pointer rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                  >
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                {subOptions.length > 0 && (
+                  <div>
+                    <label className="mb-1 block text-[11px] font-medium text-slate-500">2차 카테고리</label>
+                    <select
+                      value={pendingCategory.subCategory}
+                      onChange={(e) => {
+                        setPendingCategory((prev) => ({ ...prev, subCategory: e.target.value }));
+                      }}
+                      className="h-8 w-full cursor-pointer rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                    >
+                      <option value="">선택 안함</option>
+                      {subOptions.map((s) => (
+                        <option key={s.id} value={s.name}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+              <div className="mt-3 flex justify-end gap-1.5">
+                <button
+                  onClick={() => { setEditingCategoryId(null); setCategoryDropdownPos(null); }}
+                  className="rounded-md border border-slate-200 px-2.5 py-1 text-[11px] font-medium text-slate-500 hover:bg-slate-50"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={() => handleCategoryChange(editingCategoryId!, pendingCategory.category, pendingCategory.subCategory || undefined)}
+                  className="rounded-md bg-indigo-600 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-indigo-700"
+                >
+                  적용
+                </button>
+              </div>
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 }

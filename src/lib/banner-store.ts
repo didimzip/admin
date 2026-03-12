@@ -1,4 +1,5 @@
 import { mockBanners, type Banner, type BannerTextColor } from "@/data/mock-data";
+import { recordLog } from "@/lib/audit-log-store";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -94,13 +95,23 @@ export function deleteBanners(ids: string[]): void {
   saveAll(loadAll().filter((b) => !ids.includes(b.id)));
 }
 
+export function restoreBanners(items: StoredBanner[]): void {
+  const current = loadAll();
+  const existingIds = new Set(current.map((b) => b.id));
+  saveAll([...items.filter((b) => !existingIds.has(b.id)), ...current]);
+}
+
 export function toggleBannerActive(id: string): void {
   const banners = loadAll();
+  const target = banners.find((b) => b.id === id);
   saveAll(
     banners.map((b) =>
       b.id === id ? { ...b, isActive: !b.isActive, updatedAt: new Date().toISOString() } : b
     )
   );
+  if (target) {
+    recordLog("BANNER_CREATE", `배너 "${target.title.slice(0, 30)}" ${target.isActive ? "비활성화" : "활성화"}`, { targetType: "BANNER", targetId: id });
+  }
 }
 
 // ─── Banner Drafts ───────────────────────────────────────────────────────────

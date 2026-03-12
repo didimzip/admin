@@ -17,6 +17,13 @@ export type CampaignMessage = {
   body: string;    // 이메일 본문 / 브랜드 메시지 내용 / 푸시 내용
 };
 
+export type SentRecipient = {
+  nickname: string;
+  email: string;       // 이메일 주소 또는 전화번호
+  companyName: string;
+  jobCategory: string;
+};
+
 export type StoredCampaign = {
   id: string;
   title: string;
@@ -36,6 +43,8 @@ export type StoredCampaign = {
   smsTotalCost?: number;
   failedPhones?: string[];
   failedReasons?: string[];
+  smsGroupId?: string;
+  sentRecipients?: SentRecipient[]; // 실제 발송 대상 목록 (발송 시점에 저장)
   openRate: number;
   message: CampaignMessage;
   sendType: "IMMEDIATE" | "SCHEDULED";
@@ -161,6 +170,12 @@ export function deleteCampaign(id: string): void {
   saveAll(loadAll().filter((c) => c.id !== id));
 }
 
+export function restoreCampaigns(items: StoredCampaign[]): void {
+  const current = loadAll();
+  const existingIds = new Set(current.map((c) => c.id));
+  saveAll([...items.filter((c) => !existingIds.has(c.id)), ...current]);
+}
+
 // ─── Targeting ────────────────────────────────────────────────────────────────
 
 /**
@@ -186,7 +201,11 @@ export function getTargetUsers(filter: CampaignTargetFilter) {
 }
 
 export function getTargetUsersForSms(filter: CampaignTargetFilter) {
-  return getTargetUsers(filter).filter((u) => !!u.phone);
+  return getTargetUsers(filter).filter((u) => {
+    if (!u.phone) return false;
+    const digits = u.phone.replace(/[^0-9]/g, "");
+    return /^01[016789]\d{7,8}$/.test(digits);
+  });
 }
 
 export function computeTargetCountForSms(filter: CampaignTargetFilter): number {

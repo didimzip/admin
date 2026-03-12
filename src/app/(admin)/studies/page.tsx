@@ -3,8 +3,8 @@
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Trash2, Plus } from "lucide-react";
-import { RiGroupLine, RiTimeLine, RiCheckDoubleLine, RiRadarLine } from "react-icons/ri";
+import { Plus, SquarePen } from "lucide-react";
+import { RiGroupLine, RiTimeLine, RiCheckDoubleLine, RiRadarLine, RiHourglassLine } from "react-icons/ri";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/lib/toast-context";
 import { PaginationBar, CountDisplay } from "@/components/ui/pagination-bar";
 import { recordLog } from "@/lib/audit-log-store";
-import { getAllStudies, deleteStudies } from "@/lib/study-store";
+import { getAllStudies, deleteStudies, restoreStudies } from "@/lib/study-store";
 import {
   type Study,
   type StudyStatus,
@@ -22,7 +22,8 @@ import {
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 const tabStatuses: Record<string, StudyStatus[]> = {
-  ALL: ["RECRUITING", "IN_PROGRESS", "COMPLETED", "CANCELLED", "HIDDEN"],
+  ALL: ["PENDING", "RECRUITING", "IN_PROGRESS", "COMPLETED", "CANCELLED", "HIDDEN"],
+  PENDING: ["PENDING"],
   RECRUITING: ["RECRUITING"],
   IN_PROGRESS: ["IN_PROGRESS"],
   COMPLETED: ["COMPLETED"],
@@ -31,6 +32,7 @@ const tabStatuses: Record<string, StudyStatus[]> = {
 
 const tabLabels: { key: string; label: string }[] = [
   { key: "ALL", label: "전체" },
+  { key: "PENDING", label: "승인대기" },
   { key: "RECRUITING", label: "모집중" },
   { key: "IN_PROGRESS", label: "진행중" },
   { key: "COMPLETED", label: "완료" },
@@ -48,8 +50,9 @@ const methodConfig: Record<
 
 const statusConfig: Record<
   StudyStatus,
-  { label: string; variant: "default" | "success" | "secondary" | "destructive" }
+  { label: string; variant: "default" | "success" | "secondary" | "destructive" | "warning" }
 > = {
+  PENDING: { label: "승인대기", variant: "warning" },
   RECRUITING: { label: "모집중", variant: "default" },
   IN_PROGRESS: { label: "진행중", variant: "success" },
   COMPLETED: { label: "완료", variant: "secondary" },
@@ -60,45 +63,28 @@ const statusConfig: Record<
 // ─── Delete Confirmation Modal ──────────────────────────────────────────────
 
 function DeleteConfirmModal({
-  studies,
+  count,
   onConfirm,
   onCancel,
 }: {
-  studies: Study[];
+  count: number;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  const maxShow = 3;
-  const shown = studies.slice(0, maxShow);
-  const remaining = studies.length - maxShow;
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
     >
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-        <h3 className="text-lg font-bold text-slate-900">스터디 삭제 확인</h3>
-        <p className="mt-2 text-sm text-slate-600">
-          선택한 <span className="font-semibold text-red-600">{studies.length}개</span> 스터디를 삭제하시겠습니까?
-        </p>
-        <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-          <ul className="space-y-1">
-            {shown.map((s) => (
-              <li key={s.id} className="flex items-center gap-2 text-sm text-slate-700">
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
-                <span className="truncate">{s.title}</span>
-              </li>
-            ))}
-          </ul>
-          {remaining > 0 && (
-            <p className="mt-1.5 text-xs text-slate-500">+{remaining}개 더</p>
-          )}
+      <div className="w-full max-w-sm rounded-xl bg-white shadow-xl">
+        <div className="px-5 pt-5 pb-4 space-y-3">
+          <h3 className="text-sm font-semibold text-slate-900">스터디 삭제</h3>
+          <p className="text-sm text-slate-600">선택한 {count}개의 스터디를 삭제하시겠습니까?</p>
+          <p className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-600">
+            삭제 후 하단 토스트에서 실행취소할 수 있습니다.
+          </p>
         </div>
-        <p className="mt-3 text-xs font-medium text-red-500">
-          이 작업은 되돌릴 수 없습니다.
-        </p>
-        <div className="mt-5 flex items-center justify-end gap-2">
+        <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3.5">
           <button
             onClick={onCancel}
             className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
@@ -129,7 +115,7 @@ export default function StudiesPage() {
   const [categoryFilter] = useState("전체");
   const [methodFilter] = useState("전체");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(15);
+  const [pageSize, setPageSize] = useState(20);
   const [editMode, setEditMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -148,10 +134,11 @@ export default function StudiesPage() {
 
   const summaryCounts = useMemo(() => {
     const total = studies.length;
+    const pending = studies.filter((s) => s.status === "PENDING").length;
     const recruiting = studies.filter((s) => s.status === "RECRUITING").length;
     const inProgress = studies.filter((s) => s.status === "IN_PROGRESS").length;
     const completed = studies.filter((s) => s.status === "COMPLETED").length;
-    return { total, recruiting, inProgress, completed };
+    return { total, pending, recruiting, inProgress, completed };
   }, [studies]);
 
   // ── Filtering ──
@@ -233,21 +220,21 @@ export default function StudiesPage() {
 
   function confirmDelete() {
     const ids = Array.from(selected);
-    const titles = studies
-      .filter((s) => selected.has(s.id))
-      .map((s) => s.title)
-      .join(", ");
+    const deleted = studies.filter((s) => ids.includes(s.id));
+    const titles = deleted.map((s) => s.title).join(", ");
 
     deleteStudies(ids);
     recordLog(
-      "STUDY_DELETE" as Parameters<typeof recordLog>[0],
+      "STUDY_DELETE",
       `스터디 삭제 (${ids.length}개): ${titles.slice(0, 80)}${titles.length > 80 ? "..." : ""}`,
-      { targetType: "study" }
+      { targetType: "STUDY" }
     );
     setSelected(new Set());
     setShowDeleteModal(false);
     reload();
-    showToast(`${ids.length}개 스터디가 삭제되었습니다.`);
+    showToast(`${ids.length}개 스터디가 삭제되었습니다.`, {
+      onUndo: () => { restoreStudies(deleted); reload(); },
+    });
   }
 
   // ── Helpers ──
@@ -264,11 +251,6 @@ export default function StudiesPage() {
     return new Date(dateStr).toLocaleDateString("ko-KR");
   }
 
-  // Studies selected for delete modal
-  const selectedStudies = useMemo(
-    () => studies.filter((s) => selected.has(s.id)),
-    [studies, selected]
-  );
 
   // ── Render ──
 
@@ -277,7 +259,7 @@ export default function StudiesPage() {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <DeleteConfirmModal
-          studies={selectedStudies}
+          count={selected.size}
           onConfirm={confirmDelete}
           onCancel={() => setShowDeleteModal(false)}
         />
@@ -299,9 +281,10 @@ export default function StudiesPage() {
       </div>
 
       {/* Summary Stat Cards */}
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-5">
         {[
           { label: "전체 스터디", count: summaryCounts.total, icon: RiGroupLine, bg: "bg-blue-50 border-blue-200", color: "text-blue-600" },
+          { label: "승인대기", count: summaryCounts.pending, icon: RiHourglassLine, bg: "bg-amber-50 border-amber-200", color: "text-amber-600" },
           { label: "모집중", count: summaryCounts.recruiting, icon: RiRadarLine, bg: "bg-indigo-50 border-indigo-200", color: "text-indigo-600" },
           { label: "진행중", count: summaryCounts.inProgress, icon: RiTimeLine, bg: "bg-green-50 border-green-200", color: "text-green-600" },
           { label: "완료", count: summaryCounts.completed, icon: RiCheckDoubleLine, bg: "bg-slate-50 border-slate-200", color: "text-slate-600" },
@@ -344,9 +327,9 @@ export default function StudiesPage() {
                 )}
               >
                 {t.label}
-                {t.key === "RECRUITING" && tabCounts.RECRUITING > 0 && (
+                {t.key === "PENDING" && tabCounts.PENDING > 0 && (
                   <span className="ml-1 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] text-white">
-                    {tabCounts.RECRUITING}
+                    {tabCounts.PENDING}
                   </span>
                 )}
               </button>
@@ -373,22 +356,22 @@ export default function StudiesPage() {
           </div>
           {editMode ? (
             <div className="flex items-center gap-2">
-              {selected.size > 0 && (
-                <span className="text-xs font-medium text-indigo-600">
-                  {selected.size}개 선택됨
-                </span>
-              )}
+              <button
+                onClick={() => setSelected(new Set(filtered.map((s) => s.id)))}
+                className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                전체선택
+              </button>
               <button
                 onClick={handleDeleteSelected}
                 disabled={selected.size === 0}
                 className={cn(
-                  "flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
                   selected.size > 0
                     ? "bg-red-50 text-red-600 hover:bg-red-100"
                     : "cursor-not-allowed text-slate-300"
                 )}
               >
-                <Trash2 className="h-3 w-3" />
                 삭제 {selected.size > 0 && `(${selected.size})`}
               </button>
               <button
@@ -409,9 +392,10 @@ export default function StudiesPage() {
                 className="h-7 cursor-pointer rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-600 hover:border-slate-300 focus:outline-none"
               >
                 <option value={10}>10개씩</option>
-                <option value={15}>15개씩</option>
                 <option value={20}>20개씩</option>
                 <option value={30}>30개씩</option>
+                <option value={40}>40개씩</option>
+                <option value={50}>50개씩</option>
               </select>
               <button
                 onClick={() => {
@@ -420,6 +404,7 @@ export default function StudiesPage() {
                 }}
                 className="flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
               >
+                <SquarePen className="h-3 w-3" />
                 편집
               </button>
             </div>
@@ -447,7 +432,6 @@ export default function StudiesPage() {
                 <th className="whitespace-nowrap px-3 py-3 text-xs font-semibold text-slate-500">인원</th>
                 <th className="whitespace-nowrap px-3 py-3 text-xs font-semibold text-slate-500">모집마감</th>
                 <th className="whitespace-nowrap px-3 py-3 text-xs font-semibold text-slate-500">상태</th>
-                <th className="whitespace-nowrap px-3 py-3 text-xs font-semibold text-slate-500">태그</th>
                 <th className="whitespace-nowrap px-3 py-3 text-right text-xs font-semibold text-slate-500">조회</th>
                 <th className="whitespace-nowrap px-3 py-3 text-xs font-semibold text-slate-500">등록일</th>
               </tr>
@@ -456,7 +440,7 @@ export default function StudiesPage() {
               {paginated.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={editMode ? 11 : 10}
+                    colSpan={editMode ? 10 : 9}
                     className="py-20 text-center"
                   >
                     <RiGroupLine className="mx-auto mb-3 h-14 w-14 text-slate-900/20" />
@@ -480,7 +464,7 @@ export default function StudiesPage() {
                   return (
                     <tr
                       key={study.id}
-                      onClick={() => { if (!editMode) router.push(`/studies/${study.id}`); }}
+                      onClick={() => { if (editMode) handleToggleRow(study.id); else router.push(`/studies/${study.id}`); }}
                       className={cn(
                         "transition-colors hover:bg-slate-50/70",
                         !editMode && "cursor-pointer",
@@ -542,26 +526,6 @@ export default function StudiesPage() {
                       {/* 상태 */}
                       <td className="whitespace-nowrap px-3 py-3.5">
                         <Badge variant={sc.variant}>{sc.label}</Badge>
-                      </td>
-                      {/* 태그 */}
-                      <td className="whitespace-nowrap px-3 py-3.5">
-                        {study.tags && study.tags.length > 0 ? (
-                          <div className="flex flex-nowrap gap-1">
-                            {study.tags.slice(0, 2).map((tag) => (
-                              <span
-                                key={tag}
-                                className="inline-block max-w-[60px] truncate rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                            {study.tags.length > 2 && (
-                              <span className="text-[10px] text-slate-400">+{study.tags.length - 2}</span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-[10px] text-slate-300">-</span>
-                        )}
                       </td>
                       {/* 조회수 */}
                       <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-slate-500">

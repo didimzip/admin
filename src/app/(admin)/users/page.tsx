@@ -43,7 +43,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { COMPANY_TYPES, JOB_CATEGORIES } from "@/data/mock-users";
-import { getAllUsers, saveUsers } from "@/lib/user-store";
+import { getAllUsers, saveUsers, restoreUsers } from "@/lib/user-store";
 import { recordLog } from "@/lib/audit-log-store";
 import { getReportsByUserId, REPORT_REASON_LABEL, REPORT_TARGET_LABEL, type UserReport } from "@/lib/report-store";
 import type { CompanyType, MemberStatus, UserWithProfile } from "@/types/user";
@@ -135,7 +135,7 @@ function getFieldValue(user: UserWithProfile, key: ExportFieldKey): string {
     case "jobCategory":    return user.jobCategory;
     case "documents": {
       if (!user.documents || user.documents.length === 0) return "";
-      return user.documents.map((d) => `[${DOC_TYPE_LABEL[d.docType] ?? d.docType}:${DOC_STATUS[d.status]?.label ?? d.status}] ${d.fileUrl}`).join(" | ");
+      return user.documents.map((d) => `${DOC_TYPE_LABEL[d.docType] ?? d.docType}(${DOC_STATUS[d.status]?.label ?? d.status})`).join("; ");
     }
     case "createdAt":      return new Date(user.createdAt).toLocaleDateString("ko-KR");
     case "lastActivityAt": return new Date(user.lastActivityAt).toLocaleDateString("ko-KR");
@@ -180,6 +180,7 @@ export default function UsersPage() {
   const [pageSize, setPageSize] = useState(20);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
 
   // Detail modal
   const [selectedUser, setSelectedUser] = useState<UserWithProfile | null>(null);
@@ -280,19 +281,23 @@ export default function UsersPage() {
     showToast(`${exportUsers.length}명의 데이터를 내보냈습니다.`);
   }
 
-  function handleDeleteSelected() {
-    const count = selectedIds.size;
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  function confirmDeleteSelected() {
+    const deleted = localUsers.filter((u) => selectedIds.has(u.id));
+    const count = deleted.length;
     setLocalUsers((prev) => prev.filter((u) => !selectedIds.has(u.id)));
     setSelectedIds(new Set());
-    showToast(`${count}명의 회원이 삭제되었습니다.`);
+    setIsEditing(false);
+    setShowDeleteModal(false);
+    showToast(`${count}명의 회원이 삭제되었습니다.`, {
+      onUndo: () => {
+        restoreUsers(deleted);
+        setLocalUsers((prev) => [...deleted, ...prev]);
+      },
+    });
   }
 
-  function handleDeleteAll() {
-    const count = localUsers.length;
-    if (!window.confirm(`전체 회원 ${count}명을 모두 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
-    setLocalUsers([]); setSelectedIds(new Set()); setIsEditing(false);
-    showToast(`전체 회원 ${count}명이 삭제되었습니다.`);
-  }
 
   function handleToggleSelectRow(id: string) {
     setSelectedIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
@@ -454,17 +459,20 @@ export default function UsersPage() {
           {isEditing ? (
             <div className="flex items-center gap-2">
               <button
-                onClick={handleDeleteSelected}
+                onClick={() => setSelectedIds(new Set(paginatedUsers.map((u) => u.id)))}
+                className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                전체선택
+              </button>
+              <button
+                onClick={() => setShowDeleteModal(true)}
                 disabled={selectedIds.size === 0}
                 className={cn(
                   "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
                   selectedIds.size > 0 ? "bg-red-50 text-red-600 hover:bg-red-100" : "cursor-not-allowed text-slate-300"
                 )}
               >
-                선택삭제 {selectedIds.size > 0 && `(${selectedIds.size})`}
-              </button>
-              <button onClick={handleDeleteAll} className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 transition-colors">
-                전체삭제
+                삭제 {selectedIds.size > 0 && `(${selectedIds.size})`}
               </button>
               <button onClick={() => { setIsEditing(false); setSelectedIds(new Set()); }}
                 className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
@@ -751,9 +759,9 @@ export default function UsersPage() {
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-1.5 min-w-0">
-                            {report.targetType === "COMMENT" && <MessageSquare className="h-3 w-3 shrink-0 text-slate-400" />}
-                            {report.targetType === "POST"    && <BookOpen        className="h-3 w-3 shrink-0 text-slate-400" />}
-                            {report.targetType === "QNA"     && <HelpCircle      className="h-3 w-3 shrink-0 text-slate-400" />}
+                            {report.targetType === "CONTENT_COMMENT" && <MessageSquare className="h-3 w-3 shrink-0 text-slate-400" />}
+                            {(report.targetType === "QNA_QUESTION" || report.targetType === "QNA_ANSWER") && <HelpCircle className="h-3 w-3 shrink-0 text-slate-400" />}
+                            {report.targetType === "STUDY_COMMENT" && <BookOpen className="h-3 w-3 shrink-0 text-slate-400" />}
                             <span className="shrink-0 font-medium text-slate-500">
                               {REPORT_TARGET_LABEL[report.targetType]}
                             </span>
@@ -975,6 +983,23 @@ export default function UsersPage() {
                 )}>
                 내보내기
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={(e) => { if (e.target === e.currentTarget) setShowDeleteModal(false); }}>
+          <div className="w-full max-w-sm rounded-xl bg-white shadow-xl">
+            <div className="px-5 pt-5 pb-4 space-y-3">
+              <h3 className="text-sm font-semibold text-slate-900">회원 삭제</h3>
+              <p className="text-sm text-slate-600">선택한 {selectedIds.size}명의 회원을 삭제하시겠습니까?</p>
+              <p className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-600">삭제 후 하단 토스트에서 실행취소할 수 있습니다.</p>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3.5">
+              <button onClick={() => setShowDeleteModal(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">취소</button>
+              <button onClick={confirmDeleteSelected} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors">삭제</button>
             </div>
           </div>
         </div>

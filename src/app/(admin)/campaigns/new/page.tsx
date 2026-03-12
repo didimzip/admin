@@ -2012,7 +2012,9 @@ function NewCampaignContent() {
     try {
       if (form.channel === "EMAIL" && form.sendType === "IMMEDIATE") {
         // 이메일 즉시 발송: API Route를 통해 실제 발송
-        const recipients = getTargetUsers(form.targetFilter).map((u) => u.email);
+        const emailTargetUsers = getTargetUsers(form.targetFilter);
+        const recipients = emailTargetUsers.map((u) => u.email);
+        const emailRecipients = emailTargetUsers.map((u) => ({ nickname: u.nickname ?? "—", email: u.email, companyName: u.companyName ?? "—", jobCategory: u.jobCategory ?? "—" }));
         const res = await fetch("/api/campaigns/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -2030,7 +2032,7 @@ function NewCampaignContent() {
           return;
         }
         const { sent, failed, failedEmails } = data as { sent: number; failed: number; failedEmails: string[] };
-        const saved = upsertCampaign({ ...buildPayload("SENT"), sentCount: sent, failedCount: failed, failedEmails: failedEmails ?? [] });
+        const saved = upsertCampaign({ ...buildPayload("SENT"), sentCount: sent, failedCount: failed, failedEmails: failedEmails ?? [], sentRecipients: emailRecipients });
         recordLog("CAMPAIGN_SEND", `마케팅 발송: ${form.title} (성공: ${sent}명${failed > 0 ? `, 실패: ${failed}명` : ""})`, {
           targetType: "campaign",
           targetId: saved.id,
@@ -2040,9 +2042,15 @@ function NewCampaignContent() {
         setSentCampaignId(saved.id);
       } else if (form.channel === "SMS" && form.sendType === "IMMEDIATE") {
         // SMS 즉시 발송: 솔라피 API Route를 통해 실제 발송
+        const smsTargetUsers = form.smsTestOnly
+          ? []
+          : getTargetUsersForSms(form.targetFilter);
         const phones = form.smsTestOnly
           ? [(form.smsTestPhone || "").replace(/-/g, "")]
-          : getTargetUsersForSms(form.targetFilter).map((u) => u.phone!);
+          : smsTargetUsers.map((u) => u.phone!);
+        const smsRecipients = form.smsTestOnly
+          ? [{ nickname: "테스트", email: form.smsTestPhone || "", companyName: "—", jobCategory: "—" }]
+          : smsTargetUsers.map((u) => ({ nickname: u.nickname ?? "—", email: u.phone ?? "—", companyName: u.companyName ?? "—", jobCategory: u.jobCategory ?? "—" }));
         const settings = getSystemSettings();
         const res = await fetch("/api/sms/send", {
           method: "POST",
@@ -2062,13 +2070,15 @@ function NewCampaignContent() {
           setIsSubmitting(false);
           return;
         }
-        const { sent, failed, failedPhones, failedReasons } = data as { sent: number; failed: number; failedPhones: string[]; failedReasons?: string[] };
+        const { sent, failed, failedPhones, failedReasons, groupId } = data as { sent: number; failed: number; failedPhones: string[]; failedReasons?: string[]; groupId?: string };
         const saved = upsertCampaign({
           ...buildPayload("SENT"),
           sentCount: sent,
           failedCount: failed,
           failedPhones: failedPhones ?? [],
           failedReasons: failedReasons ?? [],
+          smsGroupId: groupId ?? "",
+          sentRecipients: smsRecipients,
         });
         recordLog("CAMPAIGN_SEND", `문자 발송: ${form.title} (성공: ${sent}명${failed > 0 ? `, 실패: ${failed}명` : ""})`, {
           targetType: "campaign",

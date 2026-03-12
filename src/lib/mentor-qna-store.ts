@@ -68,6 +68,12 @@ export function deleteQuestions(ids: string[]): void {
   saveAll(loadAll().filter((q) => !idSet.has(q.id)));
 }
 
+export function restoreQuestions(items: MentorQuestion[]): void {
+  const current = loadAll();
+  const existingIds = new Set(current.map((q) => q.id));
+  saveAll([...items.filter((q) => !existingIds.has(q.id)), ...current]);
+}
+
 export function answerQuestion(id: string, answer: string): void {
   const questions = loadAll();
   const now = new Date().toISOString();

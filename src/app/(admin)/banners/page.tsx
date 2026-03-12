@@ -33,7 +33,7 @@ import {
 } from "@/data/mock-data";
 import { PaginationBar, CountDisplay } from "@/components/ui/pagination-bar";
 import {
-  getAllBanners, deleteBanners, toggleBannerActive,
+  getAllBanners, deleteBanners, restoreBanners, toggleBannerActive,
   reorderHeroSlides, type StoredBanner,
 } from "@/lib/banner-store";
 import { cn } from "@/lib/utils";
@@ -256,6 +256,7 @@ export default function BannersPage() {
   const [pageSize, setPageSize] = useState(20);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteModal, setDeleteModal] = useState<{ title: string; desc: string; onConfirm: () => void } | null>(null);
 
 
   // ─── Derived data ──────────────────────────────────────────────────────────
@@ -336,23 +337,23 @@ export default function BannersPage() {
 
   const handleDeleteSelected = () => {
     const count = selectedIds.size;
-    if (!window.confirm(`선택된 배너 ${count}개를 삭제하시겠습니까?`)) return;
-    deleteBanners(Array.from(selectedIds));
-    setSelectedIds(new Set());
-    reload();
-    showToast(`${count}개 배너가 삭제되었습니다.`);
+    if (!count) return;
+    setDeleteModal({
+      title: "배너 삭제",
+      desc: `선택된 배너 ${count}개를 삭제하시겠습니까?`,
+      onConfirm: () => {
+        const deleted = banners.filter((b) => selectedIds.has(b.id));
+        deleteBanners(Array.from(selectedIds));
+        setSelectedIds(new Set());
+        setDeleteModal(null);
+        reload();
+        showToast(`${count}개 배너가 삭제되었습니다.`, {
+          onUndo: () => { restoreBanners(deleted); reload(); },
+        });
+      },
+    });
   };
 
-  const handleDeleteAdAll = () => {
-    const ids = adBanners.map((b) => b.id);
-    if (!ids.length) return;
-    if (!window.confirm(`전체 광고 배너 ${ids.length}개를 삭제하시겠습니까?`)) return;
-    deleteBanners(ids);
-    setSelectedIds(new Set());
-    setIsEditing(false);
-    reload();
-    showToast(`${ids.length}개 배너가 삭제되었습니다.`);
-  };
 
   const handleToggleActive = (id: string) => {
     toggleBannerActive(id);
@@ -382,23 +383,22 @@ export default function BannersPage() {
   const handleDeleteHeroSelected = () => {
     const count = heroSelectedIds.size;
     if (!count) return;
-    if (!window.confirm(`선택된 슬라이드 ${count}개를 삭제하시겠습니까?`)) return;
-    deleteBanners(Array.from(heroSelectedIds));
-    setHeroSelectedIds(new Set());
-    reload();
-    showToast(`${count}개 슬라이드가 삭제되었습니다.`);
+    setDeleteModal({
+      title: "슬라이드 삭제",
+      desc: `선택된 슬라이드 ${count}개를 삭제하시겠습니까?`,
+      onConfirm: () => {
+        const deleted = banners.filter((b) => heroSelectedIds.has(b.id));
+        deleteBanners(Array.from(heroSelectedIds));
+        setHeroSelectedIds(new Set());
+        setDeleteModal(null);
+        reload();
+        showToast(`${count}개 슬라이드가 삭제되었습니다.`, {
+          onUndo: () => { restoreBanners(deleted); reload(); },
+        });
+      },
+    });
   };
 
-  const handleDeleteHeroAll = () => {
-    const ids = allHeroSlides.map((s) => s.id);
-    if (!ids.length) return;
-    if (!window.confirm(`전체 슬라이드 ${ids.length}개를 삭제하시겠습니까?`)) return;
-    deleteBanners(ids);
-    setHeroSelectedIds(new Set());
-    setHeroEditing(false);
-    reload();
-    showToast(`${ids.length}개 슬라이드가 삭제되었습니다.`);
-  };
 
   // ─── Hero drag-and-drop reorder (@dnd-kit) ────────────────────────────────
 
@@ -589,6 +589,12 @@ export default function BannersPage() {
             {heroEditing ? (
               <div className="flex items-center gap-2">
                 <button
+                  onClick={() => setHeroSelectedIds(new Set(heroSlides.map((s) => s.id)))}
+                  className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  전체선택
+                </button>
+                <button
                   onClick={handleDeleteHeroSelected}
                   disabled={heroSelectedIds.size === 0}
                   className={cn(
@@ -598,13 +604,7 @@ export default function BannersPage() {
                       : "cursor-not-allowed text-slate-300"
                   )}
                 >
-                  선택삭제{heroSelectedIds.size > 0 && ` (${heroSelectedIds.size})`}
-                </button>
-                <button
-                  onClick={handleDeleteHeroAll}
-                  className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 transition-colors"
-                >
-                  전체삭제
+                  삭제{heroSelectedIds.size > 0 && ` (${heroSelectedIds.size})`}
                 </button>
                 <button
                   onClick={() => { setHeroEditing(false); setHeroSelectedIds(new Set()); }}
@@ -728,6 +728,12 @@ export default function BannersPage() {
               {isEditing ? (
                 <div className="flex items-center gap-2">
                   <button
+                    onClick={() => setSelectedIds(new Set(adBanners.map((b) => b.id)))}
+                    className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                  >
+                    전체선택
+                  </button>
+                  <button
                     onClick={handleDeleteSelected}
                     disabled={selectedIds.size === 0}
                     className={cn(
@@ -737,13 +743,7 @@ export default function BannersPage() {
                         : "cursor-not-allowed text-slate-300"
                     )}
                   >
-                    선택삭제{selectedIds.size > 0 && ` (${selectedIds.size})`}
-                  </button>
-                  <button
-                    onClick={handleDeleteAdAll}
-                    className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 transition-colors"
-                  >
-                    전체삭제
+                    삭제{selectedIds.size > 0 && ` (${selectedIds.size})`}
                   </button>
                   <button
                     onClick={() => { setIsEditing(false); setSelectedIds(new Set()); }}
@@ -898,6 +898,36 @@ export default function BannersPage() {
         </>
       )}
 
+      {deleteModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={(e) => { if (e.target === e.currentTarget) setDeleteModal(null); }}
+        >
+          <div className="w-full max-w-sm rounded-xl bg-white shadow-xl">
+            <div className="px-5 pt-5 pb-4 space-y-3">
+              <h3 className="text-sm font-semibold text-slate-900">{deleteModal.title}</h3>
+              <p className="text-sm text-slate-600">{deleteModal.desc}</p>
+              <p className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-600">
+                삭제 후 하단 토스트에서 실행취소할 수 있습니다.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3.5">
+              <button
+                onClick={() => setDeleteModal(null)}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={deleteModal.onConfirm}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors"
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -34,6 +34,8 @@ import {
   type SubCategory,
 } from "@/lib/category-store";
 import { recordLog } from "@/lib/audit-log-store";
+import { getAllPosts } from "@/lib/post-store";
+import { mockPosts } from "@/data/mock-data";
 import { cn } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
@@ -373,8 +375,16 @@ export default function CategoriesPage() {
   };
 
   const deleteCategory = (id: string) => {
-    if (!confirm("카테고리를 삭제하면 세부 카테고리도 함께 삭제됩니다. 삭제하시겠습니까?")) return;
     const name = categories.find((c) => c.id === id)?.name ?? id;
+    // 해당 카테고리를 사용 중인 게시물이 있는지 확인
+    const storeCount = getAllPosts().filter((p) => p.category === name).length;
+    const mockCount = mockPosts.filter((p) => p.category === name).length;
+    const totalCount = storeCount + mockCount;
+    if (totalCount > 0) {
+      showToast(`"${name}" 카테고리에 ${totalCount}개의 콘텐츠가 있어 삭제할 수 없습니다. 먼저 해당 콘텐츠의 카테고리를 변경해주세요.`, "error");
+      return;
+    }
+    if (!confirm("카테고리를 삭제하면 세부 카테고리도 함께 삭제됩니다. 삭제하시겠습니까?")) return;
     update(categories.filter((c) => c.id !== id));
     if (selectedCatId === id) setSelectedCatId(null);
     recordLog("CATEGORY_DELETE", `카테고리 삭제: ${name}`, { targetType: "category", targetId: id });

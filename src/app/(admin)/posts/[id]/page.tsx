@@ -20,10 +20,111 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getPost, deletePost, getAllPosts, type StoredPost } from "@/lib/post-store";
+import { getCommentsByPostId, updateCommentStatus } from "@/lib/comment-store";
 import { useToast } from "@/lib/toast-context";
 import { recordLog } from "@/lib/audit-log-store";
-import { mockPosts, type Post } from "@/data/mock-data";
+import { mockPosts, type Post, type Comment, type CommentStatus } from "@/data/mock-data";
 import { cn } from "@/lib/utils";
+
+const COMMENT_STATUS_CONFIG: Record<Exclude<CommentStatus, "DELETED">, { label: string; chip: string }> = {
+  ACTIVE:   { label: "정상",   chip: "bg-green-100 text-green-700" },
+  REPORTED: { label: "신고됨", chip: "bg-amber-100 text-amber-700" },
+  HIDDEN:   { label: "숨김",   chip: "bg-slate-100 text-slate-500" },
+};
+
+function PostCommentSection({ postId }: { postId: string }) {
+  const { showToast } = useToast();
+  const [comments, setComments] = useState<Comment[]>([]);
+
+  useEffect(() => {
+    setComments(getCommentsByPostId(postId));
+  }, [postId]);
+
+  const reload = () => setComments(getCommentsByPostId(postId));
+
+  const handleStatusChange = (id: string, status: CommentStatus) => {
+    updateCommentStatus(id, status);
+    reload();
+    if (status === "HIDDEN") {
+      showToast("댓글이 숨김 처리되었습니다.");
+      recordLog("COMMENT_HIDE", `댓글 숨김 처리: ${id}`, { targetType: "comment", targetId: id });
+    } else if (status === "ACTIVE") {
+      showToast("댓글이 복원되었습니다.");
+      recordLog("COMMENT_RESTORE", `댓글 복원: ${id}`, { targetType: "comment", targetId: id });
+    }
+  };
+
+  const activeComments = comments.filter((c) => c.status !== "DELETED");
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3.5">
+        <RiMessage2Line className="h-4 w-4 text-slate-400" />
+        <h2 className="text-sm font-semibold text-slate-700">댓글</h2>
+        <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+          {activeComments.length}
+        </span>
+      </div>
+
+      {activeComments.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+          <RiMessage2Line className="mb-3 h-8 w-8 opacity-20" />
+          <p className="text-sm">아직 작성된 댓글이 없습니다.</p>
+        </div>
+      ) : (
+        <div className="divide-y divide-slate-50">
+          {activeComments.map((comment) => {
+            const sc = COMMENT_STATUS_CONFIG[comment.status as Exclude<CommentStatus, "DELETED">];
+            return (
+              <div key={comment.id} className={cn("px-5 py-3.5", comment.status === "HIDDEN" && "opacity-50")}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-medium text-slate-800">{comment.authorNickname}</span>
+                      <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-medium", sc.chip)}>
+                        {sc.label}
+                      </span>
+                      {comment.reportCount > 0 && (
+                        <span className="flex items-center gap-0.5 text-[10px] text-red-400">
+                          신고 {comment.reportCount}건
+                        </span>
+                      )}
+                      <span className="text-[10px] text-slate-400">
+                        {new Date(comment.createdAt).toLocaleDateString("ko-KR")}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-600 leading-relaxed">{comment.content}</p>
+                    {comment.reportReason && (
+                      <p className="mt-1 text-xs text-amber-600">사유: {comment.reportReason}</p>
+                    )}
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-1">
+                    {comment.status === "HIDDEN" ? (
+                      <button
+                        onClick={() => handleStatusChange(comment.id, "ACTIVE")}
+                        className="rounded-md border border-slate-200 px-2 py-1 text-[11px] text-slate-500 hover:bg-slate-50 transition-colors"
+                      >
+                        복원
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleStatusChange(comment.id, "HIDDEN")}
+                        className="rounded-md border border-slate-200 px-2 py-1 text-[11px] text-slate-500 hover:bg-slate-50 transition-colors"
+                      >
+                        숨김
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const statusConfig = {
   PUBLISHED: { label: "게시중", variant: "success" as const },
@@ -342,18 +443,7 @@ export default function PostDetailPage() {
           </div>
 
           {/* 댓글 섹션 */}
-          <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-            <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3.5">
-              <RiMessage2Line className="h-4 w-4 text-slate-400" />
-              <h2 className="text-sm font-semibold text-slate-700">댓글</h2>
-              <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">0</span>
-            </div>
-            <div className="flex flex-col items-center justify-center py-10 text-slate-400">
-              <RiMessage2Line className="mb-3 h-8 w-8 opacity-20" />
-              <p className="text-sm">아직 작성된 댓글이 없습니다.</p>
-              <p className="mt-1 text-xs text-slate-300">메인 서비스 출시 후 고객 댓글이 여기에 표시됩니다.</p>
-            </div>
-          </div>
+          <PostCommentSection postId={storedPost.id} />
         </div>
 
         {/* 우측 게시물 목록 사이드바 */}
@@ -420,22 +510,7 @@ export default function PostDetailPage() {
         </div>
 
         {/* 댓글 섹션 */}
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-          <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3.5">
-            <RiMessage2Line className="h-4 w-4 text-slate-400" />
-            <h2 className="text-sm font-semibold text-slate-700">댓글</h2>
-            <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">{mp.commentCount}</span>
-          </div>
-          <div className="flex flex-col items-center justify-center py-10 text-slate-400">
-            <RiMessage2Line className="mb-3 h-8 w-8 opacity-20" />
-            <p className="text-sm">
-              {mp.commentCount > 0
-                ? `${mp.commentCount}개의 댓글이 있습니다.`
-                : "아직 작성된 댓글이 없습니다."}
-            </p>
-            <p className="mt-1 text-xs text-slate-300">메인 서비스 출시 후 고객 댓글이 여기에 표시됩니다.</p>
-          </div>
-        </div>
+        <PostCommentSection postId={mp.id} />
       </div>
 
       {/* 우측 게시물 목록 사이드바 */}

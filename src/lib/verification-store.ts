@@ -89,7 +89,8 @@ export function updateVerificationStatus(
   );
   const hasApproved = updatedDocs.some((d) => d.status === "APPROVED");
   const hasPending = updatedDocs.some((d) => d.status === "PENDING");
-  const authStatus = hasApproved ? "VERIFIED" : hasPending ? "PENDING" : "NONE";
+  const allRejected = updatedDocs.length > 0 && updatedDocs.every((d) => d.status === "REJECTED");
+  const authStatus = hasApproved ? "VERIFIED" : hasPending ? "PENDING" : allRejected ? "REJECTED" : "NONE";
 
   updateUser({ ...user, documents: updatedDocs, authStatus, hasBadge: hasApproved });
 }

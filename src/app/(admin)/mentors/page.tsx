@@ -3,15 +3,13 @@
 import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { UserPlus, Search, Star } from "lucide-react";
+import { UserPlus, Search, SquarePen } from "lucide-react";
 import {
   RiUserStarLine,
   RiTimeLine,
   RiCheckboxCircleLine,
   RiCloseCircleLine,
   RiGroupLine,
-  RiStarFill,
-  RiStarLine,
 } from "react-icons/ri";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,12 +20,13 @@ import { useToast } from "@/lib/toast-context";
 import { PaginationBar, CountDisplay } from "@/components/ui/pagination-bar";
 import { recordLog } from "@/lib/audit-log-store";
 import { getSession } from "@/lib/auth-store";
-import { getAllMentors, updateMentorStatus, deleteMentors } from "@/lib/mentor-store";
+import { getAllMentors, updateMentorStatus, deleteMentors, restoreMentors } from "@/lib/mentor-store";
+import { getAllQuestions } from "@/lib/mentor-qna-store";
 import { MENTOR_CATEGORIES, type Mentor, type MentorStatus, type MentorCategory } from "@/data/mock-data";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const DEFAULT_PAGE_SIZE = 15;
+const DEFAULT_PAGE_SIZE = 20;
 
 type TabKey = "ALL" | "PENDING" | "APPROVED" | "REJECTED_SUSPENDED";
 
@@ -45,36 +44,6 @@ const tabs: { key: TabKey; label: string; statuses: MentorStatus[] }[] = [
   { key: "REJECTED_SUSPENDED",   label: "반려·정지",  statuses: ["REJECTED", "SUSPENDED"] },
 ];
 
-// ─── Star Rating Component ──────────────────────────────────────────────────
-
-function StarRating({ rating }: { rating: number }) {
-  if (rating <= 0) return <span className="text-slate-300">-</span>;
-  const full = Math.floor(rating);
-  const hasHalf = rating - full >= 0.5;
-  const empty = 5 - full - (hasHalf ? 1 : 0);
-  return (
-    <div className="flex items-center gap-0.5">
-      <div className="flex items-center">
-        {Array.from({ length: full }).map((_, i) => (
-          <RiStarFill key={`f${i}`} className="h-3 w-3 text-yellow-400" />
-        ))}
-        {hasHalf && (
-          <div className="relative h-3 w-3">
-            <RiStarLine className="absolute inset-0 h-3 w-3 text-yellow-400" />
-            <div className="absolute inset-0 overflow-hidden" style={{ width: "50%" }}>
-              <RiStarFill className="h-3 w-3 text-yellow-400" />
-            </div>
-          </div>
-        )}
-        {Array.from({ length: empty }).map((_, i) => (
-          <RiStarLine key={`e${i}`} className="h-3 w-3 text-slate-300" />
-        ))}
-      </div>
-      <span className="ml-1 text-xs font-medium text-slate-600">{rating}</span>
-    </div>
-  );
-}
-
 // ─── Confirmation Modal Types ───────────────────────────────────────────────
 
 type ModalType = "approve" | "reject" | "suspend" | "delete" | null;
@@ -91,6 +60,7 @@ function ConfirmModal({
   onConfirm: (reason?: string) => void;
 }) {
   const [reason, setReason] = useState("");
+  const [reasonError, setReasonError] = useState(false);
 
   if (!type) return null;
 
@@ -122,7 +92,7 @@ function ConfirmModal({
       confirmLabel: "삭제",
       confirmClass: "bg-red-600 text-white hover:bg-red-700",
       showTextarea: false,
-      warning: "이 작업은 되돌릴 수 없습니다.",
+      warning: "삭제 후 하단 토스트에서 실행취소할 수 있습니다.",
     },
   };
 
@@ -138,20 +108,28 @@ function ConfirmModal({
           <h3 className="text-sm font-semibold text-slate-900">{cfg.title}</h3>
           <p className="text-sm text-slate-600">{cfg.desc}</p>
           {cfg.warning && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-600">
+            <p className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-600">
               {cfg.warning}
             </p>
           )}
           {cfg.showTextarea && (
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-500">반려 사유</label>
+              <label className="mb-1.5 block text-xs font-medium text-slate-500">반려 사유 <span className="text-red-500">*</span></label>
               <textarea
                 value={reason}
-                onChange={(e) => setReason(e.target.value)}
+                onChange={(e) => { setReason(e.target.value); setReasonError(false); }}
                 rows={3}
                 placeholder="반려 사유를 입력하세요..."
-                className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-300 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                className={cn(
+                  "w-full resize-none rounded-lg border px-3 py-2 text-sm text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-1",
+                  reasonError
+                    ? "border-red-400 focus:border-red-400 focus:ring-red-400"
+                    : "border-slate-200 focus:border-indigo-400 focus:ring-indigo-400"
+                )}
               />
+              {reasonError && (
+                <p className="mt-1 text-xs text-red-500">반려 사유를 입력해주세요.</p>
+              )}
             </div>
           )}
         </div>
@@ -163,13 +141,65 @@ function ConfirmModal({
             취소
           </button>
           <button
-            onClick={() => onConfirm(cfg.showTextarea ? reason : undefined)}
+            onClick={() => {
+              if (cfg.showTextarea && !reason.trim()) { setReasonError(true); return; }
+              onConfirm(cfg.showTextarea ? reason : undefined);
+            }}
             className={cn("rounded-lg px-4 py-2 text-sm font-medium transition-colors", cfg.confirmClass)}
           >
             {cfg.confirmLabel}
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── ExpertiseCell (hover tooltip escapes overflow) ──────────────────────────
+
+function ExpertiseCell({ expertise }: { expertise: string[] }) {
+  const [show, setShow] = useState(false);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const cellRef = React.useRef<HTMLDivElement>(null);
+
+  function handleEnter() {
+    if (expertise.length <= 2) return;
+    const rect = cellRef.current?.getBoundingClientRect();
+    if (rect) setPos({ x: rect.left, y: rect.bottom + 4 });
+    setShow(true);
+  }
+
+  return (
+    <div
+      ref={cellRef}
+      onMouseEnter={handleEnter}
+      onMouseLeave={() => setShow(false)}
+      className="flex items-center gap-1"
+    >
+      {expertise.slice(0, 2).map((tag) => (
+        <span key={tag} className="inline-flex shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600 whitespace-nowrap">
+          {tag}
+        </span>
+      ))}
+      {expertise.length > 2 && (
+        <span className="inline-flex shrink-0 rounded bg-indigo-50 px-1.5 py-0.5 text-[11px] font-medium text-indigo-500 whitespace-nowrap">
+          +{expertise.length - 2}
+        </span>
+      )}
+      {show && (
+        <div
+          className="pointer-events-none fixed z-50 w-max max-w-[240px] rounded-lg border border-slate-200 bg-white p-2 shadow-lg"
+          style={{ left: pos.x, top: pos.y }}
+        >
+          <div className="flex flex-wrap gap-1">
+            {expertise.map((tag) => (
+              <span key={tag} className="inline-flex rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600">
+                {tag}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -193,6 +223,32 @@ export default function MentorsPage() {
   useEffect(() => {
     setMentors(getAllMentors());
   }, []);
+
+  // Q&A 답변 수 계산 (멘토별)
+  const qnaCountMap = useMemo(() => {
+    const questions = getAllQuestions();
+    const map: Record<string, number> = {};
+    questions.forEach((q) => {
+      if (q.status === "ANSWERED" && q.mentorId) {
+        map[q.mentorId] = (map[q.mentorId] || 0) + 1;
+      }
+    });
+    return map;
+  }, [mentors]); // re-compute when mentors reload
+
+  // 마지막 활동일 계산 (멘토별 - 가장 최근 답변일)
+  const lastActivityMap = useMemo(() => {
+    const questions = getAllQuestions();
+    const map: Record<string, string> = {};
+    questions.forEach((q) => {
+      if (q.status === "ANSWERED" && q.mentorId && q.answeredAt) {
+        if (!map[q.mentorId] || q.answeredAt > map[q.mentorId]) {
+          map[q.mentorId] = q.answeredAt;
+        }
+      }
+    });
+    return map;
+  }, [mentors]);
 
   function reload() {
     setMentors(getAllMentors());
@@ -272,7 +328,7 @@ export default function MentorsPage() {
     ids.forEach((id) => {
       updateMentorStatus(id, "APPROVED");
       const m = mentors.find((mt) => mt.id === id);
-      if (m) recordLog("MENTOR_APPROVE", `${m.name} 멘토 승인`, { targetType: "mentor", targetId: id });
+      if (m) recordLog("MENTOR_APPROVE", `${m.name} 멘토 승인`, { targetType: "MENTOR", targetId: id });
     });
     reload();
     setSelected(new Set());
@@ -284,7 +340,7 @@ export default function MentorsPage() {
     ids.forEach((id) => {
       updateMentorStatus(id, "REJECTED", reason);
       const m = mentors.find((mt) => mt.id === id);
-      if (m) recordLog("MENTOR_REJECT", `${m.name} 멘토 반려${reason ? `: ${reason}` : ""}`, { targetType: "mentor", targetId: id });
+      if (m) recordLog("MENTOR_REJECT", `${m.name} 멘토 반려${reason ? `: ${reason}` : ""}`, { targetType: "MENTOR", targetId: id });
     });
     reload();
     setSelected(new Set());
@@ -296,7 +352,7 @@ export default function MentorsPage() {
     ids.forEach((id) => {
       updateMentorStatus(id, "SUSPENDED");
       const m = mentors.find((mt) => mt.id === id);
-      if (m) recordLog("MENTOR_SUSPEND", `${m.name} 멘토 정지`, { targetType: "mentor", targetId: id });
+      if (m) recordLog("MENTOR_SUSPEND", `${m.name} 멘토 정지`, { targetType: "MENTOR", targetId: id });
     });
     reload();
     setSelected(new Set());
@@ -305,14 +361,17 @@ export default function MentorsPage() {
 
   function handleDelete() {
     const ids = Array.from(selected);
+    const deleted = mentors.filter((m) => ids.includes(m.id));
     ids.forEach((id) => {
       const m = mentors.find((mt) => mt.id === id);
-      if (m) recordLog("MENTOR_DELETE", `${m.name} 멘토 삭제`, { targetType: "mentor", targetId: id });
+      if (m) recordLog("MENTOR_DELETE", `${m.name} 멘토 삭제`, { targetType: "MENTOR", targetId: id });
     });
     deleteMentors(ids);
     reload();
     setSelected(new Set());
-    showToast(`${ids.length}명의 멘토를 삭제했습니다.`);
+    showToast(`${ids.length}명의 멘토를 삭제했습니다.`, {
+      onUndo: () => { restoreMentors(deleted); reload(); },
+    });
   }
 
   function handleModalConfirm(reason?: string) {
@@ -324,16 +383,6 @@ export default function MentorsPage() {
   }
 
   // ── Edit mode toggle ──
-
-  function toggleEditMode() {
-    if (editMode) {
-      setEditMode(false);
-      setSelected(new Set());
-    } else {
-      setEditMode(true);
-      setSelected(new Set());
-    }
-  }
 
   // Reset page when filters change
   useEffect(() => { setPage(1); }, [tab, search, categoryFilter, pageSize]);
@@ -416,111 +465,112 @@ export default function MentorsPage() {
             <h3 className="text-sm font-semibold text-slate-800">멘토 목록</h3>
             <CountDisplay total={filtered.length} unit="명" />
           </div>
-          <div className="flex items-center gap-2">
-            {editMode && selected.size > 0 && (
-              <span className="mr-1 text-xs font-medium text-indigo-600">
-                {selected.size}개 선택됨
-              </span>
-            )}
-            {editMode && selected.size > 0 && (
-              <>
-                {tab === "PENDING" && (
-                  <>
-                    <button
-                      onClick={() => setModalType("approve")}
-                      className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 transition-colors"
-                    >
-                      승인
-                    </button>
-                    <button
-                      onClick={() => setModalType("reject")}
-                      className="rounded-lg bg-red-100 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-200 transition-colors"
-                    >
-                      반려
-                    </button>
-                  </>
+          {editMode ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSelected(new Set(filtered.map((m) => m.id)))}
+                className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                전체선택
+              </button>
+              <button
+                onClick={() => setModalType("delete")}
+                disabled={selected.size === 0}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                  selected.size > 0
+                    ? "bg-red-50 text-red-600 hover:bg-red-100"
+                    : "cursor-not-allowed text-slate-300"
                 )}
-                {tab === "APPROVED" && (
-                  <>
-                    <button
-                      onClick={() => setModalType("suspend")}
-                      className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200 transition-colors"
-                    >
-                      정지
-                    </button>
-                    <button
-                      onClick={() => setModalType("delete")}
-                      className="rounded-lg bg-red-100 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-200 transition-colors"
-                    >
-                      삭제
-                    </button>
-                  </>
-                )}
-                {tab === "REJECTED_SUSPENDED" && (
+              >
+                삭제 {selected.size > 0 && `(${selected.size})`}
+              </button>
+              {selected.size > 0 && tab === "PENDING" && (
+                <>
                   <button
-                    onClick={() => setModalType("delete")}
-                    className="rounded-lg bg-red-100 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-200 transition-colors"
+                    onClick={() => setModalType("approve")}
+                    className="rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 transition-colors"
                   >
-                    삭제
+                    승인
                   </button>
-                )}
-              </>
-            )}
-            {!editMode && (
+                  <button
+                    onClick={() => setModalType("reject")}
+                    className="rounded-md bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors"
+                  >
+                    반려
+                  </button>
+                </>
+              )}
+              {selected.size > 0 && tab === "APPROVED" && (
+                <button
+                  onClick={() => setModalType("suspend")}
+                  className="rounded-md bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200 transition-colors"
+                >
+                  정지
+                </button>
+              )}
+              <button
+                onClick={() => { setEditMode(false); setSelected(new Set()); }}
+                className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                완료
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
               <select
                 value={pageSize}
                 onChange={(e) => { setPageSize(Number(e.target.value)); }}
                 className="h-7 cursor-pointer rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-600 hover:border-slate-300 focus:outline-none"
               >
                 <option value={10}>10개씩</option>
-                <option value={15}>15개씩</option>
                 <option value={20}>20개씩</option>
                 <option value={30}>30개씩</option>
+                <option value={40}>40개씩</option>
+                <option value={50}>50개씩</option>
               </select>
-            )}
-            <button
-              onClick={toggleEditMode}
-              className={cn(
-                "rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
-                editMode
-                  ? "border-indigo-200 bg-indigo-50 text-indigo-600"
-                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-              )}
-            >
-              {editMode ? "완료" : "편집"}
-            </button>
-          </div>
+              <button
+                onClick={() => { setEditMode(true); setSelected(new Set()); }}
+                className="flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                <SquarePen className="h-3 w-3" />
+                편집
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Table body */}
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] table-fixed text-sm">
-            <colgroup><col className="w-[40px]" /><col className="w-[130px]" /><col className="w-[200px]" /><col className="w-[110px]" /><col className="w-[200px]" /><col className="w-[120px]" /><col className="w-[90px]" /><col className="w-[110px]" /></colgroup>
+            <colgroup>{editMode && <col className="w-[40px]" />}<col className="w-[110px]" /><col className="w-[130px]" /><col className="w-[90px]" /><col className="w-[80px]" /><col className="w-[160px]" /><col className="w-[70px]" /><col className="w-[100px]" /><col className="w-[100px]" /><col className="w-[100px]" /></colgroup>
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-left">
-                <th className="px-3 py-3">
-                  {editMode && (
+                {editMode && (
+                  <th className="px-3 py-3">
                     <input
                       type="checkbox"
                       className="h-3.5 w-3.5 accent-indigo-600"
                       checked={paginated.length > 0 && selected.size === paginated.length}
                       onChange={toggleSelectAll}
                     />
-                  )}
-                </th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500">이름</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500">소속/직책</th>
+                  </th>
+                )}
+                <th className="px-5 py-3 text-xs font-semibold text-slate-500">이름</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500">소속</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500">직책</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">분야</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">전문 키워드</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500">평점</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500">Q&A 답변</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">상태</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500">마지막 활동일</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500">신청일</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-16 text-center">
+                  <td colSpan={editMode ? 11 : 10} className="py-16 text-center">
                     <RiUserStarLine className="mx-auto mb-3 h-10 w-10 text-slate-200 opacity-20" />
                     <p className="text-sm text-slate-400">해당 조건에 맞는 멘토가 없습니다.</p>
                     <p className="mt-1 text-xs text-slate-300">검색 조건이나 필터를 변경해 보세요.</p>
@@ -532,7 +582,7 @@ export default function MentorsPage() {
                   return (
                     <tr
                       key={m.id}
-                      onClick={() => { if (!editMode) router.push(`/mentors/${m.id}`); }}
+                      onClick={() => { if (editMode) toggleSelect(m.id); else router.push(`/mentors/${m.id}`); }}
                       className={cn(
                         "transition-colors hover:bg-slate-50",
                         !editMode && "cursor-pointer",
@@ -540,24 +590,27 @@ export default function MentorsPage() {
                       )}
                     >
                       {/* Checkbox */}
-                      <td className="px-3 py-3.5" onClick={(e) => e.stopPropagation()}>
-                        {editMode && (
+                      {editMode && (
+                        <td className="px-3 py-3.5" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             className="h-3.5 w-3.5 accent-indigo-600"
                             checked={selected.has(m.id)}
                             onChange={() => toggleSelect(m.id)}
                           />
-                        )}
-                      </td>
+                        </td>
+                      )}
                       {/* 이름 */}
-                      <td className="overflow-hidden px-4 py-3.5">
+                      <td className="overflow-hidden px-5 py-3.5">
                         <div className="truncate font-medium text-slate-800">{m.name}</div>
                       </td>
-                      {/* 소속/직책 */}
+                      {/* 소속 */}
                       <td className="overflow-hidden px-4 py-3.5">
                         <div className="truncate text-slate-700">{m.companyName}</div>
-                        <div className="truncate text-xs text-slate-400">{m.position}</div>
+                      </td>
+                      {/* 직책 */}
+                      <td className="overflow-hidden px-4 py-3.5">
+                        <div className="truncate text-slate-600">{m.position}</div>
                       </td>
                       {/* 분야 */}
                       <td className="overflow-hidden px-4 py-3.5">
@@ -565,29 +618,19 @@ export default function MentorsPage() {
                       </td>
                       {/* 전문 키워드 */}
                       <td className="overflow-hidden px-4 py-3.5">
-                        <div className="flex flex-wrap items-center gap-1">
-                          {m.expertise.slice(0, 2).map((tag) => (
-                            <span
-                              key={tag}
-                              className="inline-flex rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                          {m.expertise.length > 2 && (
-                            <span className="inline-flex rounded bg-indigo-50 px-1.5 py-0.5 text-[11px] font-medium text-indigo-500">
-                              +{m.expertise.length - 2}
-                            </span>
-                          )}
-                        </div>
+                        <ExpertiseCell expertise={m.expertise} />
                       </td>
-                      {/* 평점 */}
-                      <td className="overflow-hidden px-4 py-3.5">
-                        <StarRating rating={m.rating} />
+                      {/* Q&A 답변 */}
+                      <td className="overflow-hidden px-4 py-3.5 text-center">
+                        <span className="text-sm text-slate-600">{qnaCountMap[m.id] ?? 0}</span>
                       </td>
                       {/* 상태 */}
                       <td className="overflow-hidden px-4 py-3.5">
                         <Badge variant={sc.variant}>{sc.label}</Badge>
+                      </td>
+                      {/* 마지막 활동일 */}
+                      <td className="overflow-hidden px-4 py-3.5 text-xs text-slate-500">
+                        {lastActivityMap[m.id] ? new Date(lastActivityMap[m.id]).toLocaleDateString("ko-KR") : "—"}
                       </td>
                       {/* 신청일 */}
                       <td className="overflow-hidden px-4 py-3.5 text-xs text-slate-500">

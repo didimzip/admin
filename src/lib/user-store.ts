@@ -37,3 +37,9 @@ export function deleteUsers(ids: string[]): void {
 export function saveUsers(users: UserWithProfile[]): void {
   saveAll(users);
 }
+
+export function restoreUsers(items: UserWithProfile[]): void {
+  const current = loadAll();
+  const existingIds = new Set(current.map((u) => u.id));
+  saveAll([...items.filter((u) => !existingIds.has(u.id)), ...current]);
+}

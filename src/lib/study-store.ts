@@ -3,16 +3,25 @@ import { mockStudies, type Study, type StudyStatus } from "@/data/mock-data";
 const STORAGE_KEY = "didimzip_admin_studies";
 
 function loadAll(): Study[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined") return mockStudies;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw || raw === "[]") {
-      saveAll(mockStudies);
-      return [...mockStudies];
+    if (raw && raw !== "[]") {
+      const stored = JSON.parse(raw) as Study[];
+      // mock 데이터 중 localStorage에 없는 항목 병합
+      const storedIds = new Set(stored.map((s) => s.id));
+      const missing = mockStudies.filter((s) => !storedIds.has(s.id));
+      if (missing.length > 0) {
+        const merged = [...stored, ...missing];
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+        return merged;
+      }
+      return stored;
     }
-    return JSON.parse(raw) as Study[];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(mockStudies));
+    return [...mockStudies];
   } catch {
-    return [];
+    return mockStudies;
   }
 }
 
@@ -65,6 +74,12 @@ export function deleteStudy(id: string): void {
 export function deleteStudies(ids: string[]): void {
   const idSet = new Set(ids);
   saveAll(loadAll().filter((s) => !idSet.has(s.id)));
+}
+
+export function restoreStudies(items: Study[]): void {
+  const current = loadAll();
+  const existingIds = new Set(current.map((s) => s.id));
+  saveAll([...items.filter((s) => !existingIds.has(s.id)), ...current]);
 }
 
 export function updateStudyStatus(id: string, status: StudyStatus): void {

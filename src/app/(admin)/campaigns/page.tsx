@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Send, FileText, Mail, MessageCircle, MessageSquare, Plus, Search, SquarePen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { getAllCampaigns, deleteCampaign, type StoredCampaign } from "@/lib/campaign-store";
+import { getAllCampaigns, deleteCampaign, restoreCampaigns, type StoredCampaign } from "@/lib/campaign-store";
 import { getAllAdmins, getSession } from "@/lib/auth-store";
 import { type CampaignStatus, type CampaignChannel } from "@/data/mock-data";
 import { PaginationBar, CountDisplay } from "@/components/ui/pagination-bar";
@@ -112,23 +112,21 @@ export default function CampaignsPage() {
     }
   }
 
-  function handleDeleteSelected() {
-    const count = selectedIds.size;
-    selectedIds.forEach((id) => deleteCampaign(id));
-    setCampaigns(getAllCampaigns());
-    setSelectedIds(new Set());
-    showToast(`${count}개 마케팅이 삭제되었습니다.`);
-  }
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  function handleDeleteAll() {
-    const count = filtered.length;
-    if (!window.confirm(`현재 목록의 마케팅 ${count}개를 모두 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
-    filtered.forEach((c) => deleteCampaign(c.id));
+  function confirmDeleteSelected() {
+    const ids = Array.from(selectedIds);
+    const deleted = campaigns.filter((c) => selectedIds.has(c.id));
+    ids.forEach((id) => deleteCampaign(id));
     setCampaigns(getAllCampaigns());
     setSelectedIds(new Set());
     setIsEditing(false);
-    showToast(`${count}개 마케팅이 삭제되었습니다.`);
+    setShowDeleteModal(false);
+    showToast(`${ids.length}개 마케팅이 삭제되었습니다.`, {
+      onUndo: () => { restoreCampaigns(deleted); setCampaigns(getAllCampaigns()); },
+    });
   }
+
 
   return (
     <div className="space-y-5">
@@ -206,7 +204,13 @@ export default function CampaignsPage() {
           {isEditing ? (
             <div className="flex items-center gap-2">
               <button
-                onClick={handleDeleteSelected}
+                onClick={() => setSelectedIds(new Set(filtered.map((c) => c.id)))}
+                className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                전체선택
+              </button>
+              <button
+                onClick={() => setShowDeleteModal(true)}
                 disabled={selectedIds.size === 0}
                 className={cn(
                   "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
@@ -215,13 +219,7 @@ export default function CampaignsPage() {
                     : "cursor-not-allowed text-slate-300"
                 )}
               >
-                선택삭제{selectedIds.size > 0 && ` (${selectedIds.size})`}
-              </button>
-              <button
-                onClick={handleDeleteAll}
-                className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 transition-colors"
-              >
-                전체삭제
+                삭제{selectedIds.size > 0 && ` (${selectedIds.size})`}
               </button>
               <button
                 onClick={() => { setIsEditing(false); setSelectedIds(new Set()); }}
@@ -353,6 +351,23 @@ export default function CampaignsPage() {
             onPageChange={setPage} />
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={(e) => { if (e.target === e.currentTarget) setShowDeleteModal(false); }}>
+          <div className="w-full max-w-sm rounded-xl bg-white shadow-xl">
+            <div className="px-5 pt-5 pb-4 space-y-3">
+              <h3 className="text-sm font-semibold text-slate-900">마케팅 삭제</h3>
+              <p className="text-sm text-slate-600">선택한 {selectedIds.size}개의 마케팅을 삭제하시겠습니까?</p>
+              <p className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-600">삭제 후 하단 토스트에서 실행취소할 수 있습니다.</p>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3.5">
+              <button onClick={() => setShowDeleteModal(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">취소</button>
+              <button onClick={confirmDeleteSelected} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors">삭제</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

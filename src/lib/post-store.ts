@@ -87,8 +87,19 @@ export function upsertPost(
   return newPost;
 }
 
+export function updatePostCategory(id: string, category: string, subCategory?: string): void {
+  const posts = loadAll();
+  saveAll(posts.map((p) => p.id === id ? { ...p, category, subCategory: subCategory ?? p.subCategory, updatedAt: new Date().toISOString() } : p));
+}
+
 export function deletePost(id: string): void {
   saveAll(loadAll().filter((p) => p.id !== id));
+}
+
+export function restorePosts(items: StoredPost[]): void {
+  const current = loadAll();
+  const existingIds = new Set(current.map((p) => p.id));
+  saveAll([...items.filter((p) => !existingIds.has(p.id)), ...current]);
 }
 
 /**

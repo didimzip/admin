@@ -53,6 +53,7 @@ const statusConfig: Record<
   StudyStatus,
   { label: string; variant: "success" | "default" | "secondary" | "destructive" | "warning" }
 > = {
+  PENDING: { label: "승인대기", variant: "warning" },
   RECRUITING: { label: "모집중", variant: "success" },
   IN_PROGRESS: { label: "진행중", variant: "default" },
   COMPLETED: { label: "완료", variant: "secondary" },
@@ -69,6 +70,7 @@ const methodLabel: Record<StudyMethod, string> = {
 
 /* ── Status transitions ── */
 const statusTransitions: Record<StudyStatus, StudyStatus[]> = {
+  PENDING: ["RECRUITING", "CANCELLED"],
   RECRUITING: ["IN_PROGRESS", "CANCELLED", "HIDDEN"],
   IN_PROGRESS: ["COMPLETED", "CANCELLED"],
   COMPLETED: [],
