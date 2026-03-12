@@ -310,15 +310,11 @@ export default function CommentsPage() {
             key={key}
             onClick={() => { setFilterStatus(filterStatus === key ? "ALL" : key); setPage(1); }}
             className={cn(
-              "group relative flex items-center gap-3 rounded-xl border bg-white px-4 py-3.5 text-left transition-all",
+              "group relative flex items-center gap-3 rounded-xl border bg-white px-4 py-3.5 text-left transition-all hover:shadow-md",
               filterStatus === key
-                ? `border-${color}-300 ring-1 ring-${color}-200 bg-${color}-50/50`
+                ? "border-indigo-400 ring-2 ring-indigo-200"
                 : "border-slate-200 hover:border-slate-300"
             )}
-            style={filterStatus === key ? {
-              borderColor: color === "amber" ? "#fcd34d" : color === "green" ? "#86efac" : "#cbd5e1",
-              backgroundColor: color === "amber" ? "rgba(254,243,199,0.5)" : color === "green" ? "rgba(220,252,231,0.5)" : "rgba(241,245,249,0.5)",
-            } : undefined}
           >
             <div className={cn(
               "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
