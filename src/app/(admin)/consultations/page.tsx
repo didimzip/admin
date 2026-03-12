@@ -483,8 +483,13 @@ export default function ConsultationsPage() {
 
   const handleStatusChange = (id: string, status: ConsultStatus) => {
     updateConsultation(id, { status });
-    setData(getAllConsultations());
+    const updated = getAllConsultations();
+    setData(updated);
     setSelectedItem((prev) => (prev?.id === id ? { ...prev, status, updatedAt: new Date().toISOString() } : prev));
+    // 대기 항목이 0이면 전체 탭으로 이동
+    if (statusFilter === "PENDING" && !updated.some((c) => c.status === "PENDING")) {
+      setStatusFilter("ALL");
+    }
     showToast(`상태가 "${STATUS_CONFIG[status].label}"(으)로 변경되었습니다.`);
   };
 

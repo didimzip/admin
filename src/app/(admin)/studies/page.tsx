@@ -130,7 +130,11 @@ export default function StudiesPage() {
   }, []);
 
   function reload() {
-    setStudies(getAllStudies());
+    const updated = getAllStudies();
+    setStudies(updated);
+    if (tab === "PENDING" && !updated.some((s) => s.status === "PENDING")) {
+      setTab("ALL");
+    }
   }
 
   // ── Summary counts ──

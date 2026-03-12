@@ -254,7 +254,12 @@ export default function MentorsPage() {
   }, [mentors]);
 
   function reload() {
-    setMentors(getAllMentors());
+    const updated = getAllMentors();
+    setMentors(updated);
+    // 대기 항목이 0이면 전체 탭으로 이동
+    if (tab === "PENDING" && !updated.some((m) => m.status === "PENDING")) {
+      setTab("ALL");
+    }
   }
 
   // ── Filtering ──

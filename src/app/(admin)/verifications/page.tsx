@@ -68,6 +68,11 @@ export default function VerificationsPage() {
       }
     }
     showToast(status === "APPROVED" ? "승인 처리되었습니다." : status === "REJECTED" ? "반려 처리되었습니다." : "검토 중으로 변경되었습니다.");
+    // 대기 항목이 0이면 전체 탭으로 이동
+    if (filterStatus === "PENDING") {
+      const remaining = verifications.filter((v) => v.id !== id ? v.status === "PENDING" : status === "PENDING");
+      if (remaining.length === 0) setFilterStatus("ALL");
+    }
   }
 
   const filtered = useMemo(() => {

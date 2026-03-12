@@ -67,7 +67,10 @@ export default function CommentsPage() {
 
   // ── 신고 데이터 ──
   const [reports, setReports] = useState<UserReport[]>(() => getAllReports());
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>("PENDING");
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>(() => {
+    const all = getAllReports();
+    return all.some((r) => r.status === "PENDING") ? "PENDING" : "ALL";
+  });
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -85,7 +88,13 @@ export default function CommentsPage() {
   // ── 설정 드롭다운 ──
   const [showMenu, setShowMenu] = useState(false);
 
-  const reload = useCallback(() => setReports(getAllReports()), []);
+  const reload = useCallback(() => {
+    const updated = getAllReports();
+    setReports(updated);
+    if (filterStatus === "PENDING" && !updated.some((r) => r.status === "PENDING")) {
+      setFilterStatus("ALL");
+    }
+  }, [filterStatus]);
 
   const reloadLinkedComment = useCallback((targetId: string) => {
     const all = getAllComments();
@@ -347,9 +356,15 @@ export default function CommentsPage() {
                 )}
               >
                 {labelMap[s]}
-                <span className={cn("ml-1 tabular-nums", filterStatus === s ? "text-indigo-200" : "text-slate-400")}>
-                  {countMap[s]}
-                </span>
+                {s === "PENDING" && countMap.PENDING > 0 ? (
+                  <span className="ml-1 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] text-white">
+                    {countMap.PENDING}
+                  </span>
+                ) : (
+                  <span className={cn("ml-1 tabular-nums", filterStatus === s ? "text-indigo-200" : "text-slate-400")}>
+                    {countMap[s]}
+                  </span>
+                )}
               </button>
             );
           })}
