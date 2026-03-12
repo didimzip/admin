@@ -22,7 +22,10 @@ const DOC_TYPE_LABEL: Record<string, string> = { BIZ_REG: "사업자등록증", 
 export default function VerificationsPage() {
   const { showToast } = useToast();
   const [verifications, setVerifications] = useState<StoredVerification[]>([]);
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>("ALL");
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>(() => {
+    const all = getAllVerifications();
+    return all.some((v) => v.status === "PENDING") ? "PENDING" : "ALL";
+  });
   const [search, setSearch] = useState("");
   const [selectedDoc, setSelectedDoc] = useState<StoredVerification | null>(null);
   const [rejectInput, setRejectInput] = useState("");

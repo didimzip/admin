@@ -428,7 +428,10 @@ export default function ConsultationsPage() {
   const { showToast } = useToast();
   const [data, setData] = useState<Consultation[]>(() => getAllConsultations());
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<ConsultStatus | "ALL">("ALL");
+  const [statusFilter, setStatusFilter] = useState<ConsultStatus | "ALL">(() => {
+    const all = getAllConsultations();
+    return all.some((c) => c.status === "PENDING") ? "PENDING" : "ALL";
+  });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [selectedItem, setSelectedItem] = useState<Consultation | null>(null);

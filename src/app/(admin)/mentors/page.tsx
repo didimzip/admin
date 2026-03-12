@@ -211,7 +211,10 @@ export default function MentorsPage() {
   const { showToast } = useToast();
 
   const [mentors, setMentors] = useState<Mentor[]>([]);
-  const [tab, setTab] = useState<TabKey>("ALL");
+  const [tab, setTab] = useState<TabKey>(() => {
+    const all = getAllMentors();
+    return all.some((m) => m.status === "PENDING") ? "PENDING" : "ALL";
+  });
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("전체");
   const [page, setPage] = useState(1);

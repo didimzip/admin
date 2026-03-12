@@ -110,7 +110,10 @@ export default function StudiesPage() {
   const { showToast } = useToast();
 
   const [studies, setStudies] = useState<Study[]>([]);
-  const [tab, setTab] = useState<string>("ALL");
+  const [tab, setTab] = useState<string>(() => {
+    const all = getAllStudies();
+    return all.some((s) => s.status === "PENDING") ? "PENDING" : "ALL";
+  });
   const [search, setSearch] = useState("");
   const [categoryFilter] = useState("전체");
   const [methodFilter] = useState("전체");
