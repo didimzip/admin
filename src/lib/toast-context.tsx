@@ -1,10 +1,10 @@
 "use client";
 
 import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from "react";
-import { CheckCircle2, AlertCircle, X } from "lucide-react";
+import { CheckCircle2, AlertCircle, AlertTriangle, X } from "lucide-react";
 import { cn } from "./utils";
 
-type ToastType = "success" | "error";
+type ToastType = "success" | "error" | "warning";
 
 type ToastOptions = {
   type?: ToastType;
@@ -74,7 +74,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           {!onUndo && (
             type === "error"
               ? <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
-              : <CheckCircle2 className="h-4 w-4 shrink-0 text-green-400" />
+              : type === "warning"
+                ? <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+                : <CheckCircle2 className="h-4 w-4 shrink-0 text-green-400" />
           )}
           {message}
           {onUndo && (
