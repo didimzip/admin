@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Settings, Shield, Trash2, Bell, Globe } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Shield, Trash2, Bell, Globe, MessageSquare, MessageCircle, AlertTriangle, Loader2, RefreshCw, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/lib/toast-context";
 import { recordLog } from "@/lib/audit-log-store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getSystemSettings, saveSystemSettings, type SystemSettings } from "@/lib/system-settings-store";
 
 export default function SettingsPage() {
   const { showToast } = useToast();
@@ -18,12 +19,265 @@ export default function SettingsPage() {
   const [maintenanceMode, setMaintenanceMode] = useState("OFF");
   const [defaultNewsletter, setDefaultNewsletter] = useState("WEEKLY");
 
+  // SMS (알리고) 설정
+  const [smsSettings, setSmsSettings] = useState<SystemSettings>({
+    aligoApiKey: "",
+    aligoUserId: "",
+    aligoSender: "",
+    aligoTestMode: true,
+    kakaoBrandChannelId: "",
+    kakaoFriendCount: 0,
+  });
+
+  useEffect(() => {
+    setSmsSettings(getSystemSettings());
+  }, []);
+
+  function handleSmsSettingChange<K extends keyof SystemSettings>(key: K, value: SystemSettings[K]) {
+    setSmsSettings((prev) => ({ ...prev, [key]: value }));
+  }
+
+  // 카카오 채널 조회
+  const [kakaoChannelInput, setKakaoChannelInput] = useState("");
+  const [kakaoLoading, setKakaoLoading] = useState(false);
+  const [kakaoChannelName, setKakaoChannelName] = useState("");
+  const [kakaoChannelImage, setKakaoChannelImage] = useState("");
+  const [kakaoError, setKakaoError] = useState("");
+
+  async function handleFetchKakaoChannel() {
+    if (!kakaoChannelInput.trim()) return;
+    setKakaoLoading(true);
+    setKakaoError("");
+    setKakaoChannelName("");
+    setKakaoChannelImage("");
+    try {
+      const res = await fetch("/api/kakao/channel-info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelInput: kakaoChannelInput.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setKakaoError(data.error || "조회 실패");
+        return;
+      }
+      setKakaoChannelName(data.name);
+      setKakaoChannelImage(data.profileImage);
+      setSmsSettings((prev) => ({
+        ...prev,
+        kakaoBrandChannelId: data.encodedId,
+        kakaoFriendCount: data.friendCount,
+      }));
+      showToast(`채널 "${data.name}" 정보를 불러왔습니다. 친구 ${data.friendCount.toLocaleString()}명`);
+    } catch {
+      setKakaoError("채널 정보 조회 중 오류가 발생했습니다.");
+    } finally {
+      setKakaoLoading(false);
+    }
+  }
+
+  function handleSaveSmsSettings() {
+    saveSystemSettings(smsSettings);
+    showToast("SMS/카카오 설정이 저장되었습니다.");
+    recordLog("SETTINGS_UPDATE", "SMS/카카오 발송 설정 변경", { targetType: "settings", targetId: "sms_settings" });
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-slate-900">시스템 설정</h2>
         <p className="mt-1 text-sm text-slate-500">보안, 알림, 데이터 관리 등 시스템 전반 설정을 관리합니다.</p>
       </div>
+
+      {/* SMS 발신 설정 */}
+      <Card className="bg-white">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base font-semibold text-slate-900">
+            <MessageSquare className="h-5 w-5 text-green-600" /> SMS 발신 설정 (알리고)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>알리고 API Key</Label>
+              <Input
+                type="password"
+                value={smsSettings.aligoApiKey}
+                onChange={(e) => handleSmsSettingChange("aligoApiKey", e.target.value)}
+                placeholder="API Key를 입력하세요"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>알리고 사용자 ID</Label>
+              <Input
+                value={smsSettings.aligoUserId}
+                onChange={(e) => handleSmsSettingChange("aligoUserId", e.target.value)}
+                placeholder="사용자 ID를 입력하세요"
+              />
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>발신번호</Label>
+              <Input
+                value={smsSettings.aligoSender}
+                onChange={(e) => handleSmsSettingChange("aligoSender", e.target.value)}
+                placeholder="02-1234-5678"
+              />
+              <p className="text-xs text-slate-500">사전 등록된 발신번호만 사용할 수 있습니다.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>테스트 모드</Label>
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => handleSmsSettingChange("aligoTestMode", !smsSettings.aligoTestMode)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                    smsSettings.aligoTestMode ? "bg-green-500" : "bg-slate-200"
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform ${
+                      smsSettings.aligoTestMode ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+                <span className="text-sm text-slate-600">
+                  {smsSettings.aligoTestMode ? "활성 (요금 미발생)" : "비활성 (실제 발송)"}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <h4 className="text-sm font-medium text-slate-700">SMS 단가 안내</h4>
+            <div className="mt-2 grid gap-2 sm:grid-cols-3">
+              <div><span className="text-xs text-slate-500">SMS (90바이트):</span> <span className="ml-1 text-sm font-medium">8.4원</span></div>
+              <div><span className="text-xs text-slate-500">LMS (2,000바이트):</span> <span className="ml-1 text-sm font-medium">25.9원</span></div>
+              <div><span className="text-xs text-slate-500">MMS (이미지):</span> <span className="ml-1 text-sm font-medium">60원</span></div>
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button size="sm" onClick={handleSaveSmsSettings}>SMS 설정 저장</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 카카오 브랜드 메시지 설정 */}
+      <Card className="bg-white">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base font-semibold text-slate-900">
+            <MessageCircle className="h-5 w-5 text-[#FEE500]" /> 카카오 브랜드 메시지 설정
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* 채널 URL 입력 + 자동 조회 */}
+          <div className="space-y-1.5">
+            <Label>카카오톡 채널 URL 또는 ID</Label>
+            <div className="flex gap-2">
+              <Input
+                value={kakaoChannelInput}
+                onChange={(e) => setKakaoChannelInput(e.target.value)}
+                placeholder="https://pf.kakao.com/_xxxxx 또는 _xxxxx"
+                onKeyDown={(e) => { if (e.key === "Enter") handleFetchKakaoChannel(); }}
+                className="flex-1"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleFetchKakaoChannel}
+                disabled={kakaoLoading || !kakaoChannelInput.trim()}
+                className="shrink-0 gap-1.5"
+              >
+                {kakaoLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                조회
+              </Button>
+            </div>
+            <p className="text-xs text-slate-500">채널 홈 URL을 입력하면 채널명과 친구 수를 자동으로 가져옵니다.</p>
+            {kakaoError && (
+              <p className="text-xs text-red-500">{kakaoError}</p>
+            )}
+          </div>
+
+          {/* 조회 결과 표시 */}
+          {kakaoChannelName && (
+            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+              {kakaoChannelImage && (
+                <img src={kakaoChannelImage} alt="" className="h-10 w-10 rounded-full object-cover" />
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-semibold text-slate-800">{kakaoChannelName}</p>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-blue-500" />
+                </div>
+                <p className="text-xs text-slate-500">
+                  채널 ID: {smsSettings.kakaoBrandChannelId} · 친구 <span className="font-semibold text-slate-700">{smsSettings.kakaoFriendCount.toLocaleString()}</span>명
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleFetchKakaoChannel}
+                disabled={kakaoLoading}
+                className="shrink-0 text-xs text-slate-500"
+              >
+                {kakaoLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+              </Button>
+            </div>
+          )}
+
+          {/* 수동 입력 (폴백) */}
+          {!kakaoChannelName && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>채널 ID (수동 입력)</Label>
+                <Input
+                  value={smsSettings.kakaoBrandChannelId}
+                  onChange={(e) => handleSmsSettingChange("kakaoBrandChannelId", e.target.value)}
+                  placeholder="_xxxxx"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>채널 친구 수 (수동 입력)</Label>
+                <Input
+                  type="number"
+                  value={smsSettings.kakaoFriendCount || ""}
+                  onChange={(e) => handleSmsSettingChange("kakaoFriendCount", Number(e.target.value) || 0)}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 브랜드 메시지 활성화 상태 */}
+          {smsSettings.kakaoFriendCount < 50000 && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+              <div>
+                <p className="text-sm font-medium text-amber-800">브랜드 메시지 기능이 비활성화되어 있습니다</p>
+                <p className="mt-0.5 text-xs text-amber-600">
+                  카카오톡 채널 친구 수가 5만 이상이어야 브랜드 메시지 발송이 가능합니다.
+                  현재: {smsSettings.kakaoFriendCount.toLocaleString()}명 / 50,000명
+                </p>
+              </div>
+            </div>
+          )}
+          {smsSettings.kakaoFriendCount >= 50000 && (
+            <div className="rounded-lg border border-green-200 bg-green-50 p-3">
+              <p className="text-sm font-medium text-green-700">브랜드 메시지 기능이 활성화되어 있습니다</p>
+              <p className="mt-0.5 text-xs text-green-600">
+                채널 친구 수: {smsSettings.kakaoFriendCount.toLocaleString()}명 — 마케팅 발송에서 브랜드 메시지를 사용할 수 있습니다.
+              </p>
+            </div>
+          )}
+          <div className="flex justify-end">
+            <Button size="sm" onClick={handleSaveSmsSettings}>카카오 설정 저장</Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Security Settings */}
       <Card className="bg-white">

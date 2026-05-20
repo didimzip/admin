@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, Mail, MessageCircle, Send, Pencil, Copy, Ban, Trash2, Users, CheckCircle2, XCircle, BarChart2, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { ArrowLeft, Mail, MessageCircle, MessageSquare, Send, Pencil, Copy, Ban, Trash2, Users, CheckCircle2, XCircle, BarChart2, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { getCampaign, getAllCampaigns, upsertCampaign, deleteCampaign, getTargetUsers, type StoredCampaign } from "@/lib/campaign-store";
+import { getCampaign, getAllCampaigns, upsertCampaign, deleteCampaign, getTargetUsers, getTargetUsersForSms, type StoredCampaign } from "@/lib/campaign-store";
 import { getAllAdmins } from "@/lib/auth-store";
 import { type CampaignStatus, type CampaignChannel } from "@/data/mock-data";
 import { useToast } from "@/lib/toast-context";
@@ -20,7 +20,8 @@ const statusConfig: Record<CampaignStatus, { label: string; variant: "success" |
 
 const channelConfig: Record<CampaignChannel, { label: string; icon: typeof Mail }> = {
   EMAIL: { label: "이메일", icon: Mail },
-  ALIMTALK: { label: "알림톡", icon: MessageCircle },
+  BRANDMSG: { label: "브랜드 메시지", icon: MessageCircle },
+  SMS: { label: "문자", icon: MessageSquare },
   PUSH: { label: "푸시", icon: Send },
 };
 
@@ -47,7 +48,7 @@ export default function CampaignDetailPage() {
   if (!campaign) return null;
 
   const sc = statusConfig[campaign.status];
-  const ch = channelConfig[campaign.channel];
+  const ch = channelConfig[campaign.channel] ?? channelConfig.EMAIL;
   const ChIcon = ch.icon;
 
   const admins = getAllAdmins();
@@ -203,7 +204,9 @@ export default function CampaignDetailPage() {
                 발송 내용
               </button>
               {campaign.status === "SENT" && (() => {
-                const count = getTargetUsers(campaign.targetFilter).length;
+                const count = campaign.channel === "SMS"
+                  ? getTargetUsersForSms(campaign.targetFilter).length
+                  : getTargetUsers(campaign.targetFilter).length;
                 return (
                   <button
                     onClick={() => setActiveTab("history")}
@@ -230,7 +233,7 @@ export default function CampaignDetailPage() {
             {activeTab === "content" && (
               <div className="p-5">
                 {/* 발신자 / 제목 헤더 */}
-                {(campaign.message.senderName || (campaign.channel === "EMAIL" && campaign.message.subject)) && (
+                {(campaign.message.senderName || (campaign.channel === "EMAIL" && campaign.message.subject) || campaign.channel === "SMS") && (
                   <div className="mb-4 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 divide-y divide-slate-200">
                     {campaign.message.senderName && (
                       <div className="flex items-center gap-4 px-4 py-3">
@@ -244,6 +247,41 @@ export default function CampaignDetailPage() {
                         <span className="text-sm font-semibold text-slate-900">{campaign.message.subject}</span>
                       </div>
                     )}
+                    {campaign.channel === "SMS" && (
+                      <>
+                        {campaign.smsSender && (
+                          <div className="flex items-center gap-4 px-4 py-3">
+                            <span className="w-14 shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">발신번호</span>
+                            <span className="text-sm font-medium text-slate-800">{campaign.smsSender}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-4 px-4 py-3">
+                          <span className="w-14 shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">문자종류</span>
+                          <span className="text-sm font-medium text-slate-800">{campaign.smsType ?? "SMS"}</span>
+                          {campaign.smsUnitCost != null && (
+                            <span className="ml-2 text-xs text-slate-400">건당 {campaign.smsUnitCost}원</span>
+                          )}
+                        </div>
+                        {(campaign.smsType === "LMS" || campaign.smsType === "MMS") && campaign.message.subject && (
+                          <div className="flex items-center gap-4 px-4 py-3">
+                            <span className="w-14 shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">제목</span>
+                            <span className="text-sm font-semibold text-slate-900">{campaign.message.subject}</span>
+                          </div>
+                        )}
+                        {campaign.smsTotalCost != null && (
+                          <div className="flex items-center gap-4 px-4 py-3">
+                            <span className="w-14 shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">예상비용</span>
+                            <span className="text-sm font-semibold text-indigo-600">{campaign.smsTotalCost.toLocaleString()}원</span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+                {/* MMS 이미지 */}
+                {campaign.channel === "SMS" && campaign.smsType === "MMS" && campaign.smsImageData && (
+                  <div className="mb-4 overflow-hidden rounded-lg border border-slate-200">
+                    <img src={campaign.smsImageData} alt="MMS 이미지" className="max-h-64 w-full object-contain bg-slate-100" />
                   </div>
                 )}
                 {campaign.channel === "EMAIL" && campaign.message.body ? (
@@ -261,7 +299,10 @@ export default function CampaignDetailPage() {
 
             {/* 탭 콘텐츠: 발송 내역 */}
             {activeTab === "history" && campaign.status === "SENT" && (() => {
-              const failedSet = new Set(campaign.failedEmails ?? []);
+              const isSms = campaign.channel === "SMS";
+              const failedSet = isSms
+                ? new Set(campaign.failedPhones ?? [])
+                : new Set(campaign.failedEmails ?? []);
               const toggleSort = (key: typeof historySort.key) => {
                 setHistorySort((prev) =>
                   prev.key === key
@@ -275,13 +316,16 @@ export default function CampaignDetailPage() {
                   ? <ChevronUp className="h-3 w-3 text-indigo-500" />
                   : <ChevronDown className="h-3 w-3 text-indigo-500" />;
               };
-              const allTargets = getTargetUsers(campaign.targetFilter)
+              const targetUsers = isSms
+                ? getTargetUsersForSms(campaign.targetFilter)
+                : getTargetUsers(campaign.targetFilter);
+              const allTargets = targetUsers
                 .map((u) => ({
                   nickname: u.nickname ?? "—",
-                  email: u.email,
+                  email: isSms ? (u.phone ?? "—") : u.email,
                   companyName: u.companyName ?? "—",
                   jobCategory: u.jobCategory ?? "—",
-                  failed: failedSet.has(u.email),
+                  failed: isSms ? failedSet.has(u.phone ?? "") : failedSet.has(u.email),
                 }))
                 .sort((a, b) => {
                   const { key, dir } = historySort;
@@ -347,7 +391,7 @@ export default function CampaignDetailPage() {
                   <thead>
                     <tr className="bg-slate-50 text-xs text-slate-500 border-b border-slate-100">
                       {(["nickname", "email", "companyName", "jobCategory", "failed"] as const).map((k) => {
-                        const labels = { nickname: "닉네임", email: "이메일", companyName: "회사명", jobCategory: "직군", failed: "상태" };
+                        const labels = { nickname: "닉네임", email: isSms ? "전화번호" : "이메일", companyName: "회사명", jobCategory: "직군", failed: "상태" };
                         return (
                           <th key={k} className="px-4 py-2.5 text-left font-medium">
                             <button

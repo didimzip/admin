@@ -71,6 +71,8 @@ export interface UserWithProfile {
   position: string;
   jobCategory: string;
   hasBadge: boolean;
+  phone?: string; // 휴대전화 번호 (SMS 발송용, "010-XXXX-XXXX")
+  marketingConsent?: boolean;
   suspendedReason?: string;
   documents?: Array<{
     fileUrl: string;
