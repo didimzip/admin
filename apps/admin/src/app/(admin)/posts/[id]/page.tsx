@@ -153,35 +153,44 @@ export default function PostDetailPage() {
   const [allListPosts, setAllListPosts] = useState<ListPost[]>([]);
 
   useEffect(() => {
-    const sp = getPost(id);
-    if (sp) {
-      setStoredPost(sp);
-    } else {
-      setMockPost(mockPosts.find((p) => p.id === id) ?? null);
-    }
+    let alive = true;
+    (async () => {
+      const sp = await getPost(id);
+      if (!alive) return;
+      if (sp) {
+        setStoredPost(sp);
+      } else {
+        setMockPost(mockPosts.find((p) => p.id === id) ?? null);
+      }
 
-    // 사이드바용 전체 게시물 목록
-    const stored = getAllPosts().map((p) => ({
-      id: p.id,
-      title: p.title,
-      status: p.status,
-      createdAt: p.createdAt,
-    }));
-    const mocks = mockPosts.map((p) => ({
-      id: p.id,
-      title: p.title,
-      status: p.status,
-      createdAt: p.createdAt,
-    }));
-    setAllListPosts([...stored, ...mocks]);
+      // 사이드바용 전체 게시물 목록
+      const allStored = await getAllPosts();
+      if (!alive) return;
+      const stored = allStored.map((p) => ({
+        id: p.id,
+        title: p.title,
+        status: p.status,
+        createdAt: p.createdAt,
+      }));
+      const mocks = mockPosts.map((p) => ({
+        id: p.id,
+        title: p.title,
+        status: p.status,
+        createdAt: p.createdAt,
+      }));
+      setAllListPosts([...stored, ...mocks]);
 
-    setLoading(false);
+      setLoading(false);
+    })();
+    return () => {
+      alive = false;
+    };
   }, [id]);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!confirm("이 콘텐츠를 삭제하시겠습니까?")) return;
     const title = storedPost?.title ?? mockPost?.title ?? id;
-    deletePost(id);
+    await deletePost(id);
     recordLog("POST_DELETE", `게시물 삭제: ${title}`, { targetType: "post", targetId: id });
     showToast("콘텐츠가 삭제되었습니다.");
     router.push("/posts");

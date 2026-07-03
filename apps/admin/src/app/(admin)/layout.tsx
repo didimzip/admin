@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { getAllPosts, publishScheduledPosts } from "@/lib/post-store";
 import { getSession, logout, verifyAdminPassword, resetAdminPassword, updateAdminInfo, type AdminSession } from "@/lib/auth-store";
 import { Lock, Eye, EyeOff } from "lucide-react";
 import { getAllReports } from "@/lib/report-store";
@@ -329,41 +328,8 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     }
   }, [router]);
 
-  // 예약 게시물 자동 처리
-  useEffect(() => {
-    if (!authChecked) return;
-
-    publishScheduledPosts();
-
-    const timers = new Map<string, ReturnType<typeof setTimeout>>();
-
-    function registerTimer(id: string, scheduledAt: string) {
-      const delay = new Date(scheduledAt).getTime() - Date.now();
-      if (delay <= 0) return;
-      if (timers.has(id)) clearTimeout(timers.get(id)!);
-      timers.set(id, setTimeout(() => {
-        publishScheduledPosts();
-        timers.delete(id);
-      }, delay));
-    }
-
-    getAllPosts().forEach((p) => {
-      if (p.status === "SCHEDULED" && p.scheduledAt) {
-        registerTimer(p.id, p.scheduledAt);
-      }
-    });
-
-    const onScheduledSaved = (e: Event) => {
-      const { id, scheduledAt } = (e as CustomEvent<{ id: string; scheduledAt: string }>).detail;
-      registerTimer(id, scheduledAt);
-    };
-
-    window.addEventListener("scheduled-post-saved", onScheduledSaved);
-    return () => {
-      window.removeEventListener("scheduled-post-saved", onScheduledSaved);
-      timers.forEach((t) => clearTimeout(t));
-    };
-  }, [authChecked]);
+  // 예약 게시/만료 상태 전환은 서버(API Repository)가 조회 시점에 계산하므로
+  // 클라이언트 타이머 처리는 더 이상 필요하지 않다.
 
   function handleLogout() {
     logout();

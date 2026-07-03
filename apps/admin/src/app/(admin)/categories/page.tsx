@@ -374,10 +374,11 @@ export default function CategoriesPage() {
     recordLog("CATEGORY_CREATE", `카테고리 추가: ${name}`, { targetType: "category", targetId: newCat.id });
   };
 
-  const deleteCategory = (id: string) => {
+  const deleteCategory = async (id: string) => {
     const name = categories.find((c) => c.id === id)?.name ?? id;
     // 해당 카테고리를 사용 중인 게시물이 있는지 확인
-    const storeCount = getAllPosts().filter((p) => p.category === name).length;
+    const storePosts = await getAllPosts();
+    const storeCount = storePosts.filter((p) => p.category === name).length;
     const mockCount = mockPosts.filter((p) => p.category === name).length;
     const totalCount = storeCount + mockCount;
     if (totalCount > 0) {

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { mockPosts, POST_CATEGORIES, type PostStatus, type Post } from "@/data/mock-data";
 import { cn } from "@/lib/utils";
-import { getAllPosts, publishScheduledPosts, hideExpiredPosts, deletePost, restorePosts, updatePostCategory } from "@/lib/post-store";
+import { getAllPosts, deletePost, restorePosts, updatePostCategory } from "@/lib/post-store";
 import { getCategories, type Category } from "@/lib/category-store";
 import { getSession, getAllAdmins } from "@/lib/auth-store";
 import { useToast } from "@/lib/toast-context";
@@ -212,12 +212,11 @@ export default function PostsPage() {
 
   const mockPostIdSet = useMemo(() => new Set(mockPosts.map((p) => p.id)), []);
 
-  const loadPosts = useCallback(() => {
-    publishScheduledPosts();
-    hideExpiredPosts();
+  const loadPosts = useCallback(async () => {
     const session = getSession();
     const adminNameMap = Object.fromEntries(getAllAdmins().map((a) => [a.id, a.name]));
-    const stored = getAllPosts().filter((s) =>
+    const all = await getAllPosts();
+    const stored = all.filter((s) =>
       s.status !== "DRAFT" || s.authorId === session?.adminId
     );
     setUserPosts(
@@ -296,7 +295,7 @@ export default function PostsPage() {
     return filtered.slice(start, start + pageSize);
   }, [filtered, page, pageSize]);
 
-  function confirmDeleteSelected() {
+  async function confirmDeleteSelected() {
     const ids = Array.from(selectedIds);
     if (!ids.length) return;
     const count = ids.length;
@@ -305,8 +304,9 @@ export default function PostsPage() {
     const mockIdSet = new Set(mockPosts.map((p) => p.id));
     const storeIds = ids.filter((id) => !mockIdSet.has(id));
     const mockIds = ids.filter((id) => mockIdSet.has(id));
-    const deletedStorePosts = getAllPosts().filter((p) => storeIds.includes(p.id));
-    storeIds.forEach((id) => deletePost(id));
+    const allStored = await getAllPosts();
+    const deletedStorePosts = allStored.filter((p) => storeIds.includes(p.id));
+    await Promise.all(storeIds.map((id) => deletePost(id)));
     setDeletedMockIds((prev) => new Set([...prev, ...mockIds]));
     recordLog("POST_DELETE", `게시물 삭제 (${count}개): ${deletedTitles.slice(0, 80)}${deletedTitles.length > 80 ? "..." : ""}`, { targetType: "post" });
     setSelectedIds(new Set());
@@ -314,8 +314,8 @@ export default function PostsPage() {
     setShowDeleteModal(false);
     loadPosts();
     showToast(`${count}개 콘텐츠가 삭제되었습니다.`, {
-      onUndo: () => {
-        restorePosts(deletedStorePosts);
+      onUndo: async () => {
+        await restorePosts(deletedStorePosts);
         setDeletedMockIds((prev) => { const next = new Set(prev); mockIds.forEach((id) => next.delete(id)); return next; });
         loadPosts();
       },
@@ -347,8 +347,7 @@ export default function PostsPage() {
     if (mockPostIdSet.has(postId)) {
       setMockCategoryOverrides((prev) => ({ ...prev, [postId]: { category: newCategory, subCategory: newSubCategory } }));
     } else {
-      updatePostCategory(postId, newCategory, newSubCategory);
-      loadPosts();
+      void updatePostCategory(postId, newCategory, newSubCategory).then(() => loadPosts());
     }
     setEditingCategoryId(null);
     setCategoryDropdownPos(null);

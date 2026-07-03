@@ -720,9 +720,15 @@ function NewPostContent() {
 
   // Load all tags (hardcoded + previously saved posts) for autocomplete
   useEffect(() => {
-    const saved = getAllTags();
-    const merged = Array.from(new Set([...EXISTING_TAGS, ...saved]));
-    setAvailableTags(merged);
+    let alive = true;
+    getAllTags().then((saved) => {
+      if (!alive) return;
+      const merged = Array.from(new Set([...EXISTING_TAGS, ...saved]));
+      setAvailableTags(merged);
+    });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   // Reset subCategory when category changes (skip when loading a draft)
@@ -815,9 +821,10 @@ function NewPostContent() {
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  const refreshDraftList = useCallback(() => {
+  const refreshDraftList = useCallback(async () => {
     const session = getSession();
-    setDraftList(getDrafts().filter((d) => d.authorId === session?.adminId));
+    const drafts = await getDrafts();
+    setDraftList(drafts.filter((d) => d.authorId === session?.adminId));
   }, []);
 
   const readFilesAsDataUrl = async (files: File[]) =>
@@ -872,8 +879,9 @@ function NewPostContent() {
       loadedFromUrl.current = true;
       const postId = searchParams.get("id");
       if (postId) {
-        const post = getPost(postId);
-        if (post) loadPostIntoForm(post);
+        getPost(postId).then((post) => {
+          if (post) loadPostIntoForm(post);
+        });
       }
     }
   }, [editor]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -967,7 +975,7 @@ function NewPostContent() {
       ]);
       const _session = getSession();
       const finalScheduledAt = isScheduled && publishStart && scheduledTime ? `${publishStart}T${scheduledTime}` : "";
-      const saved = upsertPost({
+      const saved = await upsertPost({
         id: currentDraftId,
         title: title || "제목 없음",
         body: editor?.getHTML() ?? "",
@@ -1005,7 +1013,7 @@ function NewPostContent() {
       ]);
       const _session = getSession();
       const finalScheduledAt = isScheduled && publishStart && scheduledTime ? `${publishStart}T${scheduledTime}` : "";
-      const saved = upsertPost({
+      const saved = await upsertPost({
         id: currentDraftId,
         title,
         body: editor?.getHTML() ?? "",
@@ -1434,9 +1442,9 @@ function NewPostContent() {
                       </p>
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={async () => {
                           recordLog("POST_DELETE", `임시저장 삭제: ${draft.title}`, { targetType: "post", targetId: draft.id });
-                          deletePost(draft.id);
+                          await deletePost(draft.id);
                           if (currentDraftId === draft.id) setCurrentDraftId(null);
                           refreshDraftList();
                         }}
