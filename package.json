@@ -7,9 +7,11 @@
     "dev": "turbo run dev",
     "dev:admin": "turbo run dev --filter=didimzip-admin",
     "dev:web": "turbo run dev --filter=didimzip-web",
+    "dev:api": "turbo run dev --filter=didimzip-api",
     "build": "turbo run build",
     "build:admin": "turbo run build --filter=didimzip-admin",
     "build:web": "turbo run build --filter=didimzip-web",
+    "build:api": "turbo run build --filter=didimzip-api",
     "start": "turbo run start",
     "lint": "turbo run lint"
   },
