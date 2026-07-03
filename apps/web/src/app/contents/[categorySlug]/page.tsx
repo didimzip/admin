@@ -6,12 +6,11 @@ import Image from "next/image";
 import { Search, ChevronDown } from "lucide-react";
 import ContentCard from "@/components/ui/ContentCard";
 import Footer from "@/components/layout/Footer";
-import { categories, generateContents } from "@/lib/mock-data";
+import { categories } from "@/lib/mock-data";
+import type { ContentCard as ContentCardType } from "@/lib/mock-data";
+import { postsApi } from "@didimzip/api";
+import { postToContentCard } from "@/lib/post-adapter";
 import clsx from "clsx";
-
-const contents = generateContents(12);
-
-const sortOptions = ["최신순", "인기순", "댓글순", "조회순"];
 
 export default function CategoryPage() {
   const params = useParams();
@@ -22,7 +21,28 @@ export default function CategoryPage() {
 
   const category = categories.find((c) => c.slug === slug) ?? categories[0];
   const [activeTab, setActiveTab] = useState(tabParam ?? "all");
-  const [sortBy, setSortBy] = useState("최신순");
+  const [sortBy] = useState("최신순");
+  const [contents, setContents] = useState<ContentCardType[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // API에서 게시글 조회 (admin 생성/수정/삭제가 새로고침 시 반영됨)
+  useEffect(() => {
+    let alive = true;
+    postsApi
+      .list({ status: "PUBLISHED" })
+      .then((posts) => {
+        if (alive) setContents(posts.map(postToContentCard));
+      })
+      .catch(() => {
+        if (alive) setContents([]);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // Sync tab state when URL param changes
   useEffect(() => {
@@ -123,15 +143,24 @@ export default function CategoryPage() {
         </div>
 
         {/* Skeleton loading */}
-        <div className="grid grid-cols-4 gap-5 mt-5">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="animate-pulse">
-              <div className="aspect-video rounded-lg bg-muted" />
-              <div className="h-3 bg-muted rounded mt-3 w-3/4" />
-              <div className="h-2.5 bg-muted rounded mt-2 w-1/2" />
-            </div>
-          ))}
-        </div>
+        {loading && (
+          <div className="grid grid-cols-4 gap-5 mt-5">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="animate-pulse">
+                <div className="aspect-video rounded-lg bg-muted" />
+                <div className="h-3 bg-muted rounded mt-3 w-3/4" />
+                <div className="h-2.5 bg-muted rounded mt-2 w-1/2" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!loading && contents.length === 0 && (
+          <p className="text-sm text-muted-foreground py-16 text-center">
+            아직 등록된 콘텐츠가 없습니다.
+          </p>
+        )}
       </div>
 
       <Footer />

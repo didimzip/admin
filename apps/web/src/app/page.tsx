@@ -1,5 +1,4 @@
-"use client";
-
+import { postsApi } from "@didimzip/api";
 import HeroBanner from "@/components/home/HeroBanner";
 import RecommendedSection from "@/components/home/RecommendedSection";
 import LatestSection from "@/components/home/LatestSection";
@@ -10,8 +9,26 @@ import MentorSection from "@/components/home/MentorSection";
 import CommuneSection from "@/components/home/CommuneSection";
 import PromoBanner from "@/components/home/PromoBanner";
 import Footer from "@/components/layout/Footer";
+import { postToContentCard } from "@/lib/post-adapter";
+import type { ContentCard } from "@/lib/mock-data";
 
-export default function HomePage() {
+// 매 요청마다 최신 데이터 조회 (admin 생성/수정/삭제 → web 새로고침 시 즉시 반영)
+export const dynamic = "force-dynamic";
+
+async function loadPosts(): Promise<ContentCard[]> {
+  try {
+    const posts = await postsApi.list({ status: "PUBLISHED" });
+    return posts.map(postToContentCard);
+  } catch {
+    // API 서버 미기동 등: 빈 목록으로 폴백 (페이지는 정상 렌더)
+    return [];
+  }
+}
+
+export default async function HomePage() {
+  const items = await loadPosts();
+  const popular = [...items].sort((a, b) => b.viewCount - a.viewCount);
+
   return (
     <div className="flex flex-col">
       <HeroBanner />
@@ -19,7 +36,7 @@ export default function HomePage() {
       <div className="max-w-[1200px] w-full mx-auto px-6">
         {/* 놓치면 아쉬운 콘텐츠 */}
         <section className="py-8">
-          <RecommendedSection />
+          <RecommendedSection items={items} />
         </section>
 
         {/* 중간 배너 */}
@@ -27,12 +44,12 @@ export default function HomePage() {
 
         {/* 새로 올라온 콘텐츠 */}
         <section className="py-8">
-          <LatestSection />
+          <LatestSection items={items} />
         </section>
 
         {/* 창업가들이 주목한 콘텐츠 */}
         <section className="py-8">
-          <PopularSection />
+          <PopularSection items={popular} />
         </section>
       </div>
 

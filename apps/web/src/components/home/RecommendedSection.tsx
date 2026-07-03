@@ -4,11 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import ContentCard from "@/components/ui/ContentCard";
-import { generateContents } from "@/lib/mock-data";
+import type { ContentCard as ContentCardType } from "@/lib/mock-data";
 
-const items = generateContents(8);
+export default function RecommendedSection({ items }: { items: ContentCardType[] }) {
+  if (items.length === 0) return null;
 
-export default function RecommendedSection() {
   const main = items[0];
   const sub = items.slice(1, 5);
 

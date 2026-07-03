@@ -3,11 +3,9 @@
 import { useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import ContentCard from "@/components/ui/ContentCard";
-import { generateContents } from "@/lib/mock-data";
+import type { ContentCard as ContentCardType } from "@/lib/mock-data";
 
-const items = generateContents(12);
-
-export default function PopularSection() {
+export default function PopularSection({ items }: { items: ContentCardType[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scroll = (dir: "left" | "right") => {
