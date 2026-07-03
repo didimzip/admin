@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import "./globals.css";
 import Sidebar from "@/components/layout/Sidebar";
 import GNB from "@/components/layout/GNB";
@@ -25,7 +26,9 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex">
-        <Sidebar />
+        <Suspense fallback={null}>
+          <Sidebar />
+        </Suspense>
         <div className="flex-1 flex flex-col min-h-screen">
           <GNB />
           <main className="flex-1 mt-14">{children}</main>
