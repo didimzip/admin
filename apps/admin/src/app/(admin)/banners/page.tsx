@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus, ExternalLink, Eye, EyeOff, Clock, SquarePen,
@@ -238,8 +238,9 @@ export default function BannersPage() {
   const { showToast } = useToast();
 
   // data
-  const [banners, setBanners] = useState<StoredBanner[]>(() => getAllBanners());
-  const reload = () => setBanners(getAllBanners());
+  const [banners, setBanners] = useState<StoredBanner[]>([]);
+  const reload = () => { getAllBanners().then(setBanners); };
+  useEffect(() => { reload(); }, []);
 
   // tab
   const [activeTab, setActiveTab] = useState<"HERO_SLIDE" | "AD">("HERO_SLIDE");
@@ -341,22 +342,22 @@ export default function BannersPage() {
     setDeleteModal({
       title: "배너 삭제",
       desc: `선택된 배너 ${count}개를 삭제하시겠습니까?`,
-      onConfirm: () => {
+      onConfirm: async () => {
         const deleted = banners.filter((b) => selectedIds.has(b.id));
-        deleteBanners(Array.from(selectedIds));
+        await deleteBanners(Array.from(selectedIds));
         setSelectedIds(new Set());
         setDeleteModal(null);
         reload();
         showToast(`${count}개 배너가 삭제되었습니다.`, {
-          onUndo: () => { restoreBanners(deleted); reload(); },
+          onUndo: async () => { await restoreBanners(deleted); reload(); },
         });
       },
     });
   };
 
 
-  const handleToggleActive = (id: string) => {
-    toggleBannerActive(id);
+  const handleToggleActive = async (id: string) => {
+    await toggleBannerActive(id);
     reload();
   };
 
@@ -386,14 +387,14 @@ export default function BannersPage() {
     setDeleteModal({
       title: "슬라이드 삭제",
       desc: `선택된 슬라이드 ${count}개를 삭제하시겠습니까?`,
-      onConfirm: () => {
+      onConfirm: async () => {
         const deleted = banners.filter((b) => heroSelectedIds.has(b.id));
-        deleteBanners(Array.from(heroSelectedIds));
+        await deleteBanners(Array.from(heroSelectedIds));
         setHeroSelectedIds(new Set());
         setDeleteModal(null);
         reload();
         showToast(`${count}개 슬라이드가 삭제되었습니다.`, {
-          onUndo: () => { restoreBanners(deleted); reload(); },
+          onUndo: async () => { await restoreBanners(deleted); reload(); },
         });
       },
     });
@@ -422,8 +423,10 @@ export default function BannersPage() {
     const newIndex = ids.indexOf(over.id as string);
     if (oldIndex !== -1 && newIndex !== -1) {
       const newIds = arrayMove(ids, oldIndex, newIndex);
-      reorderHeroSlides(newIds);
-      reload();
+      // 낙관적 갱신: 먼저 로컬 순서 반영 후 서버 반영
+      const reordered = arrayMove(allHeroSlides, oldIndex, newIndex).map((s, i) => ({ ...s, sortOrder: i + 1 }));
+      setBanners((prev) => prev.map((b) => reordered.find((r) => r.id === b.id) ?? b));
+      reorderHeroSlides(newIds).then(() => reload());
     }
   };
 

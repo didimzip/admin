@@ -1,4 +1,4 @@
-import type { Post } from "@didimzip/api";
+import type { Banner, Post } from "@didimzip/api";
 
 // 개발용 초기 시드 데이터. data/db.json 이 없을 때 1회 생성된다.
 // 실제 서비스에서는 DB 마이그레이션 seed로 대체된다.
@@ -94,6 +94,81 @@ export function seedPosts(): Post[] {
       body: "<p>창업가와 투자자가 만나는 네트워킹 데이에 초대합니다.</p>",
       viewCount: 340,
       authorName: "디딤에디터",
+    }),
+  ];
+}
+
+// ─── Banners ─────────────────────────────────────────────────────────────────
+
+function banner(
+  b: Partial<Banner> & Pick<Banner, "id" | "title">,
+): Banner {
+  const now = "2026-06-01T09:00:00.000Z";
+  return {
+    id: b.id,
+    title: b.title,
+    subtitle: b.subtitle ?? "",
+    subText: b.subText ?? "",
+    description: b.description ?? "",
+    textColor: b.textColor ?? "light",
+    bannerType: b.bannerType ?? "HERO_SLIDE",
+    imageUrl: b.imageUrl ?? `https://picsum.photos/seed/${b.id}/1200/400`,
+    imageData: b.imageData ?? "",
+    linkUrl: b.linkUrl ?? "",
+    position: b.position ?? "HOME_TOP",
+    isActive: b.isActive ?? true,
+    sortOrder: b.sortOrder ?? 1,
+    startDate: b.startDate ?? "2026-01-01",
+    endDate: b.endDate ?? "2026-12-31",
+    clickCount: b.clickCount ?? 0,
+    impressionCount: b.impressionCount ?? 0,
+    createdBy: b.createdBy ?? null,
+    createdAt: b.createdAt ?? now,
+    updatedAt: b.updatedAt ?? now,
+  };
+}
+
+export function seedBanners(): Banner[] {
+  return [
+    banner({
+      id: "banner_seed_1",
+      title: "스타트업의 시작을 딛는 곳,\n디딤집에서 시작하세요",
+      subtitle: "디딤집 소개",
+      subText: "자세히 보기 →",
+      description: "정부·지자체 지원사업과 성장 정보를 한곳에.",
+      linkUrl: "/about",
+      sortOrder: 1,
+      isActive: true,
+    }),
+    banner({
+      id: "banner_seed_2",
+      title: "시리즈 A 투자 유치,\n무엇부터 준비해야 할까?",
+      subtitle: "투자 유치",
+      subText: "가이드 보기 →",
+      description: "현직 심사역이 알려주는 IR 피칭 전략.",
+      linkUrl: "/contents/funding",
+      sortOrder: 2,
+      isActive: true,
+    }),
+    banner({
+      id: "banner_seed_3",
+      title: "2026 상반기\n정부지원사업 총정리",
+      subtitle: "정부지원사업",
+      subText: "지금 확인하기 →",
+      description: "놓치면 아쉬운 창업 지원 프로그램.",
+      linkUrl: "/contents/policy",
+      sortOrder: 3,
+      isActive: true,
+    }),
+    // 비활성 슬라이드 (web 노출 안 됨 — 테스트용)
+    banner({
+      id: "banner_seed_4",
+      title: "설맞이 특별 할인 이벤트 (종료)",
+      subtitle: "이벤트",
+      subText: "이벤트 참여 →",
+      linkUrl: "/events/newyear",
+      sortOrder: 4,
+      isActive: false,
     }),
   ];
 }

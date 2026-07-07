@@ -211,7 +211,7 @@ export default function BannerNewPage() {
 
     setSaving(true);
     try {
-      const created = upsertBanner({
+      const created = await upsertBanner({
         id: null,
         title: form.title.trim(),
         subtitle: form.subtitle.trim(),

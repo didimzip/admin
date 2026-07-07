@@ -1,5 +1,9 @@
 import type {
   ApiResponse,
+  Banner,
+  BannerCreateInput,
+  BannerListQuery,
+  BannerUpdateInput,
   Post,
   PostCreateInput,
   PostListQuery,
@@ -50,7 +54,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return json.data;
 }
 
-function toQuery(query?: PostListQuery): string {
+function toPostQuery(query?: PostListQuery): string {
   if (!query) return "";
   const params = new URLSearchParams();
   if (query.status) params.set("status", query.status);
@@ -61,7 +65,7 @@ function toQuery(query?: PostListQuery): string {
 }
 
 export const postsApi = {
-  list: (query?: PostListQuery) => request<Post[]>(`/api/posts${toQuery(query)}`),
+  list: (query?: PostListQuery) => request<Post[]>(`/api/posts${toPostQuery(query)}`),
   get: (id: string) => request<Post>(`/api/posts/${id}`),
   create: (input: PostCreateInput) =>
     request<Post>(`/api/posts`, { method: "POST", body: JSON.stringify(input) }),
@@ -69,4 +73,30 @@ export const postsApi = {
     request<Post>(`/api/posts/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
   remove: (id: string) =>
     request<{ id: string }>(`/api/posts/${id}`, { method: "DELETE" }),
+};
+
+function toBannerQuery(query?: BannerListQuery): string {
+  if (!query) return "";
+  const params = new URLSearchParams();
+  if (query.type) params.set("type", query.type);
+  if (query.position) params.set("position", query.position);
+  if (query.active !== undefined) params.set("active", String(query.active));
+  const s = params.toString();
+  return s ? `?${s}` : "";
+}
+
+export const bannersApi = {
+  list: (query?: BannerListQuery) => request<Banner[]>(`/api/banners${toBannerQuery(query)}`),
+  get: (id: string) => request<Banner>(`/api/banners/${id}`),
+  create: (input: BannerCreateInput) =>
+    request<Banner>(`/api/banners`, { method: "POST", body: JSON.stringify(input) }),
+  update: (id: string, input: BannerUpdateInput) =>
+    request<Banner>(`/api/banners/${id}`, { method: "PATCH", body: JSON.stringify(input) }),
+  remove: (id: string) =>
+    request<{ id: string }>(`/api/banners/${id}`, { method: "DELETE" }),
+  reorder: (orderedIds: string[]) =>
+    request<Banner[]>(`/api/banners/reorder`, {
+      method: "POST",
+      body: JSON.stringify({ orderedIds }),
+    }),
 };

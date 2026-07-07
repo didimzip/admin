@@ -51,6 +51,57 @@ export interface PostListQuery {
   q?: string;
 }
 
+// ─── 배너 ────────────────────────────────────────────────────────────────────
+
+export type BannerType = "HERO_SLIDE" | "AD";
+export type BannerPosition =
+  | "HOME_TOP"
+  | "HOME_SIDE"
+  | "POST_BETWEEN"
+  | "POST_BOTTOM"
+  | "LOGIN_PAGE";
+export type BannerTextColor = "light" | "dark"; // light = 흰 텍스트, dark = 검정 텍스트
+
+/** 배너 정식 모델. admin StoredBanner 와 동일한 필드 집합(무손실 왕복). */
+export interface Banner {
+  id: string;
+  title: string; // 줄바꿈(\n) 포함 가능
+  subtitle: string; // 상단 소제목/뱃지
+  subText: string; // 하단 서브텍스트 (예: "자세히 보기 →")
+  description: string;
+  textColor: BannerTextColor;
+  bannerType: BannerType;
+  imageUrl: string; // 경로/URL
+  imageData: string; // base64 업로드 이미지 (있으면 우선)
+  linkUrl: string;
+  position: BannerPosition;
+  isActive: boolean;
+  sortOrder: number;
+  startDate: string;
+  endDate: string;
+  clickCount: number;
+  impressionCount: number;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 생성 입력: 서버가 채우는 필드는 제외. */
+export type BannerCreateInput = Omit<
+  Banner,
+  "id" | "createdAt" | "updatedAt" | "clickCount" | "impressionCount"
+>;
+
+/** 수정 입력: 부분 갱신. */
+export type BannerUpdateInput = Partial<BannerCreateInput>;
+
+/** 목록 조회 필터. */
+export interface BannerListQuery {
+  type?: BannerType;
+  position?: BannerPosition;
+  active?: boolean;
+}
+
 // ─── 공통 API Response 계약 ──────────────────────────────────────────────────
 
 export interface ApiSuccess<T> {

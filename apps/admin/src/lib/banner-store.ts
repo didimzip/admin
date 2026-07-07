@@ -1,120 +1,80 @@
-import { mockBanners, type Banner, type BannerTextColor } from "@/data/mock-data";
+import {
+  bannersApi,
+  type Banner as ApiBanner,
+  type BannerCreateInput,
+  type BannerUpdateInput,
+} from "@didimzip/api";
+import { type BannerTextColor } from "@/data/mock-data";
 import { recordLog } from "@/lib/audit-log-store";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── 배너 스토어 (API 기반) ───────────────────────────────────────────────────
+//
+// 기존 localStorage 구현을 공유 Mock API(@didimzip/api)로 전환.
+// StoredBanner 는 공유 Banner 와 필드가 동일하므로 그대로 사용한다.
+// 드래프트/이미지 압축/텍스트색 감지는 브라우저 로컬 유틸이라 유지.
 
-export type StoredBanner = Banner & {
-  description: string;
-  imageData: string; // base64 이미지 (로컬 저장용)
-  updatedAt: string;
-  createdBy: string | null;
-};
+export type StoredBanner = ApiBanner;
 
-// ─── Migration (mock → StoredBanner) ─────────────────────────────────────────
-
-function migrateFromMock(b: Banner): StoredBanner {
-  return {
-    ...b,
-    description: "",
-    imageData: "",
-    updatedAt: b.createdAt,
-    createdBy: null,
-  };
-}
-
-// ─── Storage ──────────────────────────────────────────────────────────────────
-
-const STORAGE_KEY = "didimzip_admin_banners";
-
-function loadAll(): StoredBanner[] {
-  if (typeof window === "undefined") return mockBanners.map(migrateFromMock);
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as StoredBanner[];
-    const migrated = mockBanners.map(migrateFromMock);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
-    return migrated;
-  } catch {
-    return mockBanners.map(migrateFromMock);
-  }
-}
-
-function saveAll(banners: StoredBanner[]): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(banners));
-}
+type UpsertInput = Omit<
+  StoredBanner,
+  "id" | "createdAt" | "updatedAt" | "clickCount" | "impressionCount"
+> & { id?: string | null };
 
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
 
-export function getAllBanners(): StoredBanner[] {
-  return loadAll();
+export async function getAllBanners(): Promise<StoredBanner[]> {
+  return bannersApi.list();
 }
 
-export function getBanner(id: string): StoredBanner | undefined {
-  return loadAll().find((b) => b.id === id);
-}
-
-export function upsertBanner(
-  data: Omit<StoredBanner, "id" | "createdAt" | "updatedAt" | "clickCount" | "impressionCount"> & { id?: string | null }
-): StoredBanner {
-  const banners = loadAll();
-  const now = new Date().toISOString();
-  const existing = data.id ? banners.find((b) => b.id === data.id) : undefined;
-
-  if (existing) {
-    const updated: StoredBanner = {
-      ...existing,
-      ...data,
-      id: existing.id,
-      clickCount: existing.clickCount,
-      impressionCount: existing.impressionCount,
-      createdAt: existing.createdAt,
-      updatedAt: now,
-    };
-    saveAll(banners.map((b) => (b.id === existing.id ? updated : b)));
-    return updated;
+export async function getBanner(id: string): Promise<StoredBanner | undefined> {
+  try {
+    return await bannersApi.get(id);
+  } catch {
+    return undefined;
   }
-
-  const newBanner: StoredBanner = {
-    ...(data as Omit<StoredBanner, "id" | "createdAt" | "updatedAt" | "clickCount" | "impressionCount">),
-    id: `banner_${Date.now()}`,
-    clickCount: 0,
-    impressionCount: 0,
-    createdAt: now,
-    updatedAt: now,
-  };
-  saveAll([newBanner, ...banners]);
-  return newBanner;
 }
 
-export function deleteBanner(id: string): void {
-  saveAll(loadAll().filter((b) => b.id !== id));
+export async function upsertBanner(data: UpsertInput): Promise<StoredBanner> {
+  const { id, ...rest } = data;
+  if (id) {
+    return bannersApi.update(id, rest as BannerUpdateInput);
+  }
+  return bannersApi.create(rest as BannerCreateInput);
 }
 
-export function deleteBanners(ids: string[]): void {
-  saveAll(loadAll().filter((b) => !ids.includes(b.id)));
+export async function deleteBanner(id: string): Promise<void> {
+  await bannersApi.remove(id);
 }
 
-export function restoreBanners(items: StoredBanner[]): void {
-  const current = loadAll();
-  const existingIds = new Set(current.map((b) => b.id));
-  saveAll([...items.filter((b) => !existingIds.has(b.id)), ...current]);
+export async function deleteBanners(ids: string[]): Promise<void> {
+  await Promise.all(ids.map((id) => bannersApi.remove(id)));
 }
 
-export function toggleBannerActive(id: string): void {
-  const banners = loadAll();
-  const target = banners.find((b) => b.id === id);
-  saveAll(
-    banners.map((b) =>
-      b.id === id ? { ...b, isActive: !b.isActive, updatedAt: new Date().toISOString() } : b
-    )
+export async function restoreBanners(items: StoredBanner[]): Promise<void> {
+  for (const item of items) {
+    const { id: _id, createdAt: _c, updatedAt: _u, clickCount: _cc, impressionCount: _ic, ...rest } = item;
+    void _id; void _c; void _u; void _cc; void _ic;
+    await bannersApi.create(rest as BannerCreateInput);
+  }
+}
+
+export async function toggleBannerActive(id: string): Promise<void> {
+  const target = await getBanner(id);
+  if (!target) return;
+  await bannersApi.update(id, { isActive: !target.isActive });
+  recordLog(
+    "BANNER_CREATE",
+    `배너 "${target.title.slice(0, 30)}" ${target.isActive ? "비활성화" : "활성화"}`,
+    { targetType: "BANNER", targetId: id },
   );
-  if (target) {
-    recordLog("BANNER_CREATE", `배너 "${target.title.slice(0, 30)}" ${target.isActive ? "비활성화" : "활성화"}`, { targetType: "BANNER", targetId: id });
-  }
 }
 
-// ─── Banner Drafts ───────────────────────────────────────────────────────────
+/** 히어로 슬라이드 순서 일괄 업데이트. ids 배열 순서대로 sortOrder 1,2,3… 부여 */
+export async function reorderHeroSlides(orderedIds: string[]): Promise<void> {
+  await bannersApi.reorder(orderedIds);
+}
+
+// ─── Banner Drafts (로컬 전용 — 미발행 작업 상태, web과 공유하지 않음) ────────
 
 export type BannerDraft = {
   id: string;
@@ -182,25 +142,10 @@ export function deleteBannerDraft(id: string): void {
   saveDrafts(loadDrafts().filter((d) => d.id !== id));
 }
 
-// ─── Reorder ─────────────────────────────────────────────────────────────────
-
-/** 히어로 슬라이드 순서 일괄 업데이트. ids 배열 순서대로 sortOrder 1,2,3… 부여 */
-export function reorderHeroSlides(orderedIds: string[]): void {
-  const banners = loadAll();
-  const now = new Date().toISOString();
-  const updated = banners.map((b) => {
-    const idx = orderedIds.indexOf(b.id);
-    if (idx === -1) return b;
-    return { ...b, sortOrder: idx + 1, updatedAt: now };
-  });
-  saveAll(updated);
-}
-
 // ─── Background brightness detection ─────────────────────────────────────────
 
 /**
  * 이미지의 왼쪽 40% 영역의 평균 밝기를 분석하여 텍스트 색상 결정.
- * 텍스트가 왼쪽에 오버레이되므로 왼쪽 영역 기준으로 판단.
  * 밝기 128 이상 → "dark" (어두운 텍스트), 미만 → "light" (밝은 텍스트)
  */
 export async function detectTextColor(base64: string): Promise<BannerTextColor> {
@@ -229,7 +174,7 @@ export async function detectTextColor(base64: string): Promise<BannerTextColor> 
   });
 }
 
-// ─── Image compression (post-store 패턴) ─────────────────────────────────────
+// ─── Image compression ───────────────────────────────────────────────────────
 
 export async function compressBannerImage(base64: string): Promise<string> {
   if (!base64 || !base64.startsWith("data:image")) return base64;

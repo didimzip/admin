@@ -68,12 +68,18 @@ export default function BannerDetailPage() {
   // ─── Load banner ────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    const b = getBanner(id);
-    if (!b) {
-      router.replace("/banners");
-      return;
-    }
-    setBanner(b);
+    let alive = true;
+    getBanner(id).then((b) => {
+      if (!alive) return;
+      if (!b) {
+        router.replace("/banners");
+        return;
+      }
+      setBanner(b);
+    });
+    return () => {
+      alive = false;
+    };
   }, [id, router]);
 
   // ─── Populate form when entering edit mode ────────────────────────────────
@@ -180,7 +186,7 @@ export default function BannerDetailPage() {
 
     setSaving(true);
     try {
-      const updated = upsertBanner({
+      const updated = await upsertBanner({
         id: banner.id,
         title: form.title.trim(),
         subtitle: form.subtitle.trim(),
@@ -209,9 +215,9 @@ export default function BannerDetailPage() {
 
   // ─── Delete ───────────────────────────────────────────────────────────────
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!banner) return;
-    deleteBanner(banner.id);
+    await deleteBanner(banner.id);
     showToast("배너가 삭제되었습니다.");
     router.push("/banners");
   };
