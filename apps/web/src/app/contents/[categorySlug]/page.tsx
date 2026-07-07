@@ -6,9 +6,8 @@ import Image from "next/image";
 import { Search, ChevronDown } from "lucide-react";
 import ContentCard from "@/components/ui/ContentCard";
 import Footer from "@/components/layout/Footer";
-import { categories } from "@/lib/mock-data";
 import type { ContentCard as ContentCardType } from "@/lib/mock-data";
-import { postsApi } from "@didimzip/api";
+import { postsApi, categoriesApi, type Category } from "@didimzip/api";
 import { postToContentCard } from "@/lib/post-adapter";
 import clsx from "clsx";
 
@@ -19,22 +18,25 @@ export default function CategoryPage() {
   const slug = params.categorySlug as string;
   const tabParam = searchParams.get("tab");
 
-  const category = categories.find((c) => c.slug === slug) ?? categories[0];
+  const [apiCategories, setApiCategories] = useState<Category[]>([]);
   const [activeTab, setActiveTab] = useState(tabParam ?? "all");
   const [sortBy] = useState("최신순");
   const [contents, setContents] = useState<ContentCardType[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // API에서 게시글 조회 (admin 생성/수정/삭제가 새로고침 시 반영됨)
+  const category = apiCategories.find((c) => c.slug === slug);
+
+  // API에서 게시글·카테고리 조회 (admin 변경이 새로고침 시 반영됨)
   useEffect(() => {
     let alive = true;
-    postsApi
-      .list({ status: "PUBLISHED" })
-      .then((posts) => {
-        if (alive) setContents(posts.map(postToContentCard));
-      })
-      .catch(() => {
-        if (alive) setContents([]);
+    Promise.all([
+      postsApi.list({ status: "PUBLISHED" }).catch(() => []),
+      categoriesApi.list({ visible: true }).catch(() => []),
+    ])
+      .then(([posts, cats]) => {
+        if (!alive) return;
+        setContents(posts.map(postToContentCard));
+        setApiCategories(cats);
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -51,7 +53,7 @@ export default function CategoryPage() {
 
   const tabs = [
     { slug: "all", name: "전체" },
-    ...category.subcategories.map((s) => ({ slug: s.slug, name: s.name })),
+    ...(category?.subCategories ?? []).map((s) => ({ slug: s.slug, name: s.name })),
   ];
 
   return (
@@ -77,9 +79,9 @@ export default function CategoryPage() {
 
         {/* Category Title */}
         <div className="mt-8">
-          <h1 className="text-2xl font-bold">{category.name}</h1>
+          <h1 className="text-2xl font-bold">{category?.name ?? slug}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {category.description}
+            {category?.name ? `${category.name} 카테고리의 콘텐츠를 확인하세요.` : ""}
           </p>
         </div>
 
@@ -127,7 +129,7 @@ export default function CategoryPage() {
             <div className="flex items-center gap-2 border border-border rounded-lg px-3 py-1.5 w-56">
               <input
                 type="text"
-                placeholder={`${category.name} 내 검색...`}
+                placeholder={`${category?.name ?? ""} 내 검색...`}
                 className="text-sm bg-transparent outline-none flex-1 placeholder:text-muted-foreground"
               />
               <Search size={14} className="text-muted-foreground" />

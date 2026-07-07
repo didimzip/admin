@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { categoriesApi, type Category } from "@didimzip/api";
 import "./globals.css";
 import Sidebar from "@/components/layout/Sidebar";
 import GNB from "@/components/layout/GNB";
@@ -10,11 +11,25 @@ export const metadata: Metadata = {
     "스타트업의 시작을 딛는 곳, 디딤집에서 시작하세요. 창업 콘텐츠, 멘토 Q&A, 커뮤니티를 한 곳에서.",
 };
 
-export default function RootLayout({
+// 매 요청마다 최신 카테고리 조회 (Admin 변경이 새로고침 시 즉시 반영)
+export const dynamic = "force-dynamic";
+
+// 노출(isVisible) 카테고리만 순서대로 조회. API 미기동 시 빈 배열 폴백.
+async function loadCategories(): Promise<Category[]> {
+  try {
+    return await categoriesApi.list({ visible: true });
+  } catch {
+    return [];
+  }
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const categories = await loadCategories();
+
   return (
     <html lang="ko" className="h-full antialiased">
       <head>
@@ -27,7 +42,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex">
         <Suspense fallback={null}>
-          <Sidebar />
+          <Sidebar categories={categories} />
         </Suspense>
         <div className="flex-1 flex flex-col min-h-screen">
           <GNB />

@@ -6,34 +6,18 @@ import { usePathname, useSearchParams } from "next/navigation";
 import {
   Home,
   FileText,
-  TrendingUp,
-  MapPin,
-  Briefcase,
-  BookOpen,
-  Users,
-  Palette,
-  Cpu,
   HelpCircle,
   MessageSquare,
   ChevronDown,
 } from "lucide-react";
-import { categories } from "@/lib/mock-data";
+import type { Category } from "@didimzip/api";
+import { CategoryIcon } from "@/lib/category-icons";
 import clsx from "clsx";
 
 const COLLAPSED_W = 60;
 const EXPANDED_W = 220;
 
-const iconMap: Record<string, React.ReactNode> = {
-  funding: <TrendingUp size={22} strokeWidth={1.5} />,
-  marketing: <Briefcase size={22} strokeWidth={1.5} />,
-  strategy: <MapPin size={22} strokeWidth={1.5} />,
-  knowledge: <BookOpen size={22} strokeWidth={1.5} />,
-  culture: <Users size={22} strokeWidth={1.5} />,
-  design: <Palette size={22} strokeWidth={1.5} />,
-  ai: <Cpu size={22} strokeWidth={1.5} />,
-};
-
-export default function Sidebar() {
+export default function Sidebar({ categories }: { categories: Category[] }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentTab = searchParams.get("tab");
@@ -130,7 +114,7 @@ export default function Sidebar() {
           {categories.map((cat) => {
             const isExp = expanded.has(cat.slug);
             const isActive = pathname.startsWith(`/contents/${cat.slug}`);
-            const hasSubs = cat.subcategories.length > 0;
+            const hasSubs = cat.subCategories.length > 0;
 
             return (
               <div key={cat.id}>
@@ -157,9 +141,7 @@ export default function Sidebar() {
                         isOpen ? "w-10 ml-2" : "w-full"
                       )}
                     >
-                      {iconMap[cat.slug] ?? (
-                        <FileText size={22} strokeWidth={1.5} />
-                      )}
+                      <CategoryIcon iconName={cat.iconName} size={22} />
                     </span>
                     {isOpen && (
                       <span className="text-[13px] whitespace-nowrap truncate">
@@ -189,7 +171,7 @@ export default function Sidebar() {
                 {/* Animated sub-menu: always rendered, height controlled via grid trick */}
                 {hasSubs && (
                   <SubMenu isExpanded={isOpen && isExp}>
-                    {cat.subcategories.map((sub) => {
+                    {cat.subCategories.map((sub) => {
                       const isSubActive = isActive && currentTab === sub.slug;
                       return (
                         <Link
