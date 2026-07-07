@@ -229,9 +229,10 @@ export default function BannerDetailPage() {
 
   const handleDelete = async () => {
     if (!banner) return;
+    const type = banner.bannerType;
     await deleteBanner(banner.id);
     showToast("배너가 삭제되었습니다.");
-    router.push("/banners");
+    router.push(`/banners?tab=${type}`);
   };
 
   // ─── Toggle active (from detail view) ─────────────────────────────────────
@@ -253,7 +254,7 @@ export default function BannerDetailPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => handleNavigate("/banners")}
+            onClick={() => handleNavigate(`/banners?tab=${banner.bannerType}`)}
             className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
           >
             <ArrowLeft className="h-5 w-5" />

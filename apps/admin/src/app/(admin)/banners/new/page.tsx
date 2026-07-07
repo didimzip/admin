@@ -248,7 +248,8 @@ export default function BannerNewPage() {
       if (draftId) deleteBannerDraft(draftId);
       setIsDirty(false);
       showToast("배너가 등록되었습니다.");
-      router.push(`/banners/${created.id}`);
+      // 작업하던 배너 유형 목록으로 복귀 (Context 유지)
+      router.push(`/banners?tab=${bannerType}`);
     } finally {
       setSaving(false);
     }
@@ -260,7 +261,7 @@ export default function BannerNewPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => handleNavigate("/banners")}
+            onClick={() => handleNavigate(`/banners?tab=${bannerType}`)}
             className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -285,7 +286,7 @@ export default function BannerNewPage() {
             <Save className="mr-1.5 h-4 w-4" />
             임시저장
           </Button>
-          <Button variant="outline" size="sm" onClick={() => handleNavigate("/banners")}>취소</Button>
+          <Button variant="outline" size="sm" onClick={() => handleNavigate(`/banners?tab=${bannerType}`)}>취소</Button>
           <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700" onClick={handleSave} disabled={saving}>
             {saving ? "저장 중..." : "등록"}
           </Button>

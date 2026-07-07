@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus, ExternalLink, Eye, EyeOff, Clock, SquarePen,
   Layers, MonitorPlay,
@@ -235,15 +235,26 @@ function SortableHeroItem({
 
 export default function BannersPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { showToast } = useToast();
+  // 진입 컨텍스트(탭)를 URL ?tab= 로 유지 → 저장/취소/뒤로가기 시 같은 탭으로 복귀
+  const tabParam = searchParams.get("tab") === "ADVERTISEMENT" ? "ADVERTISEMENT" : "HERO";
 
   // data
   const [banners, setBanners] = useState<StoredBanner[]>([]);
   const reload = () => { getAllBanners().then(setBanners); };
   useEffect(() => { reload(); }, []);
 
-  // tab
-  const [activeTab, setActiveTab] = useState<"HERO" | "ADVERTISEMENT">("HERO");
+  // tab — URL 기반 (브라우저 뒤로/앞으로 동기화)
+  const [activeTab, setActiveTab] = useState<"HERO" | "ADVERTISEMENT">(tabParam);
+  useEffect(() => { setActiveTab(tabParam); }, [tabParam]);
+  const switchTab = (tab: "HERO" | "ADVERTISEMENT") => {
+    setActiveTab(tab);
+    setPage(1);
+    setIsEditing(false);
+    setSelectedIds(new Set());
+    router.replace(`/banners?tab=${tab}`);
+  };
 
   // search
   const [searchQuery, setSearchQuery] = useState("");
@@ -502,7 +513,7 @@ export default function BannersPage() {
       {/* Tabs */}
       <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 w-fit">
         <button
-          onClick={() => { setActiveTab("HERO"); setPage(1); setIsEditing(false); setSelectedIds(new Set()); }}
+          onClick={() => switchTab("HERO")}
           className={cn(
             "flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition-colors",
             activeTab === "HERO" ? "bg-indigo-600 text-white" : "text-slate-500 hover:text-slate-700"
@@ -511,7 +522,7 @@ export default function BannersPage() {
           <MonitorPlay className="h-4 w-4" /> 히어로 슬라이드
         </button>
         <button
-          onClick={() => { setActiveTab("ADVERTISEMENT"); setPage(1); setIsEditing(false); setSelectedIds(new Set()); }}
+          onClick={() => switchTab("ADVERTISEMENT")}
           className={cn(
             "flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition-colors",
             activeTab === "ADVERTISEMENT" ? "bg-indigo-600 text-white" : "text-slate-500 hover:text-slate-700"
