@@ -101,23 +101,29 @@ export function seedPosts(): Post[] {
 // ─── Banners ─────────────────────────────────────────────────────────────────
 
 function banner(
-  b: Partial<Banner> & Pick<Banner, "id" | "title">,
+  b: Partial<Banner> & Pick<Banner, "id" | "name" | "bannerType">,
 ): Banner {
   const now = "2026-06-01T09:00:00.000Z";
+  const isHero = b.bannerType === "HERO";
   return {
     id: b.id,
-    title: b.title,
+    name: b.name,
+    bannerType: b.bannerType,
+    position: b.position ?? (isHero ? "HOME_HERO" : "HOME_MIDDLE"),
     subtitle: b.subtitle ?? "",
+    title: b.title ?? "",
     subText: b.subText ?? "",
     description: b.description ?? "",
     textColor: b.textColor ?? "light",
-    bannerType: b.bannerType ?? "HERO_SLIDE",
     imageUrl: b.imageUrl ?? `https://picsum.photos/seed/${b.id}/1200/400`,
     imageData: b.imageData ?? "",
+    imageUrlMobile: b.imageUrlMobile ?? "",
+    imageDataMobile: b.imageDataMobile ?? "",
     linkUrl: b.linkUrl ?? "",
-    position: b.position ?? "HOME_TOP",
-    isActive: b.isActive ?? true,
+    linkTarget: b.linkTarget ?? "_self",
+    weight: b.weight ?? 0,
     sortOrder: b.sortOrder ?? 1,
+    isActive: b.isActive ?? true,
     startDate: b.startDate ?? "2026-01-01",
     endDate: b.endDate ?? "2026-12-31",
     clickCount: b.clickCount ?? 0,
@@ -130,45 +136,82 @@ function banner(
 
 export function seedBanners(): Banner[] {
   return [
+    // ── Hero (HOME_HERO, 순서 고정) ──
     banner({
       id: "banner_seed_1",
+      name: "디딤집 소개 히어로",
+      bannerType: "HERO",
       title: "스타트업의 시작을 딛는 곳,\n디딤집에서 시작하세요",
       subtitle: "디딤집 소개",
-      subText: "자세히 보기 →",
-      description: "정부·지자체 지원사업과 성장 정보를 한곳에.",
+      subText: "정부·지자체 지원사업과 성장 정보를 한곳에.",
       linkUrl: "/about",
       sortOrder: 1,
       isActive: true,
     }),
     banner({
       id: "banner_seed_2",
+      name: "투자 유치 히어로",
+      bannerType: "HERO",
       title: "시리즈 A 투자 유치,\n무엇부터 준비해야 할까?",
       subtitle: "투자 유치",
-      subText: "가이드 보기 →",
-      description: "현직 심사역이 알려주는 IR 피칭 전략.",
+      subText: "현직 심사역이 알려주는 IR 피칭 전략.",
       linkUrl: "/contents/funding",
       sortOrder: 2,
       isActive: true,
     }),
     banner({
       id: "banner_seed_3",
+      name: "정부지원사업 히어로",
+      bannerType: "HERO",
       title: "2026 상반기\n정부지원사업 총정리",
       subtitle: "정부지원사업",
-      subText: "지금 확인하기 →",
-      description: "놓치면 아쉬운 창업 지원 프로그램.",
+      subText: "놓치면 아쉬운 창업 지원 프로그램.",
       linkUrl: "/contents/policy",
       sortOrder: 3,
       isActive: true,
     }),
-    // 비활성 슬라이드 (web 노출 안 됨 — 테스트용)
+    // 비활성 히어로 (web 노출 안 됨 — 테스트용)
     banner({
       id: "banner_seed_4",
+      name: "설맞이 이벤트 히어로(종료)",
+      bannerType: "HERO",
       title: "설맞이 특별 할인 이벤트 (종료)",
       subtitle: "이벤트",
-      subText: "이벤트 참여 →",
       linkUrl: "/events/newyear",
       sortOrder: 4,
       isActive: false,
+    }),
+
+    // ── Advertisement (HOME_MIDDLE, weight 가중 랜덤) ──
+    banner({
+      id: "banner_ad_1",
+      name: "프리미엄 멤버십 광고",
+      bannerType: "ADVERTISEMENT",
+      title: "프리미엄 멤버십으로\n더 많은 혜택을 누리세요",
+      subtitle: "MEMBERSHIP",
+      linkUrl: "/membership",
+      weight: 100,
+      isActive: true,
+    }),
+    banner({
+      id: "banner_ad_2",
+      name: "정부지원사업 광고",
+      bannerType: "ADVERTISEMENT",
+      title: "2026 정부지원사업\n지금 신청하세요",
+      subtitle: "정부지원",
+      linkUrl: "/contents/policy",
+      weight: 60,
+      isActive: true,
+    }),
+    banner({
+      id: "banner_ad_3",
+      name: "채용관 광고",
+      bannerType: "ADVERTISEMENT",
+      title: "스타트업 채용관\n오픈",
+      subtitle: "채용",
+      linkUrl: "/jobs",
+      weight: 20,
+      isActive: true,
     }),
   ];
 }

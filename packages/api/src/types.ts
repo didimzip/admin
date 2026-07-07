@@ -53,30 +53,35 @@ export interface PostListQuery {
 
 // ─── 배너 ────────────────────────────────────────────────────────────────────
 
-export type BannerType = "HERO_SLIDE" | "AD";
-export type BannerPosition =
-  | "HOME_TOP"
-  | "HOME_SIDE"
-  | "POST_BETWEEN"
-  | "POST_BOTTOM"
-  | "LOGIN_PAGE";
+export type BannerType = "HERO" | "ADVERTISEMENT";
+// 노출 위치. 값 추가만으로 확장 가능(예: POST_BETWEEN 등).
+export type BannerPosition = "HOME_HERO" | "HOME_MIDDLE";
 export type BannerTextColor = "light" | "dark"; // light = 흰 텍스트, dark = 검정 텍스트
+export type BannerLinkTarget = "_self" | "_blank"; // 현재창 | 새창
 
-/** 배너 정식 모델. admin StoredBanner 와 동일한 필드 집합(무손실 왕복). */
+/**
+ * 배너 정식 모델 (CMS). Hero(순서 고정)와 Advertisement(가중치 랜덤)가 같은 모델을 쓰되
+ * 출력 방식만 다르다. 실백엔드(PostgreSQL) 전환 시에도 이 형태를 유지한다.
+ */
 export interface Banner {
   id: string;
-  title: string; // 줄바꿈(\n) 포함 가능
-  subtitle: string; // 상단 소제목/뱃지
-  subText: string; // 하단 서브텍스트 (예: "자세히 보기 →")
-  description: string;
-  textColor: BannerTextColor;
+  name: string; // 관리용 배너명
   bannerType: BannerType;
-  imageUrl: string; // 경로/URL
-  imageData: string; // base64 업로드 이미지 (있으면 우선)
-  linkUrl: string;
   position: BannerPosition;
-  isActive: boolean;
-  sortOrder: number;
+  subtitle: string; // Badge(소제목)
+  title: string; // 메인 제목 (줄바꿈 \n 가능)
+  subText: string; // Hero 하단 텍스트
+  description: string; // (예비)
+  textColor: BannerTextColor;
+  imageUrl: string; // PC 배경 이미지 경로/URL
+  imageData: string; // PC base64 업로드 (있으면 우선)
+  imageUrlMobile: string; // 모바일 배경 (확장, 현재 미사용)
+  imageDataMobile: string; // 모바일 base64 (확장, 현재 미사용)
+  linkUrl: string;
+  linkTarget: BannerLinkTarget; // 링크 열기 방식
+  weight: number; // 광고 전용: 가중치(클수록 자주 노출)
+  sortOrder: number; // Hero 전용: 노출 순서(Display Order)
+  isActive: boolean; // 노출 상태 ON/OFF
   startDate: string;
   endDate: string;
   clickCount: number;

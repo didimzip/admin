@@ -78,6 +78,7 @@ export async function reorderHeroSlides(orderedIds: string[]): Promise<void> {
 
 export type BannerDraft = {
   id: string;
+  name: string;
   bannerType: string;
   title: string;
   subtitle: string;
@@ -86,6 +87,8 @@ export type BannerDraft = {
   description: string;
   position: string;
   linkUrl: string;
+  linkTarget: string;
+  weight: number;
   sortOrder: number;
   isActive: boolean;
   startDate: string;

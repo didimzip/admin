@@ -1,4 +1,4 @@
-import { postsApi, bannersApi } from "@didimzip/api";
+import { postsApi, bannersApi, type Banner } from "@didimzip/api";
 import HeroBanner, { type HeroSlide } from "@/components/home/HeroBanner";
 import RecommendedSection from "@/components/home/RecommendedSection";
 import LatestSection from "@/components/home/LatestSection";
@@ -7,7 +7,7 @@ import DidimPickSection from "@/components/home/DidimPickSection";
 import QASection from "@/components/home/QASection";
 import MentorSection from "@/components/home/MentorSection";
 import CommuneSection from "@/components/home/CommuneSection";
-import PromoBanner from "@/components/home/PromoBanner";
+import AdBanner from "@/components/home/AdBanner";
 import Footer from "@/components/layout/Footer";
 import { postToContentCard } from "@/lib/post-adapter";
 import type { ContentCard } from "@/lib/mock-data";
@@ -29,8 +29,8 @@ async function loadPosts(): Promise<ContentCard[]> {
 async function loadHeroSlides(): Promise<HeroSlide[]> {
   try {
     const banners = await bannersApi.list({
-      type: "HERO_SLIDE",
-      position: "HOME_TOP",
+      type: "HERO",
+      position: "HOME_HERO",
       active: true,
     });
     return banners.map((b) => ({
@@ -46,8 +46,21 @@ async function loadHeroSlides(): Promise<HeroSlide[]> {
   }
 }
 
+// 광고: Admin > 배너 관리의 ADVERTISEMENT 중 조건 충족분에서 weight 가중 랜덤 1개
+async function loadAd(position: "HOME_MIDDLE"): Promise<Banner | null> {
+  try {
+    return await bannersApi.pickAd(position);
+  } catch {
+    return null;
+  }
+}
+
 export default async function HomePage() {
-  const [items, heroSlides] = await Promise.all([loadPosts(), loadHeroSlides()]);
+  const [items, heroSlides, middleAd] = await Promise.all([
+    loadPosts(),
+    loadHeroSlides(),
+    loadAd("HOME_MIDDLE"),
+  ]);
   const popular = [...items].sort((a, b) => b.viewCount - a.viewCount);
 
   return (
@@ -60,8 +73,8 @@ export default async function HomePage() {
           <RecommendedSection items={items} />
         </section>
 
-        {/* 중간 배너 */}
-        <PromoBanner />
+        {/* 중간 광고 배너 (Admin CMS → weight 가중 랜덤) */}
+        <AdBanner ad={middleAd} />
 
         {/* 새로 올라온 콘텐츠 */}
         <section className="py-8">

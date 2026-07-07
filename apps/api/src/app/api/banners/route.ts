@@ -30,19 +30,25 @@ export async function GET(req: NextRequest) {
 
 /** 부분 입력이 와도 유효한 Banner 가 되도록 기본값을 채운다. */
 function normalizeCreateInput(body: Partial<BannerCreateInput>): BannerCreateInput {
+  const bannerType = body.bannerType ?? "HERO";
   return {
-    title: body.title ?? "",
+    name: body.name ?? "",
+    bannerType,
+    position: body.position ?? (bannerType === "HERO" ? "HOME_HERO" : "HOME_MIDDLE"),
     subtitle: body.subtitle ?? "",
+    title: body.title ?? "",
     subText: body.subText ?? "",
     description: body.description ?? "",
     textColor: body.textColor ?? "light",
-    bannerType: body.bannerType ?? "HERO_SLIDE",
     imageUrl: body.imageUrl ?? "",
     imageData: body.imageData ?? "",
+    imageUrlMobile: body.imageUrlMobile ?? "",
+    imageDataMobile: body.imageDataMobile ?? "",
     linkUrl: body.linkUrl ?? "",
-    position: body.position ?? "HOME_TOP",
-    isActive: body.isActive ?? true,
+    linkTarget: body.linkTarget ?? "_self",
+    weight: body.weight ?? 0,
     sortOrder: body.sortOrder ?? 1,
+    isActive: body.isActive ?? true,
     startDate: body.startDate ?? "",
     endDate: body.endDate ?? "",
     createdBy: body.createdBy ?? null,
@@ -57,8 +63,8 @@ export async function POST(req: NextRequest) {
     return fail("INVALID_JSON", "요청 본문을 JSON으로 해석할 수 없습니다.", 400);
   }
 
-  if (!body.title || !body.title.trim()) {
-    return fail("VALIDATION", "제목(title)은 필수입니다.", 422);
+  if ((!body.name || !body.name.trim()) && (!body.title || !body.title.trim())) {
+    return fail("VALIDATION", "배너명(name) 또는 제목(title)은 필수입니다.", 422);
   }
 
   const created = await bannersRepository.create(normalizeCreateInput(body));

@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   BANNER_POSITIONS, BANNER_TYPE_LABELS, HERO_POSITIONS, AD_POSITIONS,
-  type BannerPosition, type BannerTextColor,
+  type BannerPosition, type BannerTextColor, type BannerLinkTarget,
 } from "@/data/mock-data";
 import {
   getBanner, upsertBanner, deleteBanner,
@@ -40,13 +40,16 @@ export default function BannerDetailPage() {
 
   // form state (for edit mode)
   const [form, setForm] = useState({
+    name: "",
     title: "",
     subtitle: "",
     subText: "",
     textColor: "light" as BannerTextColor,
     description: "",
-    position: "HOME_TOP" as BannerPosition,
+    position: "HOME_HERO" as BannerPosition,
     linkUrl: "",
+    linkTarget: "_self" as BannerLinkTarget,
+    weight: 0,
     sortOrder: 1,
     isActive: true,
     startDate: "",
@@ -87,6 +90,7 @@ export default function BannerDetailPage() {
   const enterEditMode = () => {
     if (!banner) return;
     setForm({
+      name: banner.name ?? "",
       title: banner.title,
       subtitle: banner.subtitle ?? "",
       subText: banner.subText ?? "",
@@ -94,6 +98,8 @@ export default function BannerDetailPage() {
       description: banner.description,
       position: banner.position,
       linkUrl: banner.linkUrl,
+      linkTarget: banner.linkTarget ?? "_self",
+      weight: banner.weight ?? 0,
       sortOrder: banner.sortOrder,
       isActive: banner.isActive,
       startDate: banner.startDate,
@@ -188,18 +194,23 @@ export default function BannerDetailPage() {
     try {
       const updated = await upsertBanner({
         id: banner.id,
+        name: form.name.trim() || form.title.trim(),
+        bannerType: banner.bannerType,
+        position: form.position,
         title: form.title.trim(),
         subtitle: form.subtitle.trim(),
         subText: form.subText.trim(),
         textColor: form.textColor,
         description: form.description.trim(),
-        bannerType: banner.bannerType,
         imageUrl: banner.imageUrl,
         imageData: form.imageData || banner.imageData,
+        imageUrlMobile: banner.imageUrlMobile ?? "",
+        imageDataMobile: banner.imageDataMobile ?? "",
         linkUrl: form.linkUrl.trim(),
-        position: form.position,
-        isActive: form.isActive,
+        linkTarget: form.linkTarget,
+        weight: form.weight,
         sortOrder: form.sortOrder,
+        isActive: form.isActive,
         startDate: form.startDate,
         endDate: form.endDate,
         createdBy: banner.createdBy ?? session?.adminId ?? null,
@@ -226,7 +237,7 @@ export default function BannerDetailPage() {
 
   if (!banner) return null;
 
-  const isHero = banner.bannerType === "HERO_SLIDE";
+  const isHero = banner.bannerType === "HERO";
   const positionOptions = isHero ? HERO_POSITIONS : AD_POSITIONS;
   const ctr = banner.impressionCount > 0
     ? ((banner.clickCount / banner.impressionCount) * 100).toFixed(1)
@@ -708,7 +719,7 @@ export default function BannerDetailPage() {
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-slate-700">노출 위치</label>
                   <div className="flex h-[42px] items-center rounded-lg border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-500">
-                    {BANNER_POSITIONS["HOME_TOP"]}
+                    {BANNER_POSITIONS["HOME_HERO"]}
                   </div>
                 </div>
               )}

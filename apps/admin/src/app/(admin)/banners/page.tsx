@@ -243,7 +243,7 @@ export default function BannersPage() {
   useEffect(() => { reload(); }, []);
 
   // tab
-  const [activeTab, setActiveTab] = useState<"HERO_SLIDE" | "AD">("HERO_SLIDE");
+  const [activeTab, setActiveTab] = useState<"HERO" | "ADVERTISEMENT">("HERO");
 
   // search
   const [searchQuery, setSearchQuery] = useState("");
@@ -263,7 +263,7 @@ export default function BannersPage() {
   // ─── Derived data ──────────────────────────────────────────────────────────
 
   const allHeroSlides = useMemo(
-    () => banners.filter((b) => b.bannerType === "HERO_SLIDE").sort((a, b) => a.sortOrder - b.sortOrder),
+    () => banners.filter((b) => b.bannerType === "HERO").sort((a, b) => a.sortOrder - b.sortOrder),
     [banners]
   );
 
@@ -281,7 +281,7 @@ export default function BannersPage() {
 
   const adBanners = useMemo(() => {
     return banners.filter((b) => {
-      if (b.bannerType !== "AD") return false;
+      if (b.bannerType !== "ADVERTISEMENT") return false;
       if (statusFilter === "ACTIVE" && (!b.isActive || isFutureDate(b.startDate))) return false;
       if (statusFilter === "SCHEDULED" && (!b.isActive || !isFutureDate(b.startDate))) return false;
       if (statusFilter === "INACTIVE" && b.isActive) return false;
@@ -300,8 +300,8 @@ export default function BannersPage() {
 
   // ─── Stats ─────────────────────────────────────────────────────────────────
 
-  const heroCount = banners.filter((b) => b.bannerType === "HERO_SLIDE").length;
-  const adCount = banners.filter((b) => b.bannerType === "AD").length;
+  const heroCount = banners.filter((b) => b.bannerType === "HERO").length;
+  const adCount = banners.filter((b) => b.bannerType === "ADVERTISEMENT").length;
 
   // Tab-specific stats
   const currentTabBanners = banners.filter((b) => b.bannerType === activeTab);
@@ -451,9 +451,9 @@ export default function BannersPage() {
       <div className="grid gap-3 sm:grid-cols-4">
         {[
           {
-            label: activeTab === "HERO_SLIDE" ? "전체 슬라이드" : "전체 배너",
-            value: activeTab === "HERO_SLIDE" ? heroCount : adCount,
-            icon: activeTab === "HERO_SLIDE" ? MonitorPlay : Layers,
+            label: activeTab === "HERO" ? "전체 슬라이드" : "전체 배너",
+            value: activeTab === "HERO" ? heroCount : adCount,
+            icon: activeTab === "HERO" ? MonitorPlay : Layers,
             bg: "bg-indigo-50 border-indigo-200", color: "text-indigo-600",
           },
           {
@@ -502,19 +502,19 @@ export default function BannersPage() {
       {/* Tabs */}
       <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 w-fit">
         <button
-          onClick={() => { setActiveTab("HERO_SLIDE"); setPage(1); setIsEditing(false); setSelectedIds(new Set()); }}
+          onClick={() => { setActiveTab("HERO"); setPage(1); setIsEditing(false); setSelectedIds(new Set()); }}
           className={cn(
             "flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition-colors",
-            activeTab === "HERO_SLIDE" ? "bg-indigo-600 text-white" : "text-slate-500 hover:text-slate-700"
+            activeTab === "HERO" ? "bg-indigo-600 text-white" : "text-slate-500 hover:text-slate-700"
           )}
         >
           <MonitorPlay className="h-4 w-4" /> 히어로 슬라이드
         </button>
         <button
-          onClick={() => { setActiveTab("AD"); setPage(1); setIsEditing(false); setSelectedIds(new Set()); }}
+          onClick={() => { setActiveTab("ADVERTISEMENT"); setPage(1); setIsEditing(false); setSelectedIds(new Set()); }}
           className={cn(
             "flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition-colors",
-            activeTab === "AD" ? "bg-indigo-600 text-white" : "text-slate-500 hover:text-slate-700"
+            activeTab === "ADVERTISEMENT" ? "bg-indigo-600 text-white" : "text-slate-500 hover:text-slate-700"
           )}
         >
           <Layers className="h-4 w-4" /> 광고 배너
@@ -524,7 +524,7 @@ export default function BannersPage() {
       {/* Filters + Search (campaigns style) */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1">
-          {activeTab === "HERO_SLIDE" ? (
+          {activeTab === "HERO" ? (
             <>
               {([
                 { key: "ALL" as const, label: "전체" },
@@ -581,7 +581,7 @@ export default function BannersPage() {
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       {/* HERO SLIDE TAB — Card Layout                                          */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {activeTab === "HERO_SLIDE" && (
+      {activeTab === "HERO" && (
         <div className="space-y-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           {/* Hero header bar */}
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
@@ -719,7 +719,7 @@ export default function BannersPage() {
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       {/* AD BANNER TAB — Table Layout                                          */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {activeTab === "AD" && (
+      {activeTab === "ADVERTISEMENT" && (
         <>
           {/* Table */}
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">

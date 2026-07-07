@@ -3,6 +3,7 @@ import type {
   Banner,
   BannerCreateInput,
   BannerListQuery,
+  BannerPosition,
   BannerUpdateInput,
   Category,
   CategoryInput,
@@ -102,6 +103,9 @@ export const bannersApi = {
       method: "POST",
       body: JSON.stringify({ orderedIds }),
     }),
+  // 광고: 조건(ADVERTISEMENT·ON·기간·위치) 충족 배너 중 weight 가중 랜덤 1개(없으면 null)
+  pickAd: (position: BannerPosition) =>
+    request<Banner | null>(`/api/banners/ad?position=${encodeURIComponent(position)}`),
 };
 
 function toCategoryQuery(query?: CategoryListQuery): string {

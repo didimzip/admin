@@ -2,6 +2,7 @@ import type {
   Banner,
   BannerCreateInput,
   BannerListQuery,
+  BannerPosition,
   BannerUpdateInput,
 } from "@didimzip/api";
 import { readDb, writeDb } from "../db";
@@ -90,5 +91,34 @@ export const bannersRepository = {
     });
     writeDb(db);
     return [...db.banners].sort((a, b) => a.sortOrder - b.sortOrder);
+  },
+
+  /**
+   * 광고 1개 선택. 조건(ADVERTISEMENT·ON·기간·위치) 충족 배너 중 weight 가중 랜덤.
+   * 없으면 null. (실백엔드에서는 SQL 가중 샘플링으로 교체 가능 — 시그니처 동일)
+   */
+  async pickAd(position: BannerPosition): Promise<Banner | null> {
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const eligible = readDb().banners.filter(
+      (b) =>
+        b.bannerType === "ADVERTISEMENT" &&
+        b.isActive &&
+        b.position === position &&
+        (!b.startDate || b.startDate <= today) &&
+        (!b.endDate || b.endDate >= today),
+    );
+    if (eligible.length === 0) return null;
+
+    const totalWeight = eligible.reduce((s, b) => s + Math.max(0, b.weight), 0);
+    if (totalWeight <= 0) {
+      // 모든 weight가 0이면 균등 랜덤
+      return eligible[Math.floor(Math.random() * eligible.length)];
+    }
+    let r = Math.random() * totalWeight;
+    for (const b of eligible) {
+      r -= Math.max(0, b.weight);
+      if (r < 0) return b;
+    }
+    return eligible[eligible.length - 1];
   },
 };

@@ -1,3 +1,5 @@
+import type { BannerType, BannerPosition, BannerTextColor, BannerLinkTarget } from "@didimzip/api";
+
 // ── Verifications (서류 인증 관리) ──
 
 export interface Verification {
@@ -142,57 +144,22 @@ export const mockCampaigns: Campaign[] = [
 ];
 
 // ── Banners ──
+// 배너 타입/위치/색상은 공유 계약(@didimzip/api)을 재노출한다.
 
-export type BannerType = "HERO_SLIDE" | "AD";
-export type BannerPosition = "HOME_TOP" | "HOME_SIDE" | "POST_BETWEEN" | "POST_BOTTOM" | "LOGIN_PAGE";
-
-export type BannerTextColor = "light" | "dark"; // light = 흰색 텍스트, dark = 검정 텍스트
-
-export interface Banner {
-  id: string;
-  title: string;
-  subtitle: string;   // 상단 소제목 (예: "평생교육이용권")
-  subText: string;     // 하단 서브텍스트 (예: "자세히 보기 →")
-  textColor: BannerTextColor; // 배경에 따른 텍스트 색상
-  bannerType: BannerType;
-  imageUrl: string;
-  linkUrl: string;
-  position: BannerPosition;
-  isActive: boolean;
-  sortOrder: number;
-  startDate: string;
-  endDate: string;
-  clickCount: number;
-  impressionCount: number;
-  createdAt: string;
-}
+export type { BannerType, BannerPosition, BannerTextColor, BannerLinkTarget };
 
 export const BANNER_TYPE_LABELS: Record<BannerType, string> = {
-  HERO_SLIDE: "히어로 슬라이드",
-  AD: "광고 배너",
+  HERO: "히어로",
+  ADVERTISEMENT: "광고 배너",
 };
 
 export const BANNER_POSITIONS: Record<BannerPosition, string> = {
-  HOME_TOP: "홈 상단 (히어로)",
-  HOME_SIDE: "홈 사이드바",
-  POST_BETWEEN: "콘텐츠 사이",
-  POST_BOTTOM: "게시물 하단",
-  LOGIN_PAGE: "로그인 페이지",
+  HOME_HERO: "홈 히어로",
+  HOME_MIDDLE: "홈 중간 광고",
 };
 
-export const HERO_POSITIONS: BannerPosition[] = ["HOME_TOP"];
-export const AD_POSITIONS: BannerPosition[] = ["HOME_SIDE", "POST_BETWEEN", "POST_BOTTOM", "LOGIN_PAGE"];
-
-export const mockBanners: Banner[] = [
-  { id: "banner_001", title: "업계 실무 현직자들의 노하우를\n평생교육이용권으로 만나보세요!", subtitle: "평생교육이용권", subText: "자세히 보기 →", textColor: "light", bannerType: "HERO_SLIDE", imageUrl: "/banners/networking.png", linkUrl: "/posts/post_004", position: "HOME_TOP", isActive: true, sortOrder: 1, startDate: "2026-03-01", endDate: "2026-03-10", clickCount: 342, impressionCount: 5120, createdAt: "2026-02-28T09:00:00Z" },
-  { id: "banner_002", title: "프리미엄 멤버십 안내", subtitle: "", subText: "", textColor: "light", bannerType: "AD", imageUrl: "/banners/premium.png", linkUrl: "/membership", position: "HOME_SIDE", isActive: true, sortOrder: 1, startDate: "2026-02-01", endDate: "2026-04-30", clickCount: 128, impressionCount: 3200, createdAt: "2026-01-30T14:00:00Z" },
-  { id: "banner_003", title: "정부 지원사업 모집", subtitle: "", subText: "", textColor: "light", bannerType: "AD", imageUrl: "/banners/gov.png", linkUrl: "https://example.com/gov", position: "POST_BETWEEN", isActive: true, sortOrder: 1, startDate: "2026-02-15", endDate: "2026-03-15", clickCount: 87, impressionCount: 1890, createdAt: "2026-02-14T10:00:00Z" },
-  { id: "banner_004", title: "서비스 가입 유도 배너", subtitle: "", subText: "", textColor: "light", bannerType: "AD", imageUrl: "/banners/signup.png", linkUrl: "/signup", position: "LOGIN_PAGE", isActive: true, sortOrder: 1, startDate: "2026-01-01", endDate: "2026-12-31", clickCount: 521, impressionCount: 8900, createdAt: "2025-12-28T09:00:00Z" },
-  { id: "banner_005", title: "설맞이 특별 할인 이벤트\n최대 50% 할인 혜택을 놓치지 마세요!", subtitle: "설 연휴 이벤트", subText: "이벤트 참여하기 →", textColor: "light", bannerType: "HERO_SLIDE", imageUrl: "/banners/newyear.png", linkUrl: "/events/newyear", position: "HOME_TOP", isActive: false, sortOrder: 2, startDate: "2026-01-25", endDate: "2026-02-05", clickCount: 245, impressionCount: 4100, createdAt: "2026-01-20T11:00:00Z" },
-  { id: "banner_006", title: "투자 세미나 광고 (종료)", subtitle: "", subText: "", textColor: "light", bannerType: "AD", imageUrl: "/banners/seminar.png", linkUrl: "/events/seminar", position: "HOME_SIDE", isActive: false, sortOrder: 2, startDate: "2026-02-01", endDate: "2026-02-20", clickCount: 67, impressionCount: 1200, createdAt: "2026-01-28T15:00:00Z" },
-  { id: "banner_007", title: "디딤집과 함께 성장하는\n스타트업 생태계를 만들어갑니다", subtitle: "신규 서비스 런칭", subText: "더 알아보기 →", textColor: "light", bannerType: "HERO_SLIDE", imageUrl: "/banners/launch.png", linkUrl: "/about", position: "HOME_TOP", isActive: true, sortOrder: 2, startDate: "2026-02-20", endDate: "2026-03-20", clickCount: 198, impressionCount: 3800, createdAt: "2026-02-19T10:00:00Z" },
-  { id: "banner_008", title: "스타트업 채용관 오픈", subtitle: "", subText: "", textColor: "light", bannerType: "AD", imageUrl: "/banners/recruit.png", linkUrl: "/jobs", position: "POST_BETWEEN", isActive: true, sortOrder: 2, startDate: "2026-03-01", endDate: "2026-03-31", clickCount: 54, impressionCount: 920, createdAt: "2026-02-28T14:00:00Z" },
-];
+export const HERO_POSITIONS: BannerPosition[] = ["HOME_HERO"];
+export const AD_POSITIONS: BannerPosition[] = ["HOME_MIDDLE"];
 
 // ── Audit Logs ──
 
