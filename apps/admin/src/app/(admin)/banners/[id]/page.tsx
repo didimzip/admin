@@ -187,7 +187,8 @@ export default function BannerDetailPage() {
 
   const handleSave = async () => {
     if (!banner) return;
-    if (!form.title.trim()) { showToast("배너명을 입력해주세요."); return; }
+    if (!form.name.trim()) { showToast("배너명(관리용)을 입력해주세요."); return; }
+    if (!form.title.trim()) { showToast("타이틀을 입력해주세요."); return; }
     if (!form.startDate) { showToast("시작일을 입력해주세요."); return; }
 
     setSaving(true);
@@ -320,47 +321,71 @@ export default function BannerDetailPage() {
         <div className="space-y-5">
           {/* Image preview */}
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className={cn(
-              "relative bg-slate-100",
-              isHero ? "aspect-[4.8/1]" : "aspect-[3/1]"
-            )}>
-              {(banner.imageData || banner.imageUrl) && (
-                <img
-                  src={banner.imageData || banner.imageUrl}
-                  alt={banner.title}
-                  className="h-full w-full object-cover"
-                />
-              )}
-              {/* Hero overlay */}
-              {isHero && (banner.subtitle || banner.title || banner.subText) && (
-                <div className="pointer-events-none absolute inset-0">
-                  <div className="flex h-full flex-col justify-center px-[6%]" style={{ maxWidth: "55%" }}>
-                    {banner.subtitle && (
-                      <span className={cn(
-                        "mb-2 w-fit rounded-full px-2.5 py-0.5 text-[11px] font-medium",
-                        banner.textColor === "dark" ? "bg-black/8 text-black/60" : "bg-white/15 text-white/80"
+            {isHero ? (
+              <div className="relative aspect-[4.8/1] bg-slate-100">
+                {(banner.imageData || banner.imageUrl) && (
+                  <img
+                    src={banner.imageData || banner.imageUrl}
+                    alt={banner.title}
+                    className="h-full w-full object-cover"
+                  />
+                )}
+                {(banner.subtitle || banner.title || banner.subText) && (
+                  <div className="pointer-events-none absolute inset-0">
+                    <div className="flex h-full flex-col justify-center px-[6%]" style={{ maxWidth: "55%" }}>
+                      {banner.subtitle && (
+                        <span className={cn(
+                          "mb-2 w-fit rounded-full px-2.5 py-0.5 text-[11px] font-medium",
+                          banner.textColor === "dark" ? "bg-black/8 text-black/60" : "bg-white/15 text-white/80"
+                        )}>
+                          {banner.subtitle}
+                        </span>
+                      )}
+                      <h2 className={cn(
+                        "whitespace-pre-line text-2xl font-bold leading-tight",
+                        banner.textColor === "dark" ? "text-black/90" : "text-white"
                       )}>
-                        {banner.subtitle}
-                      </span>
-                    )}
-                    <h2 className={cn(
-                      "whitespace-pre-line text-2xl font-bold leading-tight",
-                      banner.textColor === "dark" ? "text-black/90" : "text-white"
-                    )}>
+                        {banner.title}
+                      </h2>
+                      {banner.subText && (
+                        <span className={cn(
+                          "mt-2 whitespace-pre-line text-xs leading-relaxed",
+                          banner.textColor === "dark" ? "text-black/45" : "text-white/60"
+                        )}>
+                          {banner.subText}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* 광고 배너 디자인 스펙 (180px · #333 · Badge + Title) */
+              <div className="p-4">
+                <div
+                  className="relative overflow-hidden"
+                  style={{
+                    borderRadius: "14px", border: "1px solid #EEE", background: "#333",
+                    display: "flex", height: "180px", padding: "30px 60px",
+                    flexDirection: "column", justifyContent: "center", alignItems: "flex-start", gap: "36px",
+                  }}
+                >
+                  {(banner.imageData || banner.imageUrl) && (
+                    <img src={banner.imageData || banner.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-40" />
+                  )}
+                  {banner.subtitle && (
+                    <span className="relative z-10 w-fit rounded-full bg-white/15 px-2.5 py-0.5 text-[13px] font-medium text-white/80">
+                      {banner.subtitle}
+                    </span>
+                  )}
+                  {banner.title && (
+                    <h2 className="relative z-10 whitespace-pre-line text-[22px] font-bold leading-tight text-white">
                       {banner.title}
                     </h2>
-                    {banner.subText && (
-                      <span className={cn(
-                        "mt-2 whitespace-pre-line text-xs leading-relaxed",
-                        banner.textColor === "dark" ? "text-black/45" : "text-white/60"
-                      )}>
-                        {banner.subText}
-                      </span>
-                    )}
-                  </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Two-column layout */}
@@ -522,41 +547,65 @@ export default function BannerDetailPage() {
               <input ref={fileRef} type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
               {imagePreview ? (
                 <div className="relative group" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
-                  <div className={cn(
-                    "overflow-hidden rounded-xl border border-slate-200",
-                    isHero ? "aspect-[4.8/1]" : "aspect-[3/1]"
-                  )}>
-                    <img src={imagePreview} alt="미리보기" className="h-full w-full object-cover" />
-                  </div>
-                  {/* Hero overlay preview */}
-                  {isHero && (form.subtitle || form.title || form.subText) && (
-                    <div className="pointer-events-none absolute inset-0 rounded-xl">
-                      <div className="flex h-full flex-col justify-center px-[6%]" style={{ maxWidth: "55%" }}>
-                        {form.subtitle && (
-                          <span className={cn(
-                            "mb-2 w-fit rounded-full px-2.5 py-0.5 text-[11px] font-medium",
-                            form.textColor === "dark" ? "bg-black/8 text-black/60" : "bg-white/15 text-white/80"
-                          )}>
-                            {form.subtitle}
-                          </span>
-                        )}
-                        {form.title && (
-                          <h4 className={cn(
-                            "whitespace-pre-line text-2xl font-bold leading-tight",
-                            form.textColor === "dark" ? "text-black/90" : "text-white"
-                          )}>
-                            {form.title}
-                          </h4>
-                        )}
-                        {form.subText && (
-                          <span className={cn(
-                            "mt-2 whitespace-pre-line text-xs leading-relaxed",
-                            form.textColor === "dark" ? "text-black/45" : "text-white/60"
-                          )}>
-                            {form.subText}
-                          </span>
-                        )}
+                  {isHero ? (
+                    <>
+                      <div className="overflow-hidden rounded-xl border border-slate-200 aspect-[4.8/1]">
+                        <img src={imagePreview} alt="미리보기" className="h-full w-full object-cover" />
                       </div>
+                      {(form.subtitle || form.title || form.subText) && (
+                        <div className="pointer-events-none absolute inset-0 rounded-xl">
+                          <div className="flex h-full flex-col justify-center px-[6%]" style={{ maxWidth: "55%" }}>
+                            {form.subtitle && (
+                              <span className={cn(
+                                "mb-2 w-fit rounded-full px-2.5 py-0.5 text-[11px] font-medium",
+                                form.textColor === "dark" ? "bg-black/8 text-black/60" : "bg-white/15 text-white/80"
+                              )}>
+                                {form.subtitle}
+                              </span>
+                            )}
+                            {form.title && (
+                              <h4 className={cn(
+                                "whitespace-pre-line text-2xl font-bold leading-tight",
+                                form.textColor === "dark" ? "text-black/90" : "text-white"
+                              )}>
+                                {form.title}
+                              </h4>
+                            )}
+                            {form.subText && (
+                              <span className={cn(
+                                "mt-2 whitespace-pre-line text-xs leading-relaxed",
+                                form.textColor === "dark" ? "text-black/45" : "text-white/60"
+                              )}>
+                                {form.subText}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    /* 광고 배너 디자인 스펙 (180px · #333 · Badge + Title) */
+                    <div
+                      className="relative overflow-hidden"
+                      style={{
+                        borderRadius: "14px", border: "1px solid #EEE", background: "#333",
+                        display: "flex", height: "180px", padding: "30px 60px",
+                        flexDirection: "column", justifyContent: "center", alignItems: "flex-start", gap: "36px",
+                      }}
+                    >
+                      {imagePreview && (
+                        <img src={imagePreview} alt="" className="absolute inset-0 h-full w-full object-cover opacity-40" />
+                      )}
+                      {form.subtitle && (
+                        <span className="relative z-10 w-fit rounded-full bg-white/15 px-2.5 py-0.5 text-[13px] font-medium text-white/80">
+                          {form.subtitle}
+                        </span>
+                      )}
+                      {form.title && (
+                        <h4 className="relative z-10 whitespace-pre-line text-[22px] font-bold leading-tight text-white">
+                          {form.title}
+                        </h4>
+                      )}
                     </div>
                   )}
                   {isDragging && (
@@ -597,41 +646,44 @@ export default function BannerDetailPage() {
               )}
             </div>
 
-            {/* Subtitle (hero only) */}
-            {isHero && (
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">소제목</label>
-                <textarea
-                  value={form.subtitle}
-                  onChange={(e) => updateForm({ subtitle: e.target.value })}
-                  placeholder="배너 위에 작게 표시될 카테고리/라벨&#10;줄바꿈 가능"
-                  rows={2}
-                  className="w-full resize-none rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                />
-              </div>
-            )}
-
-            {/* Title */}
+            {/* 배너명 (관리용) — 양쪽 공통 */}
             <div>
               <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                {isHero ? "타이틀" : "배너명"} <span className="text-red-500">*</span>
+                배너명 (관리용) <span className="text-red-500">*</span>
+                <span className="ml-2 font-normal text-slate-400">관리 목록에만 표시</span>
               </label>
-              {isHero ? (
-                <textarea
-                  value={form.title}
-                  onChange={(e) => updateForm({ title: e.target.value })}
-                  placeholder="메인 타이틀&#10;줄바꿈 가능"
-                  rows={2}
-                  className="w-full resize-none rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                />
-              ) : (
-                <input
-                  value={form.title}
-                  onChange={(e) => updateForm({ title: e.target.value })}
-                  placeholder="배너 이름을 입력하세요"
-                  className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                />
-              )}
+              <input
+                value={form.name}
+                onChange={(e) => updateForm({ name: e.target.value })}
+                placeholder="예: 프리미엄 멤버십 광고"
+                className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+              />
+            </div>
+
+            {/* 소제목 (Badge) — 양쪽 공통 */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">소제목 (Badge)</label>
+              <textarea
+                value={form.subtitle}
+                onChange={(e) => updateForm({ subtitle: e.target.value })}
+                placeholder="배너 위에 Pill 형태로 표시될 라벨"
+                rows={1}
+                className="w-full resize-none rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+              />
+            </div>
+
+            {/* 타이틀 — 양쪽 공통 */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                타이틀 <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={form.title}
+                onChange={(e) => updateForm({ title: e.target.value })}
+                placeholder="메인 타이틀&#10;줄바꿈 가능"
+                rows={2}
+                className="w-full resize-none rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+              />
             </div>
 
             {/* SubText (hero only) */}
@@ -676,28 +728,46 @@ export default function BannerDetailPage() {
               </div>
             )}
 
-            {/* Description (ad only) */}
+            {/* Weight (ad only) */}
             {!isHero && (
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">설명</label>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                  Weight (가중치)
+                  <span className="ml-2 font-normal text-slate-400">클수록 자주 노출 (예: 100/60/20)</span>
+                </label>
                 <input
-                  value={form.description}
-                  onChange={(e) => updateForm({ description: e.target.value })}
-                  placeholder="배너에 대한 간단한 설명 (선택)"
+                  type="number"
+                  min={0}
+                  value={form.weight}
+                  onChange={(e) => updateForm({ weight: Math.max(0, Number(e.target.value) || 0) })}
+                  placeholder="0"
                   className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                 />
               </div>
             )}
 
-            {/* Link URL */}
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">링크 URL</label>
-              <input
-                value={form.linkUrl}
-                onChange={(e) => updateForm({ linkUrl: e.target.value })}
-                placeholder="https:// 또는 /path"
-                className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-              />
+            {/* Link URL + Target */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">링크 URL</label>
+                <input
+                  value={form.linkUrl}
+                  onChange={(e) => updateForm({ linkUrl: e.target.value })}
+                  placeholder="https:// 또는 /path"
+                  className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">링크 열기 방식</label>
+                <select
+                  value={form.linkTarget}
+                  onChange={(e) => updateForm({ linkTarget: e.target.value as BannerLinkTarget })}
+                  className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                >
+                  <option value="_self">현재창</option>
+                  <option value="_blank">새창</option>
+                </select>
+              </div>
             </div>
 
             {/* Position & Sort Order */}
