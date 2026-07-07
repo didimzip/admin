@@ -114,23 +114,32 @@ export function CategoryIcon({
   className?: string;
 }) {
   const sync = SYNC_MAP[iconName];
-  const [lazy, setLazy] = useState<IconComp | null>(() => asyncCache.get(iconName) ?? null);
+  const [resolved, setResolved] = useState<IconComp | null>(
+    () => sync ?? asyncCache.get(iconName) ?? null,
+  );
 
   useEffect(() => {
-    if (sync || asyncCache.has(iconName)) return;
+    // 동기 아이콘 또는 이미 캐시된 아이콘 → 즉시 반영 (prop 변경 시 갱신 보장)
+    const immediate = sync ?? asyncCache.get(iconName) ?? null;
+    if (immediate) {
+      setResolved(() => immediate);
+      return;
+    }
+    // 미로드 → 로딩 중엔 폴백 표시 후, lazy 로드되면 반영
+    setResolved(null);
     let alive = true;
     loadRi().then((mod) => {
       if (!alive) return;
       const C = (mod[iconName] as IconComp) ?? FALLBACK;
       asyncCache.set(iconName, C);
-      setLazy(() => C);
+      setResolved(() => C);
     });
     return () => {
       alive = false;
     };
   }, [iconName, sync]);
 
-  const Comp = sync ?? lazy ?? FALLBACK;
+  const Comp = resolved ?? FALLBACK;
   return <Comp size={size} className={className} />;
 }
 
