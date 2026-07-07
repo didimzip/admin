@@ -1,16 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
+// Hero 3단 구조 (Admin 배너 관리와 동일): Badge(소제목) → Title(타이틀) → 하단 설명(서브텍스트).
+// CTA 버튼은 존재하지 않는다.
 export interface HeroSlide {
   id: string;
-  badge: string; // subtitle (상단 소제목)
-  title: string; // 줄바꿈(\n) 포함
-  description: string;
-  ctaText: string; // subText (하단 버튼 문구)
-  linkUrl: string;
+  badge: string; // subtitle (상단 소제목) → Badge(Pill Label, 비클릭)
+  title: string; // 메인 제목 (줄바꿈 \n 지원)
+  subText: string; // 하단 설명 텍스트 (일반 텍스트, 버튼 아님)
   image: string; // imageData(base64) || imageUrl
   textColor: "light" | "dark";
 }
@@ -114,13 +113,13 @@ export default function HeroBanner({ slides }: { slides: HeroSlide[] }) {
 
             {/* Text */}
             <div className="relative z-10 h-full flex flex-col justify-end px-[60px] pb-[30px]">
+              {/* 3단 구조: Badge(Pill) → Title → 하단 설명(일반 텍스트). CTA 버튼 없음. */}
               <div className="max-w-lg">
                 {slide.badge && (
                   <span
                     className={
-                      light
-                        ? "inline-block text-[12px] font-medium bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-white/80"
-                        : "inline-block text-[12px] font-medium bg-black/10 backdrop-blur-sm px-3 py-1 rounded-full text-slate-700"
+                      "mb-2 inline-block w-fit select-none rounded-full px-3 py-1 text-[12px] font-medium " +
+                      (light ? "bg-white/15 text-white/80" : "bg-black/8 text-slate-700")
                     }
                   >
                     {slide.badge}
@@ -128,34 +127,21 @@ export default function HeroBanner({ slides }: { slides: HeroSlide[] }) {
                 )}
                 <h2
                   className={
-                    "text-[32px] font-bold leading-[1.3] whitespace-pre-line mt-2 " +
+                    "text-[32px] font-bold leading-[1.3] whitespace-pre-line " +
                     (light ? "text-white" : "text-slate-900")
                   }
                 >
                   {slide.title}
                 </h2>
-                {slide.description && (
+                {slide.subText && (
                   <p
                     className={
-                      "text-[14px] mt-2 whitespace-pre-line leading-relaxed " +
+                      "mt-2 whitespace-pre-line text-[14px] leading-relaxed " +
                       (light ? "text-white/70" : "text-slate-600")
                     }
                   >
-                    {slide.description}
+                    {slide.subText}
                   </p>
-                )}
-                {slide.ctaText && (
-                  <Link
-                    href={slide.linkUrl || "#"}
-                    className={
-                      "inline-block mt-4 text-[13px] font-semibold rounded-full px-4 py-2 transition-colors " +
-                      (light
-                        ? "bg-white text-slate-900 hover:bg-white/90"
-                        : "bg-slate-900 text-white hover:bg-slate-800")
-                    }
-                  >
-                    {slide.ctaText}
-                  </Link>
                 )}
               </div>
 

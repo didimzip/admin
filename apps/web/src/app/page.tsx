@@ -35,11 +35,9 @@ async function loadHeroSlides(): Promise<HeroSlide[]> {
     });
     return banners.map((b) => ({
       id: b.id,
-      badge: b.subtitle,
-      title: b.title,
-      description: b.description,
-      ctaText: b.subText,
-      linkUrl: b.linkUrl,
+      badge: b.subtitle, // 소제목 → Badge(Pill)
+      title: b.title, // 타이틀
+      subText: b.subText, // 하단 서브텍스트 → 하단 설명(일반 텍스트)
       image: b.imageData || b.imageUrl,
       textColor: b.textColor,
     }));
