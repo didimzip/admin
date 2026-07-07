@@ -4,7 +4,7 @@ import type { ApiError, ApiSuccess } from "@didimzip/api";
 // 개발용 Mock API. 쿠키/자격증명을 쓰지 않으므로 CORS는 전체 허용.
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
+  "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
 

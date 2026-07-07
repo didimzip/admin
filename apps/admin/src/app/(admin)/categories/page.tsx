@@ -1,14 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/lib/toast-context";
 import {
   GripVertical, Plus, ChevronRight, FolderOpen, Tag,
-  Save, RotateCcw, TriangleAlert, Eye, EyeOff, X,
+  Save, RotateCcw, TriangleAlert, Eye, EyeOff, X, Search,
 } from "lucide-react";
-import { CATEGORY_ICON_NAMES } from "@didimzip/api";
-import { CategoryIcon } from "@/lib/category-icons";
+import { CategoryIcon, loadAllRiIconNames } from "@/lib/category-icons";
 import {
   DndContext,
   DragOverlay,
@@ -297,6 +296,8 @@ export default function CategoriesPage() {
   const [newCatName, setNewCatName] = useState("");
   const [newSubName, setNewSubName] = useState("");
   const [iconPickerCatId, setIconPickerCatId] = useState<string | null>(null);
+  const [iconQuery, setIconQuery] = useState("");
+  const [allIconNames, setAllIconNames] = useState<string[]>([]);
 
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
@@ -358,6 +359,22 @@ export default function CategoriesPage() {
     setIconPickerCatId(null);
   };
   const iconPickerCat = iconPickerCatId ? categories.find((c) => c.id === iconPickerCatId) : null;
+
+  // 피커 열릴 때 전체 아이콘 이름 lazy 로드(1회) + 검색어 초기화
+  useEffect(() => {
+    if (!iconPickerCatId) return;
+    setIconQuery("");
+    if (allIconNames.length === 0) {
+      loadAllRiIconNames().then(setAllIconNames);
+    }
+  }, [iconPickerCatId, allIconNames.length]);
+
+  const ICON_RESULT_LIMIT = 120;
+  const filteredIconNames = useMemo(() => {
+    const q = iconQuery.trim().toLowerCase();
+    const base = q ? allIconNames.filter((n) => n.toLowerCase().includes(q)) : allIconNames;
+    return base;
+  }, [iconQuery, allIconNames]);
 
   const handleSave = async () => {
     const saved = await saveCategories(categories);
@@ -756,7 +773,7 @@ export default function CategoriesPage() {
           onClick={() => setIconPickerCatId(null)}
         >
           <div
-            className="w-full max-w-md rounded-xl bg-white shadow-xl"
+            className="flex max-h-[80vh] w-full max-w-lg flex-col rounded-xl bg-white shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
@@ -770,26 +787,72 @@ export default function CategoriesPage() {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="grid grid-cols-6 gap-2 p-5">
-              {CATEGORY_ICON_NAMES.map((name) => {
-                const active = iconPickerCat.iconName === name;
-                return (
-                  <button
-                    key={name}
-                    type="button"
-                    title={name}
-                    onClick={() => changeIcon(iconPickerCat.id, name)}
-                    className={cn(
-                      "flex aspect-square items-center justify-center rounded-lg border transition-colors",
-                      active
-                        ? "border-indigo-400 bg-indigo-50 text-indigo-600 ring-1 ring-indigo-200"
-                        : "border-slate-200 text-slate-500 hover:border-indigo-300 hover:bg-slate-50 hover:text-indigo-600",
-                    )}
-                  >
-                    <CategoryIcon iconName={name} size={20} />
+
+            {/* 검색 */}
+            <div className="border-b border-slate-100 px-5 py-3">
+              <div className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 focus-within:border-indigo-400 focus-within:ring-1 focus-within:ring-indigo-100">
+                <Search className="h-4 w-4 shrink-0 text-slate-400" />
+                <input
+                  autoFocus
+                  value={iconQuery}
+                  onChange={(e) => setIconQuery(e.target.value)}
+                  placeholder="아이콘 검색 (예: book, money, rocket)"
+                  className="h-9 flex-1 bg-transparent text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none"
+                />
+                {iconQuery && (
+                  <button onClick={() => setIconQuery("")} className="text-slate-300 hover:text-slate-500">
+                    <X className="h-3.5 w-3.5" />
                   </button>
-                );
-              })}
+                )}
+              </div>
+              {/* 현재 선택 표시 */}
+              <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                <span>현재:</span>
+                <span className="flex h-6 w-6 items-center justify-center rounded border border-slate-200 text-indigo-600">
+                  <CategoryIcon iconName={iconPickerCat.iconName} size={15} />
+                </span>
+                <code className="text-[11px] text-slate-600">{iconPickerCat.iconName || "(없음)"}</code>
+              </div>
+            </div>
+
+            {/* 결과 그리드 */}
+            <div className="min-h-0 flex-1 overflow-y-auto p-5">
+              {allIconNames.length === 0 ? (
+                <p className="py-10 text-center text-sm text-slate-400">아이콘 불러오는 중…</p>
+              ) : filteredIconNames.length === 0 ? (
+                <p className="py-10 text-center text-sm text-slate-400">
+                  &quot;{iconQuery}&quot; 검색 결과가 없습니다.
+                </p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-8 gap-2">
+                    {filteredIconNames.slice(0, ICON_RESULT_LIMIT).map((name) => {
+                      const active = iconPickerCat.iconName === name;
+                      return (
+                        <button
+                          key={name}
+                          type="button"
+                          title={name}
+                          onClick={() => changeIcon(iconPickerCat.id, name)}
+                          className={cn(
+                            "flex aspect-square items-center justify-center rounded-lg border transition-colors",
+                            active
+                              ? "border-indigo-400 bg-indigo-50 text-indigo-600 ring-1 ring-indigo-200"
+                              : "border-slate-200 text-slate-500 hover:border-indigo-300 hover:bg-slate-50 hover:text-indigo-600",
+                          )}
+                        >
+                          <CategoryIcon iconName={name} size={20} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-3 text-center text-[11px] text-slate-400">
+                    {filteredIconNames.length > ICON_RESULT_LIMIT
+                      ? `${filteredIconNames.length.toLocaleString()}개 중 상위 ${ICON_RESULT_LIMIT}개 표시 — 검색어를 좁혀보세요`
+                      : `${filteredIconNames.length.toLocaleString()}개`}
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>
