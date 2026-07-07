@@ -1,5 +1,5 @@
-import { postsApi } from "@didimzip/api";
-import HeroBanner from "@/components/home/HeroBanner";
+import { postsApi, bannersApi } from "@didimzip/api";
+import HeroBanner, { type HeroSlide } from "@/components/home/HeroBanner";
 import RecommendedSection from "@/components/home/RecommendedSection";
 import LatestSection from "@/components/home/LatestSection";
 import PopularSection from "@/components/home/PopularSection";
@@ -25,13 +25,36 @@ async function loadPosts(): Promise<ContentCard[]> {
   }
 }
 
+// Hero: Admin > 배너 관리의 활성 히어로 슬라이드만 노출 순서대로 조회
+async function loadHeroSlides(): Promise<HeroSlide[]> {
+  try {
+    const banners = await bannersApi.list({
+      type: "HERO_SLIDE",
+      position: "HOME_TOP",
+      active: true,
+    });
+    return banners.map((b) => ({
+      id: b.id,
+      badge: b.subtitle,
+      title: b.title,
+      description: b.description,
+      ctaText: b.subText,
+      linkUrl: b.linkUrl,
+      image: b.imageData || b.imageUrl,
+      textColor: b.textColor,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export default async function HomePage() {
-  const items = await loadPosts();
+  const [items, heroSlides] = await Promise.all([loadPosts(), loadHeroSlides()]);
   const popular = [...items].sort((a, b) => b.viewCount - a.viewCount);
 
   return (
     <div className="flex flex-col">
-      <HeroBanner />
+      <HeroBanner slides={heroSlides} />
 
       <div className="max-w-[1200px] w-full mx-auto px-6">
         {/* 놓치면 아쉬운 콘텐츠 */}

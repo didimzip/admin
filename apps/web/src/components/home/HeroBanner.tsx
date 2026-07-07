@@ -1,79 +1,55 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import Image from "next/image";
-import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
+import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
-const banners = [
-  {
-    id: 1,
-    badge: "디딤집 소개",
-    title: "스타트업의 시작을 딛는 곳,\n디딤집에서 시작하세요",
-    subtitle: "정부·지자체 지원사업과 성장 정보를 한곳에 모아,\n필요한 모든 것을 한 번에 제공합니다.",
-    image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&q=80",
-    gradient: "from-[#f7f3ee] to-[#efe9e0]",
-  },
-  {
-    id: 2,
-    badge: "투자 유치",
-    title: "시리즈 A 투자 유치,\n무엇부터 준비해야 할까?",
-    subtitle: "현직 심사역이 알려주는 IR 피칭 전략과\n투자 유치 실전 가이드.",
-    image: "https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=800&q=80",
-    gradient: "from-[#eef2f7] to-[#e0e8f0]",
-  },
-  {
-    id: 3,
-    badge: "정부지원사업",
-    title: "2026 상반기\n정부지원사업 총정리",
-    subtitle: "놓치면 아쉬운 창업 지원 프로그램,\n지금 바로 확인하세요.",
-    image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80",
-    gradient: "from-[#f3f0f7] to-[#e8e0f0]",
-  },
-  {
-    id: 4,
-    badge: "디딤멘토",
-    title: "현직 전문가에게 직접\n1:1 멘토링 받으세요",
-    subtitle: "자금조달, 마케팅, 법률까지\n분야별 전문 멘토를 만나보세요.",
-    image: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=800&q=80",
-    gradient: "from-[#eef7f2] to-[#e0f0e8]",
-  },
-];
+export interface HeroSlide {
+  id: string;
+  badge: string; // subtitle (상단 소제목)
+  title: string; // 줄바꿈(\n) 포함
+  description: string;
+  ctaText: string; // subText (하단 버튼 문구)
+  linkUrl: string;
+  image: string; // imageData(base64) || imageUrl
+  textColor: "light" | "dark";
+}
 
 const DURATION = 5000;
 
-export default function HeroBanner() {
+export default function HeroBanner({ slides }: { slides: HeroSlide[] }) {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
   const [progress, setProgress] = useState(0);
   const elapsedRef = useRef(0);
-  const startRef = useRef(Date.now());
+  const startRef = useRef(0);
+
+  const count = slides.length;
 
   const goTo = useCallback((idx: number) => {
     setActive(idx);
     setProgress(0);
     elapsedRef.current = 0;
-    startRef.current = Date.now();
   }, []);
 
   const next = useCallback(() => {
-    goTo((active + 1) % banners.length);
-  }, [active, goTo]);
+    if (count === 0) return;
+    goTo((active + 1) % count);
+  }, [active, count, goTo]);
 
   const prev = useCallback(() => {
-    goTo((active - 1 + banners.length) % banners.length);
-  }, [active, goTo]);
+    if (count === 0) return;
+    goTo((active - 1 + count) % count);
+  }, [active, count, goTo]);
 
-  // Reset elapsed when slide changes
-  const activeRef = useRef(active);
-  if (activeRef.current !== active) {
-    activeRef.current = active;
-    elapsedRef.current = 0;
-    setProgress(0);
-  }
+  // Clamp active when slide count changes
+  useEffect(() => {
+    if (active >= count && count > 0) setActive(0);
+  }, [count, active]);
 
   // Auto-play + progress
   useEffect(() => {
-    if (paused) return;
+    if (paused || count <= 1) return;
 
     const savedElapsed = elapsedRef.current;
     startRef.current = Date.now() - savedElapsed;
@@ -86,94 +62,152 @@ export default function HeroBanner() {
     };
     const interval = setInterval(tick, 30);
     const timeout = setTimeout(() => {
-      setActive((prev) => (prev + 1) % banners.length);
+      elapsedRef.current = 0;
+      setActive((p) => (p + 1) % count);
     }, remaining);
 
     return () => {
       clearInterval(interval);
       clearTimeout(timeout);
     };
-  }, [active, paused]);
+  }, [active, paused, count]);
+
+  if (count === 0) {
+    return (
+      <div
+        className="relative w-full h-[300px] overflow-hidden rounded-[14px] mt-[30px] mx-[30px] bg-muted flex items-center justify-center"
+        style={{ width: "calc(100% - 60px)" }}
+      >
+        <p className="text-sm text-muted-foreground">등록된 배너가 없습니다.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="relative w-full h-[300px] overflow-hidden rounded-[14px] mt-[30px] mx-[30px]" style={{ width: "calc(100% - 60px)" }}>
-      {/* Slides */}
-      {banners.map((banner, i) => (
-        <div
-          key={banner.id}
-          className="absolute inset-0 transition-opacity duration-700 ease-in-out"
-          style={{ opacity: i === active ? 1 : 0, zIndex: i === active ? 1 : 0 }}
-        >
-          {/* Background image */}
-          <Image
-            src={banner.image}
-            alt={banner.title}
-            fill
-            className="object-cover"
-            priority={i === 0}
-          />
-          {/* Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-black/10" />
+    <div
+      className="relative w-full h-[300px] overflow-hidden rounded-[14px] mt-[30px] mx-[30px]"
+      style={{ width: "calc(100% - 60px)" }}
+    >
+      {slides.map((slide, i) => {
+        const light = slide.textColor !== "dark"; // light = 흰 텍스트
+        return (
+          <div
+            key={slide.id}
+            className="absolute inset-0 transition-opacity duration-700 ease-in-out"
+            style={{ opacity: i === active ? 1 : 0, zIndex: i === active ? 1 : 0 }}
+          >
+            {/* Background image (data URL / remote URL 모두 지원) */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={slide.image}
+              alt={slide.title}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            {/* Overlay */}
+            <div
+              className={
+                light
+                  ? "absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-black/10"
+                  : "absolute inset-0 bg-gradient-to-r from-white/70 via-white/40 to-white/10"
+              }
+            />
 
-          {/* Text */}
-          <div className="relative z-10 h-full flex flex-col justify-end px-[60px] pb-[30px]">
-            <div className="max-w-lg">
-              <span className="inline-block text-[12px] font-medium bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-white/80">
-                {banner.badge}
-              </span>
-              <h2 className="text-[32px] font-bold leading-[1.3] whitespace-pre-line text-white mt-2">
-                {banner.title}
-              </h2>
-              <p className="text-[14px] text-white/70 mt-2 whitespace-pre-line leading-relaxed">
-                {banner.subtitle}
-              </p>
-            </div>
-            <div className="mt-[36px]">
-          <div className="flex items-center">
-            <button
-              onClick={prev}
-              className="text-white/50 hover:text-white transition-colors mr-[10px]"
-            >
-              <ChevronLeft size={18} strokeWidth={2} />
-            </button>
-            <span className="text-sm tabular-nums font-medium text-white">
-              {active + 1}
-            </span>
-            <span className="text-sm text-white/50 mx-[4px]">/</span>
-            <span className="text-sm text-white/50">
-              {banners.length}
-            </span>
-            <button
-              onClick={next}
-              className="text-white/50 hover:text-white transition-colors ml-[10px]"
-            >
-              <ChevronRight size={18} strokeWidth={2} />
-            </button>
+            {/* Text */}
+            <div className="relative z-10 h-full flex flex-col justify-end px-[60px] pb-[30px]">
+              <div className="max-w-lg">
+                {slide.badge && (
+                  <span
+                    className={
+                      light
+                        ? "inline-block text-[12px] font-medium bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-white/80"
+                        : "inline-block text-[12px] font-medium bg-black/10 backdrop-blur-sm px-3 py-1 rounded-full text-slate-700"
+                    }
+                  >
+                    {slide.badge}
+                  </span>
+                )}
+                <h2
+                  className={
+                    "text-[32px] font-bold leading-[1.3] whitespace-pre-line mt-2 " +
+                    (light ? "text-white" : "text-slate-900")
+                  }
+                >
+                  {slide.title}
+                </h2>
+                {slide.description && (
+                  <p
+                    className={
+                      "text-[14px] mt-2 whitespace-pre-line leading-relaxed " +
+                      (light ? "text-white/70" : "text-slate-600")
+                    }
+                  >
+                    {slide.description}
+                  </p>
+                )}
+                {slide.ctaText && (
+                  <Link
+                    href={slide.linkUrl || "#"}
+                    className={
+                      "inline-block mt-4 text-[13px] font-semibold rounded-full px-4 py-2 transition-colors " +
+                      (light
+                        ? "bg-white text-slate-900 hover:bg-white/90"
+                        : "bg-slate-900 text-white hover:bg-slate-800")
+                    }
+                  >
+                    {slide.ctaText}
+                  </Link>
+                )}
+              </div>
 
-            <div className="flex-1 h-[2px] bg-white/20 rounded-full overflow-hidden ml-[10px]">
-              <div
-                className="h-full bg-white rounded-full"
-                style={{
-                  width: `${progress * 100}%`,
-                  transition: progress < 0.01 ? "none" : undefined,
-                }}
-              />
+              {/* Controls */}
+              <div className="mt-[36px]">
+                <div className="flex items-center">
+                  <button
+                    onClick={prev}
+                    className={(light ? "text-white/50 hover:text-white" : "text-slate-500 hover:text-slate-900") + " transition-colors mr-[10px]"}
+                    aria-label="이전"
+                  >
+                    <ChevronLeft size={18} strokeWidth={2} />
+                  </button>
+                  <span className={"text-sm tabular-nums font-medium " + (light ? "text-white" : "text-slate-900")}>
+                    {active + 1}
+                  </span>
+                  <span className={"text-sm mx-[4px] " + (light ? "text-white/50" : "text-slate-500")}>/</span>
+                  <span className={"text-sm " + (light ? "text-white/50" : "text-slate-500")}>{count}</span>
+                  <button
+                    onClick={next}
+                    className={(light ? "text-white/50 hover:text-white" : "text-slate-500 hover:text-slate-900") + " transition-colors ml-[10px]"}
+                    aria-label="다음"
+                  >
+                    <ChevronRight size={18} strokeWidth={2} />
+                  </button>
+
+                  <div className={"flex-1 h-[2px] rounded-full overflow-hidden ml-[10px] " + (light ? "bg-white/20" : "bg-black/10")}>
+                    <div
+                      className={"h-full rounded-full " + (light ? "bg-white" : "bg-slate-900")}
+                      style={{
+                        width: `${(i === active ? progress : 0) * 100}%`,
+                        transition: progress < 0.01 ? "none" : undefined,
+                      }}
+                    />
+                  </div>
+                  <button
+                    onClick={() => setPaused(!paused)}
+                    className={(light ? "text-white/50 hover:text-white" : "text-slate-500 hover:text-slate-900") + " ml-[10px] transition-colors"}
+                    aria-label={paused ? "재생" : "일시정지"}
+                  >
+                    {paused ? (
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M3 1.5L12 7L3 12.5V1.5Z" /></svg>
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="2" y="1" width="3.5" height="12" rx="1" /><rect x="8.5" y="1" width="3.5" height="12" rx="1" /></svg>
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
-            <button
-              onClick={() => setPaused(!paused)}
-              className="ml-[10px] text-white/50 hover:text-white transition-colors"
-            >
-              {paused ? (
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M3 1.5L12 7L3 12.5V1.5Z"/></svg>
-              ) : (
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="2" y="1" width="3.5" height="12" rx="1"/><rect x="8.5" y="1" width="3.5" height="12" rx="1"/></svg>
-              )}
-            </button>
           </div>
-            </div>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
