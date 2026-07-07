@@ -1,55 +1,55 @@
+import { categoriesApi, type Category as ApiCategory } from "@didimzip/api";
+
+// ─── 카테고리 스토어 (API 기반) ───────────────────────────────────────────────
+//
+// 기존 localStorage 구현을 공유 Mock API(@didimzip/api)로 전환.
+// Admin은 아이콘(iconName 문자열)·노출여부(isVisible)까지 관리하고,
+// 저장 시 전체 배열을 순서대로 교체 저장(save-all)한다.
+// 실백엔드 전환 시에도 admin 화면 코드는 무수정 (API Client/Repository만 교체).
+
 export type SubCategory = {
   id: string;
   name: string;
+  slug: string;
 };
 
 export type Category = {
   id: string;
   name: string;
+  slug: string;
+  iconName: string; // react-icons/ri 이름 문자열 (예: "RiLightbulbLine")
+  isVisible: boolean;
   subCategories: SubCategory[];
 };
 
-const STORAGE_KEY = "didimzip_categories";
-
-const DEFAULT_CATEGORIES: Category[] = [
-  { id: "cat_insight", name: "인사이트", subCategories: [] },
-  { id: "cat_network", name: "네트워킹", subCategories: [] },
-  { id: "cat_invest", name: "투자정보", subCategories: [] },
-  { id: "cat_job", name: "채용공고", subCategories: [] },
-  { id: "cat_event", name: "이벤트", subCategories: [] },
-  { id: "cat_notice", name: "공지사항", subCategories: [] },
-];
-
-function loadAll(): Category[] {
-  if (typeof window === "undefined") return DEFAULT_CATEGORIES;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Category[]) : DEFAULT_CATEGORIES;
-  } catch {
-    return DEFAULT_CATEGORIES;
-  }
+function toLocal(c: ApiCategory): Category {
+  return {
+    id: c.id,
+    name: c.name,
+    slug: c.slug,
+    iconName: c.iconName,
+    isVisible: c.isVisible,
+    subCategories: c.subCategories.map((s) => ({ id: s.id, name: s.name, slug: s.slug })),
+  };
 }
 
-function saveAll(categories: Category[]): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(categories));
+/** 전체 카테고리 조회 (sortOrder 오름차순). */
+export async function getCategories(): Promise<Category[]> {
+  const categories = await categoriesApi.list();
+  return categories.map(toLocal);
 }
 
-export function getCategories(): Category[] {
-  return loadAll();
-}
-
-export function saveCategories(categories: Category[]): void {
-  saveAll(categories);
-}
-
-/** 카테고리 이름 목록만 반환 (콘텐츠 작성 폼에서 사용) */
-export function getCategoryNames(): string[] {
-  return loadAll().map((c) => c.name);
-}
-
-/** 특정 카테고리의 세부 카테고리 이름 목록 반환 */
-export function getSubCategoryNames(categoryName: string): string[] {
-  const cat = loadAll().find((c) => c.name === categoryName);
-  return cat ? cat.subCategories.map((s) => s.name) : [];
+/** 전체 카테고리를 배열 순서대로 교체 저장 (Admin save-all). */
+export async function saveCategories(categories: Category[]): Promise<Category[]> {
+  const saved = await categoriesApi.replaceAll(
+    categories.map((c) => ({
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+      iconName: c.iconName,
+      isVisible: c.isVisible,
+      subCategories: c.subCategories.map((s) => ({ id: s.id, name: s.name, slug: s.slug })),
+    })),
+  );
+  return saved.map(toLocal);
 }

@@ -1,4 +1,4 @@
-import type { Banner, Post } from "@didimzip/api";
+import type { Banner, Category, Post } from "@didimzip/api";
 
 // 개발용 초기 시드 데이터. data/db.json 이 없을 때 1회 생성된다.
 // 실제 서비스에서는 DB 마이그레이션 seed로 대체된다.
@@ -169,6 +169,93 @@ export function seedBanners(): Banner[] {
       linkUrl: "/events/newyear",
       sortOrder: 4,
       isActive: false,
+    }),
+  ];
+}
+
+// ─── Categories ──────────────────────────────────────────────────────────────
+
+function category(
+  c: Partial<Category> & Pick<Category, "id" | "name" | "slug">,
+): Category {
+  const now = "2026-06-01T09:00:00.000Z";
+  return {
+    id: c.id,
+    name: c.name,
+    slug: c.slug,
+    iconName: c.iconName ?? "",
+    sortOrder: c.sortOrder ?? 1,
+    isVisible: c.isVisible ?? true,
+    subCategories: c.subCategories ?? [],
+    createdAt: c.createdAt ?? now,
+    updatedAt: c.updatedAt ?? now,
+  };
+}
+
+export function seedCategories(): Category[] {
+  return [
+    category({
+      id: "cat_insight",
+      name: "인사이트",
+      slug: "insight",
+      iconName: "RiLightbulbLine",
+      sortOrder: 1,
+      subCategories: [
+        { id: "sub_insight_1", name: "트렌드", slug: "trend" },
+        { id: "sub_insight_2", name: "노하우", slug: "knowhow" },
+      ],
+    }),
+    category({
+      id: "cat_network",
+      name: "네트워킹",
+      slug: "network",
+      iconName: "RiTeamLine",
+      sortOrder: 2,
+      subCategories: [
+        { id: "sub_network_1", name: "모임", slug: "meetup" },
+        { id: "sub_network_2", name: "파트너십", slug: "partnership" },
+      ],
+    }),
+    category({
+      id: "cat_invest",
+      name: "투자정보",
+      slug: "invest",
+      iconName: "RiFundsLine",
+      sortOrder: 3,
+      subCategories: [
+        { id: "sub_invest_1", name: "투자유치", slug: "funding" },
+        { id: "sub_invest_2", name: "IR", slug: "ir" },
+      ],
+    }),
+    category({
+      id: "cat_job",
+      name: "채용공고",
+      slug: "job",
+      iconName: "RiBriefcaseLine",
+      sortOrder: 4,
+      subCategories: [
+        { id: "sub_job_1", name: "개발", slug: "dev" },
+        { id: "sub_job_2", name: "기획", slug: "planning" },
+      ],
+    }),
+    category({
+      id: "cat_event",
+      name: "이벤트",
+      slug: "event",
+      iconName: "RiCalendarEventLine",
+      sortOrder: 5,
+      subCategories: [
+        { id: "sub_event_1", name: "세미나", slug: "seminar" },
+        { id: "sub_event_2", name: "웨비나", slug: "webinar" },
+      ],
+    }),
+    category({
+      id: "cat_notice",
+      name: "공지사항",
+      slug: "notice",
+      iconName: "RiInformationLine",
+      sortOrder: 6,
+      subCategories: [],
     }),
   ];
 }

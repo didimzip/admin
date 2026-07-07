@@ -710,10 +710,14 @@ function NewPostContent() {
 
   // Load categories from category store
   useEffect(() => {
-    const cats = getCategories();
-    const map: Record<string, string[]> = {};
-    cats.forEach((c) => { map[c.name] = c.subCategories.map((s) => s.name); });
-    setCategoryMap(map);
+    let alive = true;
+    getCategories().then((cats) => {
+      if (!alive) return;
+      const map: Record<string, string[]> = {};
+      cats.forEach((c) => { map[c.name] = c.subCategories.map((s) => s.name); });
+      setCategoryMap(map);
+    });
+    return () => { alive = false; };
   }, []);
 
   const subCategories = category ? categoryMap[category] ?? [] : [];

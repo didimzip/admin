@@ -242,7 +242,7 @@ export default function PostsPage() {
 
   useEffect(() => {
     setHotConditions(loadHotConditions());
-    setCategories(getCategories());
+    getCategories().then(setCategories);
     loadPosts();
 
     // layout.tsx에서 예약→게시 처리 후 posts-updated 이벤트를 보내면 UI 갱신

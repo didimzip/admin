@@ -4,6 +4,9 @@ import type {
   BannerCreateInput,
   BannerListQuery,
   BannerUpdateInput,
+  Category,
+  CategoryInput,
+  CategoryListQuery,
   Post,
   PostCreateInput,
   PostListQuery,
@@ -98,5 +101,24 @@ export const bannersApi = {
     request<Banner[]>(`/api/banners/reorder`, {
       method: "POST",
       body: JSON.stringify({ orderedIds }),
+    }),
+};
+
+function toCategoryQuery(query?: CategoryListQuery): string {
+  if (!query) return "";
+  const params = new URLSearchParams();
+  if (query.visible !== undefined) params.set("visible", String(query.visible));
+  const s = params.toString();
+  return s ? `?${s}` : "";
+}
+
+export const categoriesApi = {
+  list: (query?: CategoryListQuery) =>
+    request<Category[]>(`/api/categories${toCategoryQuery(query)}`),
+  // Admin 저장(save-all): 전체 카테고리 배열을 순서대로 교체 저장
+  replaceAll: (categories: CategoryInput[]) =>
+    request<Category[]>(`/api/categories`, {
+      method: "PUT",
+      body: JSON.stringify({ categories }),
     }),
 };

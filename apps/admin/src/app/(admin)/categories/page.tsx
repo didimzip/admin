@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/lib/toast-context";
 import {
   GripVertical, Plus, ChevronRight, FolderOpen, Tag,
-  Save, RotateCcw, TriangleAlert,
+  Save, RotateCcw, TriangleAlert, Eye, EyeOff, X,
 } from "lucide-react";
+import { CATEGORY_ICON_NAMES } from "@didimzip/api";
+import { CategoryIcon } from "@/lib/category-icons";
 import {
   DndContext,
   DragOverlay,
@@ -53,6 +55,8 @@ function SortableCatItem({
   onCancelEdit,
   onStartEdit,
   onDelete,
+  onOpenIconPicker,
+  onToggleVisible,
 }: {
   cat: Category;
   isSelected: boolean;
@@ -64,6 +68,8 @@ function SortableCatItem({
   onCancelEdit: () => void;
   onStartEdit: (id: string, name: string) => void;
   onDelete: (id: string) => void;
+  onOpenIconPicker: (id: string) => void;
+  onToggleVisible: (id: string) => void;
 }) {
   const isEditing = editingCatId === cat.id;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -96,6 +102,22 @@ function SortableCatItem({
         <GripVertical className="h-4 w-4 shrink-0" />
       </span>
 
+      {/* 아이콘 (클릭 시 아이콘 선택기) */}
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onOpenIconPicker(cat.id); }}
+        title="아이콘 변경"
+        className={cn(
+          "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-colors",
+          isSelected
+            ? "border-indigo-200 bg-white text-indigo-600 hover:border-indigo-300"
+            : "border-slate-200 bg-white text-slate-500 hover:border-indigo-300 hover:text-indigo-600",
+          !cat.isVisible && "opacity-40",
+        )}
+      >
+        <CategoryIcon iconName={cat.iconName} size={16} />
+      </button>
+
       {isEditing ? (
         <input
           autoFocus
@@ -115,10 +137,28 @@ function SortableCatItem({
           className={cn(
             "flex-1 text-sm font-medium",
             isSelected ? "text-indigo-700" : "text-slate-700",
+            !cat.isVisible && "text-slate-400 line-through decoration-slate-300",
           )}
         >
           {cat.name}
         </span>
+      )}
+
+      {/* 노출 토글 */}
+      {!isEditing && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onToggleVisible(cat.id); }}
+          title={cat.isVisible ? "노출 중 (클릭 시 숨김)" : "숨김 (클릭 시 노출)"}
+          className={cn(
+            "flex h-6 w-6 shrink-0 items-center justify-center rounded transition-colors",
+            cat.isVisible
+              ? "text-indigo-500 hover:bg-indigo-50"
+              : "text-slate-300 hover:bg-slate-100",
+          )}
+        >
+          {cat.isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+        </button>
       )}
 
       {!isEditing && cat.subCategories.length > 0 && (
@@ -256,6 +296,7 @@ export default function CategoriesPage() {
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
   const [newCatName, setNewCatName] = useState("");
   const [newSubName, setNewSubName] = useState("");
+  const [iconPickerCatId, setIconPickerCatId] = useState<string | null>(null);
 
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
@@ -274,9 +315,13 @@ export default function CategoriesPage() {
   );
 
   useEffect(() => {
-    const loaded = getCategories();
-    setCategories(loaded);
-    savedRef.current = loaded;
+    let alive = true;
+    getCategories().then((loaded) => {
+      if (!alive) return;
+      setCategories(loaded);
+      savedRef.current = loaded;
+    });
+    return () => { alive = false; };
   }, []);
 
   useEffect(() => {
@@ -305,9 +350,19 @@ export default function CategoriesPage() {
 
   const update = (cats: Category[]) => { setCategories(cats); setIsDirty(true); };
 
-  const handleSave = () => {
-    saveCategories(categories);
-    savedRef.current = categories;
+  const toggleVisible = (id: string) => {
+    update(categories.map((c) => (c.id === id ? { ...c, isVisible: !c.isVisible } : c)));
+  };
+  const changeIcon = (id: string, iconName: string) => {
+    update(categories.map((c) => (c.id === id ? { ...c, iconName } : c)));
+    setIconPickerCatId(null);
+  };
+  const iconPickerCat = iconPickerCatId ? categories.find((c) => c.id === iconPickerCatId) : null;
+
+  const handleSave = async () => {
+    const saved = await saveCategories(categories);
+    setCategories(saved);
+    savedRef.current = saved;
     setIsDirty(false);
     setSavedAt(new Date());
     showToast("카테고리가 저장되었습니다.");
@@ -367,7 +422,14 @@ export default function CategoriesPage() {
       showToast(`"${name}" 카테고리가 이미 존재합니다.`, "error");
       return;
     }
-    const newCat: Category = { id: `cat_${Date.now()}`, name, subCategories: [] };
+    const newCat: Category = {
+      id: `cat_${Date.now()}`,
+      name,
+      slug: "",
+      iconName: "RiFolderLine",
+      isVisible: true,
+      subCategories: [],
+    };
     update([...categories, newCat]);
     setNewCatName("");
     setSelectedCatId(newCat.id);
@@ -395,7 +457,7 @@ export default function CategoriesPage() {
   const addSubCategory = () => {
     const name = newSubName.trim();
     if (!name || !selectedCatId) return;
-    const newSub: SubCategory = { id: `sub_${Date.now()}`, name };
+    const newSub: SubCategory = { id: `sub_${Date.now()}`, name, slug: "" };
     const parentName = categories.find((c) => c.id === selectedCatId)?.name ?? selectedCatId;
     update(categories.map((c) =>
       c.id === selectedCatId ? { ...c, subCategories: [...c.subCategories, newSub] } : c,
@@ -519,6 +581,8 @@ export default function CategoriesPage() {
                       onCancelEdit={cancelEdit}
                       onStartEdit={startCatEdit}
                       onDelete={deleteCategory}
+                      onOpenIconPicker={setIconPickerCatId}
+                      onToggleVisible={toggleVisible}
                     />
                   ))}
                 </SortableContext>
@@ -680,6 +744,52 @@ export default function CategoriesPage() {
               >
                 계속 편집하기
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 아이콘 선택기 모달 */}
+      {iconPickerCat && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setIconPickerCatId(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-xl bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <h3 className="text-sm font-semibold text-slate-900">
+                아이콘 선택 — <span className="text-indigo-600">{iconPickerCat.name}</span>
+              </h3>
+              <button
+                onClick={() => setIconPickerCatId(null)}
+                className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="grid grid-cols-6 gap-2 p-5">
+              {CATEGORY_ICON_NAMES.map((name) => {
+                const active = iconPickerCat.iconName === name;
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    title={name}
+                    onClick={() => changeIcon(iconPickerCat.id, name)}
+                    className={cn(
+                      "flex aspect-square items-center justify-center rounded-lg border transition-colors",
+                      active
+                        ? "border-indigo-400 bg-indigo-50 text-indigo-600 ring-1 ring-indigo-200"
+                        : "border-slate-200 text-slate-500 hover:border-indigo-300 hover:bg-slate-50 hover:text-indigo-600",
+                    )}
+                  >
+                    <CategoryIcon iconName={name} size={20} />
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

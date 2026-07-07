@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
-import type { Banner, Post } from "@didimzip/api";
-import { seedBanners, seedPosts } from "./seed";
+import type { Banner, Category, Post } from "@didimzip/api";
+import { seedBanners, seedCategories, seedPosts } from "./seed";
 
 // ─── Mock 영속 계층 (JSON 파일) ──────────────────────────────────────────────
 //
@@ -11,6 +11,7 @@ import { seedBanners, seedPosts } from "./seed";
 export interface DbShape {
   posts: Post[];
   banners: Banner[];
+  categories: Category[];
 }
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -19,7 +20,11 @@ const DB_FILE = path.join(DATA_DIR, "db.json");
 function ensureDb(): void {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(DB_FILE)) {
-    const initial: DbShape = { posts: seedPosts(), banners: seedBanners() };
+    const initial: DbShape = {
+      posts: seedPosts(),
+      banners: seedBanners(),
+      categories: seedCategories(),
+    };
     fs.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2), "utf-8");
   }
 }
@@ -38,11 +43,15 @@ export function readDb(): DbShape {
       parsed.banners = seedBanners();
       changed = true;
     }
+    if (!parsed.categories) {
+      parsed.categories = seedCategories();
+      changed = true;
+    }
     const db = parsed as DbShape;
     if (changed) writeDb(db);
     return db;
   } catch {
-    return { posts: [], banners: [] };
+    return { posts: [], banners: [], categories: [] };
   }
 }
 
