@@ -6,6 +6,7 @@ export default function AdBanner({ ad }: { ad: Banner | null }) {
   if (!ad) return null;
 
   const image = ad.imageData || ad.imageUrl;
+  const dark = ad.textColor === "dark"; // dark = 밝은 배경 → 어두운 텍스트
 
   const card = (
     <div
@@ -20,7 +21,7 @@ export default function AdBanner({ ad }: { ad: Banner | null }) {
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "flex-start",
-        gap: "18px",
+        gap: "8px",
       }}
     >
       {image && (
@@ -28,14 +29,32 @@ export default function AdBanner({ ad }: { ad: Banner | null }) {
         <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-40" />
       )}
       {ad.subtitle && (
-        <span className="relative z-10 w-fit rounded-full bg-white/15 px-2.5 py-0.5 text-[13px] font-medium text-white/80">
+        <span
+          className={`relative z-10 w-fit rounded-full px-2.5 py-0.5 text-[13px] font-medium ${
+            dark ? "bg-black/8 text-black/60" : "bg-white/15 text-white/80"
+          }`}
+        >
           {ad.subtitle}
         </span>
       )}
       {ad.title && (
-        <h3 className="relative z-10 whitespace-pre-line text-[22px] font-bold leading-tight text-white">
+        <h3
+          className={`relative z-10 whitespace-pre-line text-[22px] font-bold leading-tight ${
+            dark ? "text-black/90" : "text-white"
+          }`}
+        >
           {ad.title}
         </h3>
+      )}
+      {/* 서브텍스트(Description): 입력된 경우에만 렌더 (없으면 영역 자체를 그리지 않음) */}
+      {ad.description && (
+        <p
+          className={`relative z-10 whitespace-pre-line text-[14px] leading-relaxed ${
+            dark ? "text-black/60" : "text-white/70"
+          }`}
+        >
+          {ad.description}
+        </p>
       )}
     </div>
   );

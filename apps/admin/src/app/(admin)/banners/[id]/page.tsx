@@ -388,21 +388,35 @@ export default function BannerDetailPage() {
                   style={{
                     borderRadius: "14px", border: "1px solid #EEE", background: "#333",
                     display: "flex", height: "180px", padding: "30px 60px",
-                    flexDirection: "column", justifyContent: "center", alignItems: "flex-start", gap: "18px",
+                    flexDirection: "column", justifyContent: "center", alignItems: "flex-start", gap: "8px",
                   }}
                 >
                   {(banner.imageData || banner.imageUrl) && (
                     <img src={banner.imageData || banner.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-40" />
                   )}
                   {banner.subtitle && (
-                    <span className="relative z-10 w-fit rounded-full bg-white/15 px-2.5 py-0.5 text-[13px] font-medium text-white/80">
+                    <span className={cn(
+                      "relative z-10 w-fit rounded-full px-2.5 py-0.5 text-[13px] font-medium",
+                      banner.textColor === "dark" ? "bg-black/8 text-black/60" : "bg-white/15 text-white/80"
+                    )}>
                       {banner.subtitle}
                     </span>
                   )}
                   {banner.title && (
-                    <h2 className="relative z-10 whitespace-pre-line text-[22px] font-bold leading-tight text-white">
+                    <h2 className={cn(
+                      "relative z-10 whitespace-pre-line text-[22px] font-bold leading-tight",
+                      banner.textColor === "dark" ? "text-black/90" : "text-white"
+                    )}>
                       {banner.title}
                     </h2>
+                  )}
+                  {banner.description && (
+                    <p className={cn(
+                      "relative z-10 whitespace-pre-line text-[14px] leading-relaxed",
+                      banner.textColor === "dark" ? "text-black/60" : "text-white/70"
+                    )}>
+                      {banner.description}
+                    </p>
                   )}
                 </div>
               </div>
@@ -611,21 +625,35 @@ export default function BannerDetailPage() {
                       style={{
                         borderRadius: "14px", border: "1px solid #EEE", background: "#333",
                         display: "flex", height: "180px", padding: "30px 60px",
-                        flexDirection: "column", justifyContent: "center", alignItems: "flex-start", gap: "18px",
+                        flexDirection: "column", justifyContent: "center", alignItems: "flex-start", gap: "8px",
                       }}
                     >
                       {imagePreview && (
                         <img src={imagePreview} alt="" className="absolute inset-0 h-full w-full object-cover opacity-40" />
                       )}
                       {form.subtitle && (
-                        <span className="relative z-10 w-fit rounded-full bg-white/15 px-2.5 py-0.5 text-[13px] font-medium text-white/80">
+                        <span className={cn(
+                          "relative z-10 w-fit rounded-full px-2.5 py-0.5 text-[13px] font-medium",
+                          form.textColor === "dark" ? "bg-black/8 text-black/60" : "bg-white/15 text-white/80"
+                        )}>
                           {form.subtitle}
                         </span>
                       )}
                       {form.title && (
-                        <h4 className="relative z-10 whitespace-pre-line text-[22px] font-bold leading-tight text-white">
+                        <h4 className={cn(
+                          "relative z-10 whitespace-pre-line text-[22px] font-bold leading-tight",
+                          form.textColor === "dark" ? "text-black/90" : "text-white"
+                        )}>
                           {form.title}
                         </h4>
+                      )}
+                      {form.description && (
+                        <p className={cn(
+                          "relative z-10 whitespace-pre-line text-[14px] leading-relaxed",
+                          form.textColor === "dark" ? "text-black/60" : "text-white/70"
+                        )}>
+                          {form.description}
+                        </p>
                       )}
                     </div>
                   )}
@@ -721,8 +749,25 @@ export default function BannerDetailPage() {
               </div>
             )}
 
-            {/* Text color (hero only) */}
-            {isHero && (
+            {/* Description / 서브텍스트 (ad only, optional) */}
+            {!isHero && (
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                  서브텍스트 (Description)
+                  <span className="ml-2 font-normal text-slate-400">선택 입력 · 없으면 노출되지 않음</span>
+                </label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => updateForm({ description: e.target.value })}
+                  placeholder="타이틀 아래 표시될 설명&#10;줄바꿈 가능"
+                  rows={2}
+                  className="w-full resize-none rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                />
+              </div>
+            )}
+
+            {/* Text color (Hero & Ad) */}
+            {(
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">
                   텍스트 색상
