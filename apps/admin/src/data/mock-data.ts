@@ -153,13 +153,8 @@ export const BANNER_TYPE_LABELS: Record<BannerType, string> = {
   ADVERTISEMENT: "광고 배너",
 };
 
-export const BANNER_POSITIONS: Record<BannerPosition, string> = {
-  HOME_HERO: "홈 히어로",
-  HOME_MIDDLE: "홈 중간 광고",
-};
-
-export const HERO_POSITIONS: BannerPosition[] = ["HOME_HERO"];
-export const AD_POSITIONS: BannerPosition[] = ["HOME_MIDDLE"];
+// 노출 위치 상수는 공유 계약(@didimzip/api)이 유일한 원천 — 위치 추가 시 Admin 수정 불필요.
+export { BANNER_POSITIONS, HERO_POSITIONS, AD_POSITIONS } from "@didimzip/api";
 
 // ── Audit Logs ──
 

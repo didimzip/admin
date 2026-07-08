@@ -54,10 +54,65 @@ export interface PostListQuery {
 // ─── 배너 ────────────────────────────────────────────────────────────────────
 
 export type BannerType = "HERO" | "ADVERTISEMENT";
-// 노출 위치. 값 추가만으로 확장 가능(예: POST_BETWEEN 등).
-export type BannerPosition = "HOME_HERO" | "HOME_MIDDLE";
+/**
+ * 노출 위치. 신규 위치는 이 union + BANNER_POSITION_META 두 곳에만 추가하면
+ * Admin 셀렉트·Web·Repository가 자동 반영된다(확장 이음새).
+ */
+export type BannerPosition =
+  | "HOME_HERO"
+  | "HOME_MIDDLE"
+  | "HOME_BOTTOM"
+  | "CATEGORY_TOP_BANNER"
+  | "CATEGORY_BOTTOM_BANNER"
+  | "CONTENT_TOP"
+  | "CONTENT_BOTTOM";
 export type BannerTextColor = "light" | "dark"; // light = 흰 텍스트, dark = 검정 텍스트
 export type BannerLinkTarget = "_self" | "_blank"; // 현재창 | 새창
+
+/**
+ * 노출 위치 레지스트리 — 위치의 유일한 원천(single source of truth).
+ * - label   : 관리 UI 표기
+ * - forType : 어떤 배너 타입 셀렉트에 노출할지 (HERO | ADVERTISEMENT)
+ * - enabled : 현재 선택 가능 여부. 예약 위치는 false로 두고, 활성화 시 true로만 변경.
+ * 신규 위치 추가/활성화는 여기 한 곳만 바꾸면 Admin 셀렉트와 Web에 그대로 반영된다.
+ */
+export interface BannerPositionMeta {
+  label: string;
+  forType: BannerType;
+  enabled: boolean;
+}
+
+export const BANNER_POSITION_META: Record<BannerPosition, BannerPositionMeta> = {
+  HOME_HERO: { label: "홈 히어로", forType: "HERO", enabled: true },
+  HOME_MIDDLE: { label: "홈 중간 광고", forType: "ADVERTISEMENT", enabled: true },
+  CATEGORY_TOP_BANNER: { label: "카테고리 상단 광고", forType: "ADVERTISEMENT", enabled: true },
+  // ── 예약(설계상 확장 지점) — enabled: true 로만 바꾸면 즉시 활성화, Admin 코드 수정 불필요 ──
+  HOME_BOTTOM: { label: "홈 하단 광고", forType: "ADVERTISEMENT", enabled: false },
+  CATEGORY_BOTTOM_BANNER: { label: "카테고리 하단 광고", forType: "ADVERTISEMENT", enabled: false },
+  CONTENT_TOP: { label: "콘텐츠 상단 광고", forType: "ADVERTISEMENT", enabled: false },
+  CONTENT_BOTTOM: { label: "콘텐츠 하단 광고", forType: "ADVERTISEMENT", enabled: false },
+};
+
+const ALL_BANNER_POSITIONS = Object.keys(BANNER_POSITION_META) as BannerPosition[];
+
+/** 위치 → 라벨 매핑 (관리 UI 표기용). 레지스트리에서 파생. */
+export const BANNER_POSITIONS: Record<BannerPosition, string> = ALL_BANNER_POSITIONS.reduce(
+  (acc, p) => {
+    acc[p] = BANNER_POSITION_META[p].label;
+    return acc;
+  },
+  {} as Record<BannerPosition, string>,
+);
+
+/** 현재 선택 가능한 Hero 위치 (Admin 셀렉트가 이 배열을 map). */
+export const HERO_POSITIONS: BannerPosition[] = ALL_BANNER_POSITIONS.filter(
+  (p) => BANNER_POSITION_META[p].forType === "HERO" && BANNER_POSITION_META[p].enabled,
+);
+
+/** 현재 선택 가능한 광고 위치 (Admin 셀렉트가 이 배열을 map). */
+export const AD_POSITIONS: BannerPosition[] = ALL_BANNER_POSITIONS.filter(
+  (p) => BANNER_POSITION_META[p].forType === "ADVERTISEMENT" && BANNER_POSITION_META[p].enabled,
+);
 
 /**
  * 배너 정식 모델 (CMS). Hero(순서 고정)와 Advertisement(가중치 랜덤)가 같은 모델을 쓰되

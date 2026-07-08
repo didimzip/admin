@@ -213,6 +213,30 @@ export function seedBanners(): Banner[] {
       weight: 20,
       isActive: true,
     }),
+    // ── Advertisement (CATEGORY_TOP_BANNER, 카테고리 페이지 상단, weight 가중 랜덤) ──
+    banner({
+      id: "banner_cat_1",
+      name: "카테고리 상단 광고 - 세무 상담",
+      bannerType: "ADVERTISEMENT",
+      position: "CATEGORY_TOP_BANNER",
+      title: "창업가를 위한 무료 세무 상담",
+      subtitle: "TAX",
+      description: "복잡한 세무, 전문가와 1:1로 해결하세요",
+      linkUrl: "/contents/policy",
+      weight: 100,
+      isActive: true,
+    }),
+    banner({
+      id: "banner_cat_2",
+      name: "카테고리 상단 광고 - IR 템플릿",
+      bannerType: "ADVERTISEMENT",
+      position: "CATEGORY_TOP_BANNER",
+      title: "투자 유치 IR 덱 템플릿 무료 배포",
+      subtitle: "IR DECK",
+      linkUrl: "/contents/invest",
+      weight: 50,
+      isActive: true,
+    }),
   ];
 }
 

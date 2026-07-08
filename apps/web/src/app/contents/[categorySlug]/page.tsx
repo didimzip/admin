@@ -5,9 +5,10 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { Search, ChevronDown } from "lucide-react";
 import ContentCard from "@/components/ui/ContentCard";
+import AdBanner from "@/components/home/AdBanner";
 import Footer from "@/components/layout/Footer";
 import type { ContentCard as ContentCardType } from "@/lib/mock-data";
-import { postsApi, categoriesApi, type Category } from "@didimzip/api";
+import { postsApi, categoriesApi, bannersApi, type Category, type Banner } from "@didimzip/api";
 import { postToContentCard } from "@/lib/post-adapter";
 import clsx from "clsx";
 
@@ -22,21 +23,25 @@ export default function CategoryPage() {
   const [activeTab, setActiveTab] = useState(tabParam ?? "all");
   const [sortBy] = useState("최신순");
   const [contents, setContents] = useState<ContentCardType[]>([]);
+  const [categoryAd, setCategoryAd] = useState<Banner | null>(null);
   const [loading, setLoading] = useState(true);
 
   const category = apiCategories.find((c) => c.slug === slug);
 
-  // API에서 게시글·카테고리 조회 (admin 변경이 새로고침 시 반영됨)
+  // API에서 게시글·카테고리·광고 조회 (admin 변경이 새로고침 시 반영됨)
+  // 광고: CATEGORY_TOP_BANNER 위치 조건 충족분 중 weight 가중 랜덤 1개 (없으면 null)
   useEffect(() => {
     let alive = true;
     Promise.all([
       postsApi.list({ status: "PUBLISHED" }).catch(() => []),
       categoriesApi.list({ visible: true }).catch(() => []),
+      bannersApi.pickAd("CATEGORY_TOP_BANNER").catch(() => null),
     ])
-      .then(([posts, cats]) => {
+      .then(([posts, cats, ad]) => {
         if (!alive) return;
         setContents(posts.map(postToContentCard));
         setApiCategories(cats);
+        setCategoryAd(ad);
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -59,23 +64,13 @@ export default function CategoryPage() {
   return (
     <div className="flex flex-col">
       <div className="max-w-[1200px] w-full mx-auto px-6">
-        {/* Promo Banner */}
-        <div className="mt-6 rounded-xl overflow-hidden bg-gradient-to-r from-amber-50 to-orange-50 flex items-center justify-between px-8 py-6">
-          <div>
-            <span className="text-[10px] font-medium bg-white/80 px-2 py-0.5 rounded-full text-muted-foreground">
-              스타트업 채용
-            </span>
-            <h3 className="text-lg font-bold mt-2">
-              좋은 팀원을 찾는 게 가장 어렵다면
-            </h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              검증된 인재를 빠르게 만날 수 있는 채용 플랫폼
-            </p>
+        {/* 광고 배너 (CATEGORY_TOP_BANNER) — Admin CMS → API(pickAd) → Web, weight 가중 랜덤.
+            없으면 렌더되지 않음. 검색 영역 바로 아래 · 카테고리 제목 위. */}
+        {categoryAd && (
+          <div className="mt-6">
+            <AdBanner ad={categoryAd} />
           </div>
-          <div className="text-3xl font-black text-orange-500 tracking-tighter">
-            wanted
-          </div>
-        </div>
+        )}
 
         {/* Category Title */}
         <div className="mt-8">
