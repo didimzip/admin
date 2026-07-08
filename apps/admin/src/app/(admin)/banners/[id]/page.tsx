@@ -388,7 +388,7 @@ export default function BannerDetailPage() {
                   style={{
                     borderRadius: "14px", border: "1px solid #EEE", background: "#333",
                     display: "flex", height: "180px", padding: "30px 60px",
-                    flexDirection: "column", justifyContent: "center", alignItems: "flex-start", gap: "36px",
+                    flexDirection: "column", justifyContent: "center", alignItems: "flex-start", gap: "18px",
                   }}
                 >
                   {(banner.imageData || banner.imageUrl) && (
@@ -611,7 +611,7 @@ export default function BannerDetailPage() {
                       style={{
                         borderRadius: "14px", border: "1px solid #EEE", background: "#333",
                         display: "flex", height: "180px", padding: "30px 60px",
-                        flexDirection: "column", justifyContent: "center", alignItems: "flex-start", gap: "36px",
+                        flexDirection: "column", justifyContent: "center", alignItems: "flex-start", gap: "18px",
                       }}
                     >
                       {imagePreview && (

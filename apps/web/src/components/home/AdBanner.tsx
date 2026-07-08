@@ -20,7 +20,7 @@ export default function AdBanner({ ad }: { ad: Banner | null }) {
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "flex-start",
-        gap: "36px",
+        gap: "18px",
       }}
     >
       {image && (

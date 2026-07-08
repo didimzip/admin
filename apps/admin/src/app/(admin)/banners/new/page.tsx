@@ -380,7 +380,7 @@ export default function BannerNewPage() {
                       flexDirection: "column",
                       justifyContent: "center",
                       alignItems: "flex-start",
-                      gap: "36px",
+                      gap: "18px",
                     }}
                   >
                     {imagePreview && (
