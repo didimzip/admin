@@ -723,9 +723,11 @@ export default function BannerNewPage() {
             <div className="mt-5 flex flex-col gap-2">
               <button
                 onClick={() => {
+                  const target = pendingNavTarget;
                   handleSaveDraft();
                   isDirtyRef.current = false;
-                  router.push(pendingNavTarget);
+                  setPendingNavTarget(null);
+                  if (target) router.push(target);
                 }}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
               >
@@ -734,9 +736,11 @@ export default function BannerNewPage() {
               </button>
               <button
                 onClick={() => {
+                  const target = pendingNavTarget;
                   setIsDirty(false);
                   isDirtyRef.current = false;
-                  router.push(pendingNavTarget);
+                  setPendingNavTarget(null);
+                  if (target) router.push(target);
                 }}
                 className="w-full rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
               >

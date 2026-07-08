@@ -185,15 +185,16 @@ export default function BannerDetailPage() {
 
   // ─── Save ─────────────────────────────────────────────────────────────────
 
-  const handleSave = async () => {
-    if (!banner) return;
-    if (!form.name.trim()) { showToast("배너명(관리용)을 입력해주세요."); return; }
-    if (!form.title.trim()) { showToast("타이틀을 입력해주세요."); return; }
-    if (!form.startDate) { showToast("시작일을 입력해주세요."); return; }
+  // 저장 핵심 로직. 검증 통과 시 갱신된 배너를 반환, 실패 시 null.
+  const persistBanner = async (): Promise<StoredBanner | null> => {
+    if (!banner) return null;
+    if (!form.name.trim()) { showToast("배너명(관리용)을 입력해주세요."); return null; }
+    if (!form.title.trim()) { showToast("타이틀을 입력해주세요."); return null; }
+    if (!form.startDate) { showToast("시작일을 입력해주세요."); return null; }
 
     setSaving(true);
     try {
-      const updated = await upsertBanner({
+      return await upsertBanner({
         id: banner.id,
         name: form.name.trim() || form.title.trim(),
         bannerType: banner.bannerType,
@@ -216,13 +217,32 @@ export default function BannerDetailPage() {
         endDate: form.endDate,
         createdBy: banner.createdBy ?? session?.adminId ?? null,
       });
-      setBanner(updated);
-      setIsEditMode(false);
-      setIsDirty(false);
-      showToast("배너가 수정되었습니다.");
     } finally {
       setSaving(false);
     }
+  };
+
+  // 저장 후 상세 뷰로 전환 (페이지 유지)
+  const handleSave = async () => {
+    const updated = await persistBanner();
+    if (!updated) return;
+    setBanner(updated);
+    setIsEditMode(false);
+    setIsDirty(false);
+    isDirtyRef.current = false;
+    showToast("배너가 수정되었습니다.");
+  };
+
+  // 이탈 모달의 "저장 후 이동": 저장 → 모달 닫기 → 실제 이동 (오버레이 잔류 방지)
+  const handleSaveAndLeave = async () => {
+    const target = pendingNavTarget;
+    const updated = await persistBanner();
+    if (!updated) return; // 검증 실패 시 모달 유지 → 사용자가 계속 수정 가능
+    setIsDirty(false);
+    isDirtyRef.current = false;
+    setPendingNavTarget(null);
+    showToast("저장되었습니다.");
+    if (target) router.push(target);
   };
 
   // ─── Delete ───────────────────────────────────────────────────────────────
@@ -885,21 +905,21 @@ export default function BannerDetailPage() {
             <p className="mt-1.5 text-sm text-slate-500">수정 중인 내용을 저장하지 않고 이동하시겠어요?</p>
             <div className="mt-5 flex flex-col gap-2">
               <button
-                onClick={() => {
-                  handleSave();
-                  isDirtyRef.current = false;
-                }}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
+                onClick={handleSaveAndLeave}
+                disabled={saving}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:opacity-60"
               >
                 <Save className="h-4 w-4" />
                 저장 후 이동
               </button>
               <button
                 onClick={() => {
+                  const target = pendingNavTarget;
                   setIsDirty(false);
                   isDirtyRef.current = false;
                   setIsEditMode(false);
-                  router.push(pendingNavTarget);
+                  setPendingNavTarget(null);
+                  if (target) router.push(target);
                 }}
                 className="w-full rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
               >
