@@ -65,7 +65,8 @@ export type BannerPosition =
   | "CATEGORY_TOP_BANNER"
   | "CATEGORY_BOTTOM_BANNER"
   | "CONTENT_TOP"
-  | "CONTENT_BOTTOM";
+  | "CONTENT_BOTTOM"
+  | "MENTOR_TOP";
 export type BannerTextColor = "light" | "dark"; // light = 흰 텍스트, dark = 검정 텍스트
 export type BannerLinkTarget = "_self" | "_blank"; // 현재창 | 새창
 
@@ -86,10 +87,13 @@ export const BANNER_POSITION_META: Record<BannerPosition, BannerPositionMeta> = 
   HOME_HERO: { label: "홈 히어로", forType: "HERO", enabled: true },
   HOME_MIDDLE: { label: "홈 중간 광고", forType: "ADVERTISEMENT", enabled: true },
   CATEGORY_TOP_BANNER: { label: "카테고리 상단 광고", forType: "ADVERTISEMENT", enabled: true },
+  HOME_BOTTOM: { label: "홈 하단 광고", forType: "ADVERTISEMENT", enabled: true },
+  // 콘텐츠 상세페이지 상단 광고 — 카테고리 상단 광고와 동일 노출 로직/컴포넌트 재사용
+  CONTENT_TOP: { label: "콘텐츠 상단 광고", forType: "ADVERTISEMENT", enabled: true },
+  // 멘토 Q&A / 매칭 페이지 상단 광고 — 동일 노출 엔진(pickAd)/AdBanner 재사용
+  MENTOR_TOP: { label: "멘토 Q&A / 매칭 페이지 상단", forType: "ADVERTISEMENT", enabled: true },
   // ── 예약(설계상 확장 지점) — enabled: true 로만 바꾸면 즉시 활성화, Admin 코드 수정 불필요 ──
-  HOME_BOTTOM: { label: "홈 하단 광고", forType: "ADVERTISEMENT", enabled: false },
   CATEGORY_BOTTOM_BANNER: { label: "카테고리 하단 광고", forType: "ADVERTISEMENT", enabled: false },
-  CONTENT_TOP: { label: "콘텐츠 상단 광고", forType: "ADVERTISEMENT", enabled: false },
   CONTENT_BOTTOM: { label: "콘텐츠 하단 광고", forType: "ADVERTISEMENT", enabled: false },
 };
 
@@ -122,7 +126,7 @@ export interface Banner {
   id: string;
   name: string; // 관리용 배너명
   bannerType: BannerType;
-  position: BannerPosition;
+  positions: BannerPosition[]; // 다중 노출 위치 (하나의 배너를 여러 위치에 동시 노출)
   subtitle: string; // Badge(소제목)
   title: string; // 메인 제목 (줄바꿈 \n 가능)
   subText: string; // Hero 하단 텍스트
@@ -135,6 +139,7 @@ export interface Banner {
   linkUrl: string;
   linkTarget: BannerLinkTarget; // 링크 열기 방식
   weight: number; // 광고 전용: 가중치(클수록 자주 노출)
+  isPaid: boolean; // 광고 전용: 유료 광고 여부(true면 Web에서 AD 뱃지 노출)
   sortOrder: number; // Hero 전용: 노출 순서(Display Order)
   isActive: boolean; // 노출 상태 ON/OFF
   startDate: string;
@@ -203,6 +208,67 @@ export interface CategoryListQuery {
 
 // 아이콘은 iconName(문자열)만 저장한다. 선택 가능한 아이콘 목록은 고정하지 않고,
 // 각 앱이 react-icons/ri 전체를 lazy 로드해 검색/렌더한다. (DB에는 문자열만)
+
+// ─── Footer ──────────────────────────────────────────────────────────────────
+//
+// Footer 정보(회사정보 단일 레코드) + 관련 사이트(패밀리 사이트, 순서/노출 관리).
+// 필드 추가만으로 SNS·약관·개인정보처리방침 등으로 확장 가능한 구조.
+
+/** Footer 회사/고객센터 정보 (단일 레코드). */
+export interface FooterSettings {
+  companyName: string; // 회사명 (예: (주)몬데인컨설팅)
+  ceo: string; // 대표자
+  bizNumber: string; // 사업자등록번호
+  address: string; // 주소
+  customerEmail: string; // 고객지원 문의 이메일
+  operatingHours: string; // 고객지원/운영시간 안내 문구
+  copyright: string; // Copyright 문구
+  updatedAt: string;
+}
+
+/** Footer 회사정보 수정 입력 (부분 업데이트 허용). */
+export type FooterSettingsInput = Partial<Omit<FooterSettings, "updatedAt">>;
+
+/** 관련 사이트(패밀리 사이트) 1건. */
+export interface FamilySite {
+  id: string;
+  name: string; // 사이트명
+  url: string; // 링크 URL
+  newTab: boolean; // 새 창 열기 여부
+  sortOrder: number; // 노출 순서 (저장 시 배열 위치로 부여)
+  isVisible: boolean; // 노출 여부(ON/OFF)
+}
+
+/** 관련 사이트 save-all 입력 (id 없으면 신규 발급). */
+export type FamilySiteInput = Omit<FamilySite, "id" | "sortOrder"> & {
+  id?: string;
+};
+
+export interface FamilySiteListQuery {
+  visible?: boolean;
+}
+
+// ─── 작성자(Author) ───────────────────────────────────────────────────────────
+//
+// 콘텐츠 작성자 신원의 단일 출처(single source of truth).
+// Post 는 authorName(문자열)을 저장하지 않고 authorId 로 이 레코드를 "참조"한다.
+// 화면은 authorId 로 이 테이블에서 최신 nickname/profileImage 를 조회해 표시하므로,
+// 닉네임/프로필 이미지를 바꾸면 해당 작성자가 쓴 모든 콘텐츠에 즉시 반영된다.
+// 실백엔드(PostgreSQL Users 테이블) 전환 시에도 이 형태(id·nickname·profileImage)를 유지한다.
+export interface Author {
+  id: string; // 작성자(관리자 계정) id — Post.authorId 가 참조하는 값
+  nickname: string;
+  profileImage: string; // 빈 문자열이면 기본 아바타
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** upsert 입력 1건 (id 기준 병합). createdAt/updatedAt 은 서버가 관리. */
+export interface AuthorUpsertInput {
+  id: string;
+  nickname: string;
+  profileImage?: string;
+}
 
 // ─── 공통 API Response 계약 ──────────────────────────────────────────────────
 

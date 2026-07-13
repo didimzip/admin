@@ -1,4 +1,4 @@
-import type { Banner, Category, Post } from "@didimzip/api";
+import type { Author, Banner, Category, FamilySite, FooterSettings, Post } from "@didimzip/api";
 
 // 개발용 초기 시드 데이터. data/db.json 이 없을 때 1회 생성된다.
 // 실제 서비스에서는 DB 마이그레이션 seed로 대체된다.
@@ -28,6 +28,16 @@ function post(p: Partial<Post> & Pick<Post, "id" | "title" | "category">): Post 
     createdAt: p.createdAt ?? now,
     updatedAt: p.updatedAt ?? now,
   };
+}
+
+// 작성자 신원 초기값 — admin 시드 계정(auth-store)과 동일 id/이름.
+// admin 앱이 로드/닉네임 변경 시 현재 계정명을 이 테이블로 동기화(upsert)하므로 최신값이 유지된다.
+export function seedAuthors(): Author[] {
+  const now = "2026-06-01T09:00:00.000Z";
+  return [
+    { id: "admin_001", nickname: "슈퍼 관리자", profileImage: "", createdAt: now, updatedAt: now },
+    { id: "admin_002", nickname: "운영 관리자", profileImage: "", createdAt: now, updatedAt: now },
+  ];
 }
 
 export function seedPosts(): Post[] {
@@ -109,7 +119,7 @@ function banner(
     id: b.id,
     name: b.name,
     bannerType: b.bannerType,
-    position: b.position ?? (isHero ? "HOME_HERO" : "HOME_MIDDLE"),
+    positions: b.positions ?? (isHero ? ["HOME_HERO"] : ["HOME_MIDDLE"]),
     subtitle: b.subtitle ?? "",
     title: b.title ?? "",
     subText: b.subText ?? "",
@@ -122,6 +132,7 @@ function banner(
     linkUrl: b.linkUrl ?? "",
     linkTarget: b.linkTarget ?? "_self",
     weight: b.weight ?? 0,
+    isPaid: b.isPaid ?? false,
     sortOrder: b.sortOrder ?? 1,
     isActive: b.isActive ?? true,
     startDate: b.startDate ?? "2026-01-01",
@@ -218,7 +229,7 @@ export function seedBanners(): Banner[] {
       id: "banner_cat_1",
       name: "카테고리 상단 광고 - 세무 상담",
       bannerType: "ADVERTISEMENT",
-      position: "CATEGORY_TOP_BANNER",
+      positions: ["CATEGORY_TOP_BANNER"],
       title: "창업가를 위한 무료 세무 상담",
       subtitle: "TAX",
       description: "복잡한 세무, 전문가와 1:1로 해결하세요",
@@ -230,7 +241,7 @@ export function seedBanners(): Banner[] {
       id: "banner_cat_2",
       name: "카테고리 상단 광고 - IR 템플릿",
       bannerType: "ADVERTISEMENT",
-      position: "CATEGORY_TOP_BANNER",
+      positions: ["CATEGORY_TOP_BANNER"],
       title: "투자 유치 IR 덱 템플릿 무료 배포",
       subtitle: "IR DECK",
       linkUrl: "/contents/invest",
@@ -324,5 +335,29 @@ export function seedCategories(): Category[] {
       sortOrder: 6,
       subCategories: [],
     }),
+  ];
+}
+
+// ─── Footer ──────────────────────────────────────────────────────────────────
+
+export function seedFooterSettings(): FooterSettings {
+  return {
+    companyName: "(주)몬데인컨설팅",
+    ceo: "임영철",
+    bizNumber: "281-87-02006",
+    address: "서울특별시 강남구 봉은사 24길 11, 3F",
+    customerEmail: "help@didimzip.co.kr",
+    operatingHours:
+      "실시간 채팅 또는 전화 상담 평일 9:00-17:30(서비스문의 1234-1234 / 기능문의 1234-1234)",
+    copyright: "Copyright © Fundable Corp. All rights reserved.",
+    updatedAt: "2026-06-01T09:00:00.000Z",
+  };
+}
+
+export function seedFamilySites(): FamilySite[] {
+  return [
+    { id: "fam_1", name: "펀더블", url: "https://www.fundable.co.kr", newTab: true, sortOrder: 1, isVisible: true },
+    { id: "fam_2", name: "디딤집 블로그", url: "https://blog.didimzip.co.kr", newTab: true, sortOrder: 2, isVisible: true },
+    { id: "fam_3", name: "고객센터", url: "/support", newTab: false, sortOrder: 3, isVisible: true },
   ];
 }

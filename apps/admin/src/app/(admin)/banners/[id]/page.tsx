@@ -4,13 +4,19 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
   ArrowLeft, Eye, EyeOff, Clock, Upload, ExternalLink,
-  Layers, MonitorPlay, Trash2, CalendarDays, MapPin, ArrowUpDown, Link2, BarChart3, Save,
+  Layers, MonitorPlay, Trash2, CalendarDays, MapPin, ArrowUpDown, Link2, BarChart3, Save, Megaphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  BANNER_POSITIONS, BANNER_TYPE_LABELS, HERO_POSITIONS, AD_POSITIONS,
+  BANNER_POSITIONS, BANNER_TYPE_LABELS, AD_POSITIONS, BANNER_POSITION_META,
   type BannerPosition, type BannerTextColor, type BannerLinkTarget,
 } from "@/data/mock-data";
+
+// 광고 위치 선택지: 활성(AD_POSITIONS) 먼저, 나머지(예약)는 뒤에 disabled 표시
+const AD_POSITION_CHOICES: BannerPosition[] = [
+  ...AD_POSITIONS,
+  ...(Object.keys(BANNER_POSITION_META) as BannerPosition[]).filter((p) => !AD_POSITIONS.includes(p)),
+];
 import {
   getBanner, upsertBanner, deleteBanner,
   compressBannerImage, detectTextColor, type StoredBanner,
@@ -18,6 +24,7 @@ import {
 import { getSession } from "@/lib/auth-store";
 import { useToast } from "@/lib/toast-context";
 import { cn } from "@/lib/utils";
+import AdBadge from "@/components/AdBadge";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -46,10 +53,11 @@ export default function BannerDetailPage() {
     subText: "",
     textColor: "light" as BannerTextColor,
     description: "",
-    position: "HOME_HERO" as BannerPosition,
+    positions: ["HOME_HERO"] as BannerPosition[],
     linkUrl: "",
     linkTarget: "_self" as BannerLinkTarget,
     weight: 0,
+    isPaid: false,
     sortOrder: 1,
     isActive: true,
     startDate: "",
@@ -96,10 +104,11 @@ export default function BannerDetailPage() {
       subText: banner.subText ?? "",
       textColor: banner.textColor ?? "light",
       description: banner.description,
-      position: banner.position,
+      positions: banner.positions ?? [],
       linkUrl: banner.linkUrl,
       linkTarget: banner.linkTarget ?? "_self",
       weight: banner.weight ?? 0,
+      isPaid: banner.isPaid ?? false,
       sortOrder: banner.sortOrder,
       isActive: banner.isActive,
       startDate: banner.startDate,
@@ -191,6 +200,7 @@ export default function BannerDetailPage() {
     if (!form.name.trim()) { showToast("배너명(관리용)을 입력해주세요."); return null; }
     if (!form.title.trim()) { showToast("타이틀을 입력해주세요."); return null; }
     if (!form.startDate) { showToast("시작일을 입력해주세요."); return null; }
+    if (form.positions.length === 0) { showToast("노출 위치를 1개 이상 선택해주세요."); return null; }
 
     setSaving(true);
     try {
@@ -198,7 +208,7 @@ export default function BannerDetailPage() {
         id: banner.id,
         name: form.name.trim() || form.title.trim(),
         bannerType: banner.bannerType,
-        position: form.position,
+        positions: form.positions,
         title: form.title.trim(),
         subtitle: form.subtitle.trim(),
         subText: form.subText.trim(),
@@ -211,6 +221,7 @@ export default function BannerDetailPage() {
         linkUrl: form.linkUrl.trim(),
         linkTarget: form.linkTarget,
         weight: form.weight,
+        isPaid: form.isPaid,
         sortOrder: form.sortOrder,
         isActive: form.isActive,
         startDate: form.startDate,
@@ -260,7 +271,12 @@ export default function BannerDetailPage() {
   if (!banner) return null;
 
   const isHero = banner.bannerType === "HERO";
-  const positionOptions = isHero ? HERO_POSITIONS : AD_POSITIONS;
+  const togglePosition = (pos: BannerPosition) =>
+    updateForm({
+      positions: form.positions.includes(pos)
+        ? form.positions.filter((p) => p !== pos)
+        : [...form.positions, pos],
+    });
   const ctr = banner.impressionCount > 0
     ? ((banner.clickCount / banner.impressionCount) * 100).toFixed(1)
     : "0.0";
@@ -341,13 +357,14 @@ export default function BannerDetailPage() {
       {!isEditMode && (
         <div className="space-y-5">
           {/* Image preview */}
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm select-none">
             {isHero ? (
               <div className="relative aspect-[4.8/1] bg-slate-100">
                 {(banner.imageData || banner.imageUrl) && (
                   <img
                     src={banner.imageData || banner.imageUrl}
                     alt={banner.title}
+                    draggable={false}
                     className="h-full w-full object-cover"
                   />
                 )}
@@ -392,7 +409,12 @@ export default function BannerDetailPage() {
                   }}
                 >
                   {(banner.imageData || banner.imageUrl) && (
-                    <img src={banner.imageData || banner.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-40" />
+                    <img src={banner.imageData || banner.imageUrl} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover opacity-40" />
+                  )}
+                  {banner.isPaid && (
+                    <div style={{ position: "absolute", top: 20, right: 20, zIndex: 20 }}>
+                      <AdBadge />
+                    </div>
                   )}
                   {banner.subtitle && (
                     <span className={cn(
@@ -512,7 +534,7 @@ export default function BannerDetailPage() {
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
                     <div>
                       <p className="text-[11px] font-medium text-slate-400">노출 위치</p>
-                      <p className="mt-0.5 text-sm text-slate-800">{BANNER_POSITIONS[banner.position]}</p>
+                      <p className="mt-0.5 text-sm text-slate-800">{banner.positions.map((p) => BANNER_POSITIONS[p]).join(", ")}</p>
                     </div>
                   </div>
 
@@ -524,6 +546,27 @@ export default function BannerDetailPage() {
                       <p className="mt-0.5 text-sm text-slate-800">{banner.sortOrder}번</p>
                     </div>
                   </div>
+
+                  {/* 유료 광고 (ad only) */}
+                  {!isHero && (
+                    <div className="flex items-start gap-3">
+                      <Megaphone className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                      <div>
+                        <p className="text-[11px] font-medium text-slate-400">유료 광고</p>
+                        <p className="mt-0.5">
+                          {banner.isPaid ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-600">
+                              ON · AD 뱃지 노출
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+                              OFF
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Link */}
                   {banner.linkUrl && (
@@ -576,16 +619,16 @@ export default function BannerDetailPage() {
               <label className="mb-1.5 block text-sm font-medium text-slate-700">
                 배너 이미지 <span className="text-red-500">*</span>
                 <span className="ml-2 font-normal text-slate-400">
-                  {isHero ? "권장: 1920x400px" : "권장: 가로형 이미지"}
+                  {isHero ? "권장: 1920x400px" : "권장: 1920x300px"}
                 </span>
               </label>
               <input ref={fileRef} type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
               {imagePreview ? (
-                <div className="relative group" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+                <div className="relative group select-none" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
                   {isHero ? (
                     <>
                       <div className="overflow-hidden rounded-xl border border-slate-200 aspect-[4.8/1]">
-                        <img src={imagePreview} alt="미리보기" className="h-full w-full object-cover" />
+                        <img src={imagePreview} alt="미리보기" draggable={false} className="h-full w-full object-cover" />
                       </div>
                       {(form.subtitle || form.title || form.subText) && (
                         <div className="pointer-events-none absolute inset-0 rounded-xl">
@@ -629,7 +672,12 @@ export default function BannerDetailPage() {
                       }}
                     >
                       {imagePreview && (
-                        <img src={imagePreview} alt="" className="absolute inset-0 h-full w-full object-cover opacity-40" />
+                        <img src={imagePreview} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover opacity-40" />
+                      )}
+                      {form.isPaid && (
+                        <div style={{ position: "absolute", top: 20, right: 20, zIndex: 20 }}>
+                          <AdBadge />
+                        </div>
                       )}
                       {form.subtitle && (
                         <span className={cn(
@@ -664,7 +712,7 @@ export default function BannerDetailPage() {
                     </div>
                   )}
                   {!isDragging && (
-                    <div className="absolute inset-0 flex items-center justify-center gap-2 rounded-xl bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                    <div className="absolute inset-0 z-20 flex items-center justify-center gap-2 rounded-xl bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
                       <button onClick={() => fileRef.current?.click()} className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100">
                         이미지 변경
                       </button>
@@ -812,6 +860,29 @@ export default function BannerDetailPage() {
               </div>
             )}
 
+            {/* 유료 광고 (ad only) */}
+            {!isHero && (
+              <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-700">유료 광고</p>
+                  <p className="text-xs text-slate-400">체크 시 광고 배너 우측 상단에 AD 뱃지가 노출됩니다.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => updateForm({ isPaid: !form.isPaid })}
+                  className={cn(
+                    "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                    form.isPaid ? "bg-indigo-600" : "bg-slate-300"
+                  )}
+                >
+                  <span className={cn(
+                    "inline-block h-4 w-4 rounded-full bg-white transition-transform",
+                    form.isPaid ? "translate-x-6" : "translate-x-1"
+                  )} />
+                </button>
+              </div>
+            )}
+
             {/* Link URL + Target */}
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -836,43 +907,79 @@ export default function BannerDetailPage() {
               </div>
             </div>
 
-            {/* Position & Sort Order */}
-            <div className="grid grid-cols-2 gap-4">
-              {!isHero ? (
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-slate-700">노출 위치</label>
-                  <select
-                    value={form.position}
-                    onChange={(e) => updateForm({ position: e.target.value as BannerPosition })}
-                    className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                  >
-                    {positionOptions.map((pos) => (
-                      <option key={pos} value={pos}>{BANNER_POSITIONS[pos]}</option>
-                    ))}
-                  </select>
-                </div>
-              ) : (
+            {/* Position — Hero: 고정 / Ad: 다중 선택 */}
+            {isHero ? (
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-slate-700">노출 위치</label>
                   <div className="flex h-[42px] items-center rounded-lg border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-500">
                     {BANNER_POSITIONS["HOME_HERO"]}
                   </div>
                 </div>
-              )}
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                  {isHero ? "슬라이드 순서" : "정렬 순서"}
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  value={form.sortOrder}
-                  onChange={(e) => updateForm({ sortOrder: Number(e.target.value) || 1 })}
-                  className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                />
-                <p className="mt-1 text-xs text-slate-400">숫자가 낮을수록 먼저 표시됩니다</p>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">슬라이드 순서</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.sortOrder}
+                    onChange={(e) => updateForm({ sortOrder: Number(e.target.value) || 1 })}
+                    className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                  />
+                  <p className="mt-1 text-xs text-slate-400">숫자가 낮을수록 먼저 표시됩니다</p>
+                </div>
               </div>
-            </div>
+            ) : (
+              <>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                    노출 위치 <span className="text-red-500">*</span>
+                    <span className="ml-2 font-normal text-slate-400">여러 위치에 동시 노출 가능</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {AD_POSITION_CHOICES.map((pos) => {
+                      const selectable = AD_POSITIONS.includes(pos);
+                      const checked = form.positions.includes(pos);
+                      return (
+                        <label
+                          key={pos}
+                          className={cn(
+                            "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm transition-colors",
+                            !selectable
+                              ? "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300"
+                              : checked
+                                ? "cursor-pointer border-indigo-300 bg-indigo-50 text-indigo-700"
+                                : "cursor-pointer border-slate-200 text-slate-600 hover:border-slate-300"
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            disabled={!selectable}
+                            checked={checked}
+                            onChange={() => togglePosition(pos)}
+                            className="h-4 w-4 rounded border-slate-300 accent-indigo-600 disabled:opacity-40"
+                          />
+                          <span>
+                            {BANNER_POSITIONS[pos]}
+                            {!selectable && " (향후)"}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">정렬 순서</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.sortOrder}
+                    onChange={(e) => updateForm({ sortOrder: Number(e.target.value) || 1 })}
+                    className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                  />
+                  <p className="mt-1 text-xs text-slate-400">숫자가 낮을수록 먼저 표시됩니다</p>
+                </div>
+              </>
+            )}
 
             {/* Date range */}
             <div className="grid grid-cols-2 gap-4">

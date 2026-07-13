@@ -29,12 +29,20 @@ export async function GET(req: NextRequest) {
 }
 
 /** 부분 입력이 와도 유효한 Banner 가 되도록 기본값을 채운다. */
-function normalizeCreateInput(body: Partial<BannerCreateInput>): BannerCreateInput {
+function normalizeCreateInput(
+  body: Partial<BannerCreateInput> & { position?: BannerPosition },
+): BannerCreateInput {
   const bannerType = body.bannerType ?? "HERO";
+  const positions: BannerPosition[] =
+    body.positions && body.positions.length > 0
+      ? body.positions
+      : body.position // 레거시 단일 position 입력 하위호환
+        ? [body.position]
+        : [bannerType === "HERO" ? "HOME_HERO" : "HOME_MIDDLE"];
   return {
     name: body.name ?? "",
     bannerType,
-    position: body.position ?? (bannerType === "HERO" ? "HOME_HERO" : "HOME_MIDDLE"),
+    positions,
     subtitle: body.subtitle ?? "",
     title: body.title ?? "",
     subText: body.subText ?? "",
@@ -47,6 +55,7 @@ function normalizeCreateInput(body: Partial<BannerCreateInput>): BannerCreateInp
     linkUrl: body.linkUrl ?? "",
     linkTarget: body.linkTarget ?? "_self",
     weight: body.weight ?? 0,
+    isPaid: body.isPaid ?? false,
     sortOrder: body.sortOrder ?? 1,
     isActive: body.isActive ?? true,
     startDate: body.startDate ?? "",

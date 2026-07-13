@@ -1,4 +1,5 @@
 import type { Banner } from "@didimzip/api";
+import AdBadge from "@/components/ui/AdBadge";
 
 // 광고 배너 (디자인 스펙: 180px · #333 · Badge + Title). Admin 미리보기와 동일.
 // Description·CTA 버튼 없음. 데이터는 Admin CMS → API(pickAd) → Web.
@@ -26,7 +27,17 @@ export default function AdBanner({ ad }: { ad: Banner | null }) {
     >
       {image && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-40" />
+        <img
+          src={image}
+          alt=""
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-40"
+        />
+      )}
+      {/* 유료 광고일 때만 AD 뱃지 — 우측 상단 top 20 / right 20 고정 */}
+      {ad.isPaid && (
+        <div style={{ position: "absolute", top: 20, right: 20, zIndex: 20 }}>
+          <AdBadge />
+        </div>
       )}
       {ad.subtitle && (
         <span
@@ -59,14 +70,14 @@ export default function AdBanner({ ad }: { ad: Banner | null }) {
     </div>
   );
 
-  if (!ad.linkUrl) return <div className="my-2">{card}</div>;
+  if (!ad.linkUrl) return card;
 
   return (
     <a
       href={ad.linkUrl}
       target={ad.linkTarget}
       rel={ad.linkTarget === "_blank" ? "noopener noreferrer" : undefined}
-      className="block my-2"
+      className="block"
     >
       {card}
     </a>

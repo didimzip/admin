@@ -1,5 +1,7 @@
 import type {
   ApiResponse,
+  Author,
+  AuthorUpsertInput,
   Banner,
   BannerCreateInput,
   BannerListQuery,
@@ -8,6 +10,11 @@ import type {
   Category,
   CategoryInput,
   CategoryListQuery,
+  FamilySite,
+  FamilySiteInput,
+  FamilySiteListQuery,
+  FooterSettings,
+  FooterSettingsInput,
   Post,
   PostCreateInput,
   PostListQuery,
@@ -79,6 +86,18 @@ export const postsApi = {
     request<{ id: string }>(`/api/posts/${id}`, { method: "DELETE" }),
 };
 
+// ─── 작성자(Author) ───────────────────────────────────────────────────────────
+// web: authorId 로 최신 닉네임/프로필을 조회(list). admin: 관리자 계정 변경 시 upsert 로 동기화.
+export const authorsApi = {
+  list: () => request<Author[]>(`/api/authors`),
+  // 다건 upsert — 관리자 계정의 최신 이름/프로필을 작성자 신원으로 반영(있으면 갱신, 없으면 생성)
+  upsert: (authors: AuthorUpsertInput[]) =>
+    request<Author[]>(`/api/authors`, {
+      method: "POST",
+      body: JSON.stringify({ authors }),
+    }),
+};
+
 function toBannerQuery(query?: BannerListQuery): string {
   if (!query) return "";
   const params = new URLSearchParams();
@@ -124,5 +143,32 @@ export const categoriesApi = {
     request<Category[]>(`/api/categories`, {
       method: "PUT",
       body: JSON.stringify({ categories }),
+    }),
+};
+
+function toFamilySiteQuery(query?: FamilySiteListQuery): string {
+  if (!query) return "";
+  const params = new URLSearchParams();
+  if (query.visible !== undefined) params.set("visible", String(query.visible));
+  const s = params.toString();
+  return s ? `?${s}` : "";
+}
+
+export const footerApi = {
+  // 회사/고객센터 정보 (단일 레코드)
+  getSettings: () => request<FooterSettings>(`/api/footer/settings`),
+  updateSettings: (input: FooterSettingsInput) =>
+    request<FooterSettings>(`/api/footer/settings`, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    }),
+  // 관련 사이트(패밀리 사이트)
+  listFamilySites: (query?: FamilySiteListQuery) =>
+    request<FamilySite[]>(`/api/footer/family-sites${toFamilySiteQuery(query)}`),
+  // Admin 저장(save-all): 전체 배열을 순서대로 교체 저장(순서=배열 위치)
+  saveFamilySites: (sites: FamilySiteInput[]) =>
+    request<FamilySite[]>(`/api/footer/family-sites`, {
+      method: "PUT",
+      body: JSON.stringify({ sites }),
     }),
 };

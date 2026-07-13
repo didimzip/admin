@@ -21,7 +21,7 @@ export const bannersRepository = {
       banners = banners.filter((b) => b.bannerType === query.type);
     }
     if (query?.position) {
-      banners = banners.filter((b) => b.position === query.position);
+      banners = banners.filter((b) => (b.positions ?? []).includes(query.position!));
     }
     if (query?.active !== undefined) {
       banners = banners.filter((b) => b.isActive === query.active);
@@ -103,7 +103,7 @@ export const bannersRepository = {
       (b) =>
         b.bannerType === "ADVERTISEMENT" &&
         b.isActive &&
-        b.position === position &&
+        (b.positions ?? []).includes(position) &&
         (!b.startDate || b.startDate <= today) &&
         (!b.endDate || b.endDate >= today),
     );

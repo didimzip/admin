@@ -1,7 +1,14 @@
 import fs from "fs";
 import path from "path";
-import type { Banner, Category, Post } from "@didimzip/api";
-import { seedBanners, seedCategories, seedPosts } from "./seed";
+import type { Author, Banner, Category, FamilySite, FooterSettings, Post } from "@didimzip/api";
+import {
+  seedAuthors,
+  seedBanners,
+  seedCategories,
+  seedFamilySites,
+  seedFooterSettings,
+  seedPosts,
+} from "./seed";
 
 // ─── Mock 영속 계층 (JSON 파일) ──────────────────────────────────────────────
 //
@@ -10,8 +17,11 @@ import { seedBanners, seedCategories, seedPosts } from "./seed";
 
 export interface DbShape {
   posts: Post[];
+  authors: Author[];
   banners: Banner[];
   categories: Category[];
+  footerSettings: FooterSettings;
+  familySites: FamilySite[];
 }
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -22,8 +32,11 @@ function ensureDb(): void {
   if (!fs.existsSync(DB_FILE)) {
     const initial: DbShape = {
       posts: seedPosts(),
+      authors: seedAuthors(),
       banners: seedBanners(),
       categories: seedCategories(),
+      footerSettings: seedFooterSettings(),
+      familySites: seedFamilySites(),
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2), "utf-8");
   }
@@ -39,19 +52,54 @@ export function readDb(): DbShape {
       parsed.posts = seedPosts();
       changed = true;
     }
+    // 작성자 신원 테이블 백필 (기존 db.json 에 authors 가 없으면 시드로 생성)
+    if (!parsed.authors) {
+      parsed.authors = seedAuthors();
+      changed = true;
+    }
     if (!parsed.banners) {
       parsed.banners = seedBanners();
       changed = true;
     }
+    // 레거시 position(문자열) → positions(배열) 마이그레이션 (기존 데이터 무손실)
+    if (parsed.banners) {
+      for (const b of parsed.banners as unknown as Array<Record<string, unknown>>) {
+        if (!Array.isArray(b.positions)) {
+          b.positions = b.position ? [b.position] : [];
+          delete b.position;
+          changed = true;
+        }
+        // 유료 광고 여부(isPaid) 백필 — 기존 배너는 모두 false
+        if (typeof b.isPaid !== "boolean") {
+          b.isPaid = false;
+          changed = true;
+        }
+      }
+    }
     if (!parsed.categories) {
       parsed.categories = seedCategories();
+      changed = true;
+    }
+    if (!parsed.footerSettings) {
+      parsed.footerSettings = seedFooterSettings();
+      changed = true;
+    }
+    if (!parsed.familySites) {
+      parsed.familySites = seedFamilySites();
       changed = true;
     }
     const db = parsed as DbShape;
     if (changed) writeDb(db);
     return db;
   } catch {
-    return { posts: [], banners: [], categories: [] };
+    return {
+      posts: [],
+      authors: seedAuthors(),
+      banners: [],
+      categories: [],
+      footerSettings: seedFooterSettings(),
+      familySites: seedFamilySites(),
+    };
   }
 }
 

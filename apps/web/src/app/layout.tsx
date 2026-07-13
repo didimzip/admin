@@ -4,6 +4,8 @@ import { categoriesApi, type Category } from "@didimzip/api";
 import "./globals.css";
 import Sidebar from "@/components/layout/Sidebar";
 import GNB from "@/components/layout/GNB";
+import Footer from "@/components/layout/Footer";
+import QueryProvider from "@/components/providers/QueryProvider";
 
 export const metadata: Metadata = {
   title: "디딤집 - 창업가를 위한 콘텐츠 플랫폼",
@@ -41,13 +43,18 @@ export default async function RootLayout({
         />
       </head>
       <body className="min-h-full flex">
-        <Suspense fallback={null}>
-          <Sidebar categories={categories} />
-        </Suspense>
-        <div className="flex-1 flex flex-col min-h-screen">
-          <GNB />
-          <main className="flex-1 mt-14">{children}</main>
-        </div>
+        <QueryProvider>
+          <Suspense fallback={null}>
+            <Sidebar categories={categories} />
+          </Suspense>
+          <div className="flex-1 flex flex-col min-h-screen">
+            <GNB />
+            {/* main 은 flex-1 로 확장 → Footer 는 항상 하단 고정. Footer 는 레이아웃에 두어
+                페이지 이동 시 리마운트/리페치 없이 항상 동일하게 렌더된다. */}
+            <main className="flex-1 mt-14">{children}</main>
+            <Footer />
+          </div>
+        </QueryProvider>
       </body>
     </html>
   );

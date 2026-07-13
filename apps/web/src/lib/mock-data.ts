@@ -14,7 +14,9 @@ export interface ContentCard {
   category: string;
   subcategory: string;
   author: string;
+  authorProfileImage?: string; // authorId 로 조회한 최신 프로필 이미지 (빈 값이면 미노출)
   authorBadge?: "editor" | "expert" | "mentor";
+  company?: string; // 광고(isAd=true) 시 광고주명 — 작성자(닉네임) 위치에 표시. 추후 Admin 필드로 교체.
   viewCount: number;
   isHot: boolean;
   isAd: boolean;
@@ -25,6 +27,7 @@ export interface MentorProfile {
   id: string;
   name: string;
   job: string;
+  description: string;
   profileImage: string;
   tags: string[];
 }
@@ -48,6 +51,17 @@ export interface CommunePost {
   viewCount: number;
   commentCount: number;
   thumbnail?: string;
+}
+
+// 멘토링 후기 — 향후 Admin/실 후기 데이터로 교체 시 이 형태만 채우면 카드가 자동 생성.
+export interface MentorReview {
+  id: string;
+  role: string; // 멘토 직무
+  mentorName: string; // 멘토명
+  profileImage?: string; // 없으면 기본 아바타
+  content: string; // 후기 내용
+  rating: number; // 별점(0~5)
+  reviewer: string; // 후기 작성자
 }
 
 export const categories: Category[] = [
@@ -240,6 +254,7 @@ export const mentors: MentorProfile[] = [
     id: "1",
     name: "김관수 멘토",
     job: "창업 컨설턴트",
+    description: "초기 창업부터 투자 유치까지 함께합니다.",
     profileImage: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&q=80",
     tags: ["자금조달", "IR피칭"],
   },
@@ -247,13 +262,28 @@ export const mentors: MentorProfile[] = [
     id: "2",
     name: "김환수 멘토",
     job: "노무사",
-    profileImage: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&q=80",
-    tags: ["노무관리", "인사전략"],
+    description: "안녕하세요, 스타트업 노무 관련 궁금한 점이 있으면 편하게 물어보세요.",
+    profileImage: "", // 프로필 이미지 없음 → 기본 Avatar(BsPerson) 노출
+    tags: [
+      "근로계약",
+      "임금체불",
+      "부당해고",
+      "근로시간 단축",
+      "퇴직금",
+      "연차수당",
+      "4대보험",
+      "취업규칙",
+      "징계",
+      "산업재해",
+      "인사평가",
+      "노사협의",
+    ],
   },
   {
     id: "3",
     name: "이서진 멘토",
     job: "마케팅 전문가",
+    description: "데이터 기반 그로스 마케팅을 코칭합니다.",
     profileImage: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&q=80",
     tags: ["퍼포먼스마케팅", "그로스해킹"],
   },
@@ -307,3 +337,164 @@ export const communePosts: CommunePost[] = [
     commentCount: 16,
   },
 ];
+
+export const mentorReviews: MentorReview[] = [
+  {
+    id: "r1",
+    role: "창업 컨설턴트 멘토",
+    mentorName: "김민수",
+    content:
+      "아이디어는 있었지만 어디서부터 시작해야 할지 몰라 막막했는데, 디딤멘토를 통해 상담을 받고 방향이 정리됐습니다. 특히 사업계획서를 어떻게 풀어야 하는지, 지금 단계에서 무엇을 우선해야 하는지 구체적으로 알려주셔서 바로 실행으로 이어질 수 있었습니다.",
+    rating: 5,
+    reviewer: "안**님 후기",
+  },
+  {
+    id: "r2",
+    role: "노무사",
+    mentorName: "김민수",
+    content:
+      "초반에 잡았던 기획 방향이 맞는지 확신이 없었는데, 멘토링을 통해 문제점과 보완할 부분을 명확하게 알 수 있었습니다. 막연하게 알던 내용을 정확히 짚어주셔서 이후 방향을 잡는 데 큰 도움이 됐습니다.",
+    rating: 5,
+    reviewer: "광**님 후기",
+  },
+  {
+    id: "r3",
+    role: "서비스 기획자",
+    mentorName: "이서연",
+    content:
+      "기획을 하면서 사용자 입장에서 생각하는 게 쉽지 않았는데, 실제 사용 흐름을 기준으로 어떻게 설계해야 하는지 단계별로 설명해주셨습니다. 이론이 아닌 실제 사례로 설명해주셔서 이해가 잘 됐고 바로 적용할 수 있었습니다.",
+    rating: 5,
+    reviewer: "조**님 후기",
+  },
+  {
+    id: "r4",
+    role: "서비스 기획자",
+    mentorName: "강태형",
+    content:
+      "이론이 아니라 실제 서비스 기획 과정에서 겪는 부분을 중심으로 설명해주셔서 현실적으로 와닿았습니다. 어떤 부분이 왜 중요한지 이유까지 함께 설명해주셔서 이해가 빨랐고 업무에 바로 적용할 수 있었습니다.",
+    rating: 5,
+    reviewer: "김**님 후기",
+  },
+  {
+    id: "r5",
+    role: "창업 멘탈링 멘토",
+    mentorName: "박도현",
+    content:
+      "창업을 처음 준비하다 보니 모르는 게 많았는데, 전반적인 흐름을 한 번에 이해할 수 있어 좋았습니다. 실제 사례 중심으로 설명해주셔서 막연하던 창업 준비가 훨씬 구체적으로 다가왔습니다.",
+    rating: 5,
+    reviewer: "도**님 후기",
+  },
+];
+
+// 최신 Q&A — 향후 실제 Q&A 데이터로 교체 시 이 형태만 채우면 카드가 자동 생성.
+export interface LatestQnaItem {
+  id: string;
+  status: "채택완료" | "미채택"; // 답변 채택 여부
+  title: string;
+  body: string; // 질문 내용 요약
+  category: string;
+  viewCount: number;
+  answerCount: number;
+  date: string; // 작성일(표시용). 실제 데이터 연결 시 createdAt 포맷팅.
+}
+
+export const latestQnaItems: LatestQnaItem[] = [
+  {
+    id: "lq1",
+    status: "채택완료",
+    title: "아이디어만 있는데 지금 바로 창업해도 될까요?",
+    body: "구체적인 서비스는 아직 없고 아이디어만 있는 상태입니다. 바로 사업자 등록을 하는 게 맞는지, 아니면 MVP나 시장 검증을 먼저 하는 게 좋을지 고민입니다.",
+    category: "자금조달",
+    viewCount: 5600,
+    answerCount: 8,
+    date: "26.04.23",
+  },
+  {
+    id: "lq2",
+    status: "미채택",
+    title: "MVP는 어느 정도 수준까지 만들어야 할까요?",
+    body: "아이디어를 바탕으로 간단한 서비스를 만들어보려고 합니다. MVP를 어느 정도 수준까지 만들어야 하는지 기준이 애매합니다. 디자인까지 신경 써야 할까요?",
+    category: "사업화전략",
+    viewCount: 7250,
+    answerCount: 0,
+    date: "26.04.23",
+  },
+  {
+    id: "lq3",
+    status: "미채택",
+    title: "초기 마케팅 예산이 거의 없는데 어떻게 시작해야 할까요?",
+    body: "서비스를 준비 중인데 마케팅 예산이 거의 없는 상황입니다. 유료 광고보다는 무료 채널을 활용해야 할 것 같은데, 어떤 방식으로 접근하는 것이 좋을지 고민입니다.",
+    category: "마케팅",
+    viewCount: 300,
+    answerCount: 2,
+    date: "26.04.22",
+  },
+  {
+    id: "lq4",
+    status: "채택완료",
+    title: "공동창업자를 구할 때 가장 중요하게 봐야 할 기준은 무엇인가요?",
+    body: "혼자 창업을 준비하다 한계를 느껴 공동창업자를 찾고 있습니다. 실력, 성향, 역할 분배 등 어떤 기준으로 판단해야 하는지 경험자들의 의견이 궁금합니다.",
+    category: "조직문화",
+    viewCount: 2150,
+    answerCount: 8,
+    date: "26.04.22",
+  },
+  {
+    id: "lq5",
+    status: "미채택",
+    title: "초기 스타트업에서 브랜딩은 꼭 필요한가요?",
+    body: "서비스 기능 개발이 우선인지, 브랜드 이미지나 로고 같은 브랜딩을 먼저 준비해야 하는지 고민입니다. 초기 단계에서 어디까지 신경 써야 할까요?",
+    category: "사업화전략",
+    viewCount: 127,
+    answerCount: 4,
+    date: "26.04.21",
+  },
+];
+
+// 멘토에게 질문 — Infinite Scroll 테스트용 더미 Q&A. index 기반 결정적 생성(Math.random 미사용).
+const QNA_TITLE_POOL = [
+  "아이디어만 있는데 지금 바로 창업해도 될까요?",
+  "MVP는 어느 정도 수준까지 만들어야 할까요?",
+  "초기 마케팅 예산이 거의 없는데 어떻게 시작해야 할까요?",
+  "공동창업자를 구할 때 가장 중요하게 봐야 할 기준은 무엇인가요?",
+  "초기 스타트업에서 브랜딩은 꼭 필요한가요?",
+  "정부지원사업은 언제부터 준비하는 게 좋을까요?",
+  "투자 유치를 위해 꼭 준비해야 하는 자료는 무엇인가요?",
+  "서비스 출시 전 꼭 테스트해야 하는 부분은 무엇인가요?",
+  "법인 전환은 언제 하는 것이 유리한가요?",
+  "초기 팀에게 지분은 어떻게 배분하는 게 좋을까요?",
+];
+const QNA_BODY_POOL = [
+  "구체적인 서비스는 아직 없고 아이디어만 있는 상태입니다. 바로 사업자 등록을 하는 게 맞는지, MVP나 시장 검증을 먼저 하는 게 좋을지 고민입니다.",
+  "간단한 서비스를 만들어보려고 합니다. MVP를 어느 수준까지 만들어야 하는지 기준이 애매합니다. 디자인까지 신경 써야 할까요?",
+  "마케팅에 쓸 예산이 거의 없는 상황입니다. 유료 광고보다는 무료 채널을 활용해야 할 것 같은데 어떤 방식이 좋을지 고민입니다.",
+  "혼자 준비하다 한계를 느껴 공동창업자를 찾고 있습니다. 실력·성향·역할 분배 등 어떤 기준으로 판단해야 할지 궁금합니다.",
+  "기능 개발이 우선인지, 브랜드 이미지나 로고 같은 브랜딩을 먼저 준비해야 하는지 초기 단계에서 어디까지 신경 써야 할까요?",
+];
+const QNA_CATEGORY_POOL = [
+  "자금조달",
+  "사업화전략",
+  "오픈이노베이션",
+  "기관투자자",
+  "바우처공급기업",
+  "창업공간",
+];
+
+export function generateLatestQna(count = 42): LatestQnaItem[] {
+  return Array.from({ length: count }, (_, i) => {
+    const day = String(28 - (i % 28)).padStart(2, "0");
+    return {
+      id: `q_${i + 1}`,
+      status: i % 3 === 0 ? "채택완료" : "미채택",
+      title: QNA_TITLE_POOL[i % QNA_TITLE_POOL.length],
+      body: QNA_BODY_POOL[i % QNA_BODY_POOL.length],
+      category: QNA_CATEGORY_POOL[(i * 2 + (i % 3)) % QNA_CATEGORY_POOL.length],
+      viewCount: 120 + ((i * 173) % 9000),
+      answerCount: (i * 3) % 12,
+      date: `26.04.${day}`,
+    } satisfies LatestQnaItem;
+  });
+}
+
+// 멘토에게 질문 탭 전체 목록(더미). 추후 실제 Q&A API 로 교체.
+export const allQnaItems: LatestQnaItem[] = generateLatestQna(42);

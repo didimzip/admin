@@ -15,9 +15,15 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import {
-  BANNER_POSITIONS, BANNER_TYPE_LABELS, HERO_POSITIONS, AD_POSITIONS,
+  BANNER_POSITIONS, BANNER_TYPE_LABELS, HERO_POSITIONS, AD_POSITIONS, BANNER_POSITION_META,
   type BannerType, type BannerPosition, type BannerTextColor, type BannerLinkTarget,
 } from "@/data/mock-data";
+
+// 광고 위치 선택지: 활성(AD_POSITIONS) 먼저, 나머지(예약)는 뒤에 disabled 표시
+const AD_POSITION_CHOICES: BannerPosition[] = [
+  ...AD_POSITIONS,
+  ...(Object.keys(BANNER_POSITION_META) as BannerPosition[]).filter((p) => !AD_POSITIONS.includes(p)),
+];
 import {
   upsertBanner, compressBannerImage, detectTextColor,
   saveBannerDraft, getAllBannerDrafts, deleteBannerDraft,
@@ -26,6 +32,7 @@ import {
 import { getSession } from "@/lib/auth-store";
 import { useToast } from "@/lib/toast-context";
 import { cn } from "@/lib/utils";
+import AdBadge from "@/components/AdBadge";
 
 export default function BannerNewPage() {
   const router = useRouter();
@@ -44,10 +51,11 @@ export default function BannerNewPage() {
     subText: "",
     textColor: "light" as BannerTextColor,
     description: "",
-    position: (initialType === "HERO" ? "HOME_HERO" : "HOME_MIDDLE") as BannerPosition,
+    positions: (initialType === "HERO" ? ["HOME_HERO"] : ["HOME_MIDDLE"]) as BannerPosition[],
     linkUrl: "",
     linkTarget: "_self" as BannerLinkTarget,
     weight: 0,
+    isPaid: false,
     sortOrder: 1,
     isActive: true,
     startDate: "",
@@ -68,7 +76,13 @@ export default function BannerNewPage() {
   isDirtyRef.current = isDirty;
 
   const isHero = bannerType === "HERO";
-  const positionOptions = isHero ? HERO_POSITIONS : AD_POSITIONS;
+
+  const togglePosition = (pos: BannerPosition) =>
+    updateForm({
+      positions: form.positions.includes(pos)
+        ? form.positions.filter((p) => p !== pos)
+        : [...form.positions, pos],
+    });
 
   const refreshMyDrafts = () => {
     const adminId = session?.adminId ?? null;
@@ -131,10 +145,11 @@ export default function BannerNewPage() {
       subText: form.subText,
       textColor: form.textColor,
       description: form.description,
-      position: form.position,
+      positions: form.positions,
       linkUrl: form.linkUrl,
       linkTarget: form.linkTarget,
       weight: form.weight,
+      isPaid: form.isPaid,
       sortOrder: form.sortOrder,
       isActive: form.isActive,
       startDate: form.startDate,
@@ -157,10 +172,11 @@ export default function BannerNewPage() {
       subText: draft.subText,
       textColor: draft.textColor as BannerTextColor,
       description: draft.description,
-      position: draft.position as BannerPosition,
+      positions: (draft.positions ?? []) as BannerPosition[],
       linkUrl: draft.linkUrl,
       linkTarget: (draft.linkTarget ?? "_self") as BannerLinkTarget,
       weight: draft.weight ?? 0,
+      isPaid: draft.isPaid ?? false,
       sortOrder: draft.sortOrder,
       isActive: draft.isActive,
       startDate: draft.startDate,
@@ -218,6 +234,7 @@ export default function BannerNewPage() {
     if (!form.title.trim()) { showToast("타이틀을 입력해주세요."); return; }
     if (!form.startDate) { showToast("시작일을 입력해주세요."); return; }
     if (!form.imageData) { showToast("배너 이미지를 업로드해주세요."); return; }
+    if (form.positions.length === 0) { showToast("노출 위치를 1개 이상 선택해주세요."); return; }
 
     setSaving(true);
     try {
@@ -225,7 +242,7 @@ export default function BannerNewPage() {
         id: null,
         name: form.name.trim() || form.title.trim(),
         bannerType,
-        position: form.position,
+        positions: form.positions,
         title: form.title.trim(),
         subtitle: form.subtitle.trim(),
         subText: form.subText.trim(),
@@ -238,6 +255,7 @@ export default function BannerNewPage() {
         linkUrl: form.linkUrl.trim(),
         linkTarget: form.linkTarget,
         weight: form.weight,
+        isPaid: form.isPaid,
         sortOrder: form.sortOrder,
         isActive: form.isActive,
         startDate: form.startDate,
@@ -307,9 +325,9 @@ export default function BannerNewPage() {
                 <button
                   key={t}
                   onClick={() => {
-                    const positions = t === "HERO" ? HERO_POSITIONS : AD_POSITIONS;
+                    const defaults = t === "HERO" ? HERO_POSITIONS : AD_POSITIONS;
                     setBannerType(t);
-                    updateForm({ position: positions[0] });
+                    updateForm({ positions: defaults.slice(0, 1) });
                   }}
                   className={cn(
                     "flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors",
@@ -330,16 +348,16 @@ export default function BannerNewPage() {
             <label className="mb-1.5 block text-sm font-medium text-slate-700">
               배너 이미지 <span className="text-red-500">*</span>
               <span className="ml-2 font-normal text-slate-400">
-                {isHero ? "권장: 1920x400px" : "권장: 가로형 이미지"}
+                {isHero ? "권장: 1920x400px" : "권장: 1920x300px"}
               </span>
             </label>
             <input ref={fileRef} type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
             {imagePreview ? (
-              <div className="relative group" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+              <div className="relative group select-none" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
                 {isHero ? (
                   <>
                     <div className="overflow-hidden rounded-xl border border-slate-200 aspect-[4.8/1]">
-                      <img src={imagePreview} alt="미리보기" className="h-full w-full object-cover" />
+                      <img src={imagePreview} alt="미리보기" draggable={false} className="h-full w-full object-cover" />
                     </div>
                     {(form.subtitle || form.title || form.subText) && (
                       <div className="pointer-events-none absolute inset-0 rounded-xl">
@@ -384,7 +402,12 @@ export default function BannerNewPage() {
                     }}
                   >
                     {imagePreview && (
-                      <img src={imagePreview} alt="" className="absolute inset-0 h-full w-full object-cover opacity-40" />
+                      <img src={imagePreview} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover opacity-40" />
+                    )}
+                    {form.isPaid && (
+                      <div style={{ position: "absolute", top: 20, right: 20, zIndex: 20 }}>
+                        <AdBadge />
+                      </div>
                     )}
                     {form.subtitle && (
                       <span className={cn(
@@ -419,7 +442,7 @@ export default function BannerNewPage() {
                   </div>
                 )}
                 {!isDragging && (
-                  <div className="absolute inset-0 flex items-center justify-center gap-2 rounded-xl bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                  <div className="absolute inset-0 z-20 flex items-center justify-center gap-2 rounded-xl bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
                     <button onClick={() => fileRef.current?.click()} className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100">
                       이미지 변경
                     </button>
@@ -567,6 +590,29 @@ export default function BannerNewPage() {
             </div>
           )}
 
+          {/* 유료 광고 (ad only) */}
+          {!isHero && (
+            <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-slate-700">유료 광고</p>
+                <p className="text-xs text-slate-400">체크 시 광고 배너 우측 상단에 AD 뱃지가 노출됩니다.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => updateForm({ isPaid: !form.isPaid })}
+                className={cn(
+                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                  form.isPaid ? "bg-indigo-600" : "bg-slate-300"
+                )}
+              >
+                <span className={cn(
+                  "inline-block h-4 w-4 rounded-full bg-white transition-transform",
+                  form.isPaid ? "translate-x-6" : "translate-x-1"
+                )} />
+              </button>
+            </div>
+          )}
+
           {/* Link URL + Target */}
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -591,43 +637,79 @@ export default function BannerNewPage() {
             </div>
           </div>
 
-          {/* Position & Sort Order */}
-          <div className="grid grid-cols-2 gap-4">
-            {!isHero ? (
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">노출 위치</label>
-                <select
-                  value={form.position}
-                  onChange={(e) => updateForm({ position: e.target.value as BannerPosition })}
-                  className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                >
-                  {positionOptions.map((pos) => (
-                    <option key={pos} value={pos}>{BANNER_POSITIONS[pos]}</option>
-                  ))}
-                </select>
-              </div>
-            ) : (
+          {/* Position — Hero: 고정 / Ad: 다중 선택 */}
+          {isHero ? (
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">노출 위치</label>
                 <div className="flex h-[42px] items-center rounded-lg border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-500">
                   {BANNER_POSITIONS["HOME_HERO"]}
                 </div>
               </div>
-            )}
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                {isHero ? "슬라이드 순서" : "정렬 순서"}
-              </label>
-              <input
-                type="number"
-                min={1}
-                value={form.sortOrder}
-                onChange={(e) => updateForm({ sortOrder: Number(e.target.value) || 1 })}
-                className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-              />
-              <p className="mt-1 text-xs text-slate-400">숫자가 낮을수록 먼저 표시됩니다</p>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">슬라이드 순서</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={form.sortOrder}
+                  onChange={(e) => updateForm({ sortOrder: Number(e.target.value) || 1 })}
+                  className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                />
+                <p className="mt-1 text-xs text-slate-400">숫자가 낮을수록 먼저 표시됩니다</p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                  노출 위치 <span className="text-red-500">*</span>
+                  <span className="ml-2 font-normal text-slate-400">여러 위치에 동시 노출 가능</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {AD_POSITION_CHOICES.map((pos) => {
+                    const selectable = AD_POSITIONS.includes(pos);
+                    const checked = form.positions.includes(pos);
+                    return (
+                      <label
+                        key={pos}
+                        className={cn(
+                          "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm transition-colors",
+                          !selectable
+                            ? "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300"
+                            : checked
+                              ? "cursor-pointer border-indigo-300 bg-indigo-50 text-indigo-700"
+                              : "cursor-pointer border-slate-200 text-slate-600 hover:border-slate-300"
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          disabled={!selectable}
+                          checked={checked}
+                          onChange={() => togglePosition(pos)}
+                          className="h-4 w-4 rounded border-slate-300 accent-indigo-600 disabled:opacity-40"
+                        />
+                        <span>
+                          {BANNER_POSITIONS[pos]}
+                          {!selectable && " (향후)"}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">정렬 순서</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={form.sortOrder}
+                  onChange={(e) => updateForm({ sortOrder: Number(e.target.value) || 1 })}
+                  className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                />
+                <p className="mt-1 text-xs text-slate-400">숫자가 낮을수록 먼저 표시됩니다</p>
+              </div>
+            </>
+          )}
 
           {/* Date range */}
           <div className="grid grid-cols-2 gap-4">

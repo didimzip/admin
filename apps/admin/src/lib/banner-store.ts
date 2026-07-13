@@ -85,10 +85,11 @@ export type BannerDraft = {
   subText: string;
   textColor: string;
   description: string;
-  position: string;
+  positions: string[];
   linkUrl: string;
   linkTarget: string;
   weight: number;
+  isPaid: boolean;
   sortOrder: number;
   isActive: boolean;
   startDate: string;

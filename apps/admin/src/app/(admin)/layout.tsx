@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { getSession, logout, verifyAdminPassword, resetAdminPassword, updateAdminInfo, type AdminSession } from "@/lib/auth-store";
+import { syncAuthorsFromAdmins } from "@/lib/author-sync";
 import { Lock, Eye, EyeOff } from "lucide-react";
 import { getAllReports } from "@/lib/report-store";
 import { getPendingConsultationCount } from "@/lib/consultation-store";
@@ -34,6 +35,7 @@ import {
   RiUserStarLine,
   RiQuestionAnswerLine,
   RiGroupLine,
+  RiLayoutBottom2Line,
 } from "react-icons/ri";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -120,6 +122,7 @@ function getMenuGroups(): MenuGroup[] {
     superAdminOnly: true,
     items: [
       { icon: RiSettings4Line, label: "시스템 설정", href: "/settings" },
+      { icon: RiLayoutBottom2Line, label: "Footer 설정", href: "/footer" },
       { icon: RiAdminLine, label: "관리자 계정 관리", href: "/admin-accounts" },
     ],
   },
@@ -325,6 +328,8 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     } else {
       setSession(s);
       setAuthChecked(true);
+      // 로컬 관리자 계정의 최신 이름을 공유 Authors 테이블로 동기화 → web 이 최신 작성자명 조회
+      void syncAuthorsFromAdmins();
     }
   }, [router]);
 
@@ -371,6 +376,8 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     }
     updateAdminInfo(session.adminId, { name: eiName.trim() });
     setSession(getSession());
+    // 변경된 닉네임을 공유 Authors 테이블로 반영 → 기존 콘텐츠 작성자명 자동 갱신
+    void syncAuthorsFromAdmins();
     window.dispatchEvent(new Event("posts-updated"));
     closeEditInfo();
     showToast("정보가 수정되었습니다.");

@@ -6,7 +6,7 @@ export default function LatestSection({ items }: { items: ContentCardType[] }) {
   return (
     <div>
       <SectionHeader title="새로 올라온 콘텐츠" href="/latest" />
-      <div className="grid grid-cols-4 gap-5">
+      <div className="grid grid-cols-4 gap-4">
         {items.slice(0, 8).map((item) => (
           <ContentCard key={item.id} item={item} />
         ))}

@@ -112,7 +112,7 @@ function SortableHeroItem({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "group transition-all cursor-pointer",
+        "group transition-all cursor-pointer select-none",
         heroEditing && isHeroSelected && "bg-indigo-50/40",
       )}
       onClick={() => heroEditing ? onToggleSelect(slide.id) : router.push(`/banners/${slide.id}`)}
@@ -147,6 +147,7 @@ function SortableHeroItem({
             <img
               src={slide.imageData || slide.imageUrl}
               alt={slide.title}
+              draggable={false}
               className="absolute inset-0 h-full w-full object-cover"
             />
           )}
@@ -699,13 +700,14 @@ export default function BannersPage() {
               {/* Drag overlay — floating card while dragging */}
               <DragOverlay>
                 {activeDragSlide ? (
-                  <div className="rounded-lg border border-indigo-200 bg-white shadow-lg opacity-90">
+                  <div className="rounded-lg border border-indigo-200 bg-white shadow-lg opacity-90 select-none">
                     <div className="flex gap-4 px-5 py-4">
                       <div className="relative shrink-0 w-[280px] aspect-[4.8/1] rounded-lg bg-slate-200 overflow-hidden">
                         {(activeDragSlide.imageData || activeDragSlide.imageUrl) && (
                           <img
                             src={activeDragSlide.imageData || activeDragSlide.imageUrl}
                             alt={activeDragSlide.title}
+                            draggable={false}
                             className="absolute inset-0 h-full w-full object-cover"
                           />
                         )}
@@ -789,7 +791,7 @@ export default function BannersPage() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[820px] table-fixed text-sm">
+              <table className="w-full min-w-[820px] table-fixed text-sm select-none">
                 <colgroup>
                   {isEditing && <col className="w-10" />}
                   <col className="w-[200px]" />
@@ -869,11 +871,18 @@ export default function BannersPage() {
                             </td>
                           )}
                           <td className="px-5 py-3.5 overflow-hidden">
-                            <div className="truncate font-medium text-slate-800">{banner.title}</div>
+                            <div className="flex items-center gap-2">
+                              <span className="truncate font-medium text-slate-800">{banner.title}</span>
+                              {banner.isPaid && (
+                                <span className="inline-flex shrink-0 items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-600">
+                                  유료 · AD
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3.5">
                             <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-600">
-                              {BANNER_POSITIONS[banner.position]}
+                              {banner.positions.map((p) => BANNER_POSITIONS[p]).join(", ")}
                             </span>
                           </td>
                           <td className="px-4 py-3.5">

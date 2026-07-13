@@ -32,6 +32,7 @@ import {
   type AdminRole,
 } from "@/lib/auth-store";
 import { passwordSchema } from "@/lib/validations/auth";
+import { syncAuthorsFromAdmins } from "@/lib/author-sync";
 import { CountDisplay } from "@/components/ui/pagination-bar";
 import { cn } from "@/lib/utils";
 
@@ -864,6 +865,8 @@ export default function AdminAccountsPage() {
           onConfirm={(patch) => {
             const isSelf = editTarget.id === session?.adminId;
             updateAdminInfo(editTarget.id, patch);
+            // 이름 변경을 공유 Authors 테이블로 반영 → 해당 관리자가 쓴 콘텐츠 작성자명 자동 갱신
+            void syncAuthorsFromAdmins();
             recordLog("ADMIN_INFO_UPDATE", `${editTarget.name} 계정 정보 수정${patch.name !== editTarget.name ? ` (이름: ${editTarget.name} → ${patch.name})` : ""}${patch.email !== editTarget.email ? ` (이메일: ${editTarget.email} → ${patch.email})` : ""}`, { targetType: "admin", targetId: editTarget.id });
             setEditTarget(null);
             refresh();
