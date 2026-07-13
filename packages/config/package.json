@@ -1,0 +1,21 @@
+{
+  "name": "@didimzip/config",
+  "version": "0.0.0",
+  "private": true,
+  "description": "공유 빌드/린트/디자인 토큰 설정 (tsconfig, eslint, tailwind theme)",
+  "files": [
+    "tsconfig",
+    "eslint",
+    "tailwind"
+  ],
+  "exports": {
+    "./tsconfig/base.json": "./tsconfig/base.json",
+    "./tsconfig/nextjs.json": "./tsconfig/nextjs.json",
+    "./eslint/next": "./eslint/next.mjs",
+    "./tailwind/theme.css": "./tailwind/theme.css"
+  },
+  "devDependencies": {
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6"
+  }
+}

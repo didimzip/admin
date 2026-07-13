@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #1a1a1a;
+  --muted: #f5f5f5;
+  --muted-foreground: #737373;
+  --border: #e5e5e5;
+  --primary: #1a1a1a;
+  --primary-foreground: #ffffff;
+  --accent: #f59e0b;
+  --accent-foreground: #ffffff;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+}
+
+/* ─── Spacing System (Design Tokens) ───────────────────────────────
+   전 서비스 공통 간격 체계. margin/padding/gap 은 이 토큰을 사용한다.
+   xs=4 · sm=6 · md=12 · lg=24 · xl=30 · section=60 (px)
+   ⚠️ Tailwind v4의 --spacing-* 네임스페이스(xs/sm/md/lg/xl)는 max-w-*, min-w-* 등
+      t-shirt 사이즈 유틸과 충돌하므로 사용하지 않는다. 대신 별도 --space-* 변수로 두고
+      아비트러리 값으로 사용한다: gap-[var(--space-sm)] · py-[var(--space-xl)] · mt-[var(--space-section)]
+   → 새 화면도 이 토큰만 참조하면 통일감 유지. 기존 숫자 유틸(p-4 등)과 무충돌. */
+:root {
+  --space-xs: 4px;
+  --space-sm: 6px;
+  --space-md: 12px;
+  --space-lg: 24px;
+  --space-xl: 30px;
+  --space-section: 60px;
+}
+
+/* ─── 전역 Spacing Scale ────────────────────────────────────────────
+   Tailwind 숫자형 spacing 유틸(p-·m-·gap-·space-·w-·h-·size-·inset-·translate- 등)의
+   기준 배수. 0.25rem → 0.30rem 으로 상향해 프로젝트 전체 간격 체계를 20% 확대·통일한다.
+   (Admin 은 별도 빌드/globals 이라 영향 없음) */
+@theme {
+  --spacing: 0.30rem;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* ─── 클릭 가능한 요소 커서 통일 ─────────────────────────────────────
+   Tailwind v4 preflight 는 <button> 기본 커서를 default 로 두므로, 클릭 가능한
+   모든 요소(버튼/링크/role=button/select 등)에 pointer 를 일관 적용한다.
+   (개별 컴포넌트의 cursor-* 유틸은 유틸 레이어가 우선하므로 그대로 동작) */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+a[href],
+label[for],
+select:not(:disabled),
+summary {
+  cursor: pointer;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d4d4d4;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a3a3a3;
+}

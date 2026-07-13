@@ -1,0 +1,369 @@
+{
+  "posts": [
+    {
+      "id": "post_seed_1",
+      "title": "2026년 스타트업 투자 트렌드 분석",
+      "body": "<p>2026년 스타트업 투자 시장의 핵심 흐름을 정리했습니다.</p>",
+      "category": "투자정보",
+      "subCategory": "투자유치",
+      "tags": [
+        "투자",
+        "트렌드",
+        "VC"
+      ],
+      "thumbnailUrl": "https://picsum.photos/seed/post_seed_1/480/320",
+      "relatedLinks": [],
+      "attachments": [],
+      "status": "PUBLISHED",
+      "isHot": true,
+      "viewCount": 1245,
+      "showConsultButton": false,
+      "publishStart": "",
+      "publishEnd": "",
+      "isScheduled": false,
+      "scheduledAt": "",
+      "authorName": "오벤처",
+      "createdAt": "2026-06-01T09:00:00.000Z",
+      "updatedAt": "2026-06-01T09:00:00.000Z"
+    },
+    {
+      "id": "post_seed_2",
+      "title": "시리즈 A 투자 유치, 무엇부터 준비해야 할까?",
+      "body": "<p>현직 심사역이 알려주는 IR 피칭 전략과 투자 유치 실전 가이드.</p>",
+      "category": "투자정보",
+      "subCategory": "IR",
+      "tags": [
+        "시리즈A",
+        "IR",
+        "피칭"
+      ],
+      "thumbnailUrl": "https://picsum.photos/seed/post_seed_2/480/320",
+      "relatedLinks": [],
+      "attachments": [],
+      "status": "PUBLISHED",
+      "isHot": true,
+      "viewCount": 987,
+      "showConsultButton": false,
+      "publishStart": "",
+      "publishEnd": "",
+      "isScheduled": false,
+      "scheduledAt": "",
+      "authorName": "김창업",
+      "createdAt": "2026-06-01T09:00:00.000Z",
+      "updatedAt": "2026-06-01T09:00:00.000Z"
+    },
+    {
+      "id": "post_seed_3",
+      "title": "디지털 마케팅의 중요성과 전략",
+      "body": "<p>성공적인 창업을 위해 필요한 핵심 인사이트를 공유합니다.</p>",
+      "category": "인사이트",
+      "subCategory": "마케팅",
+      "tags": [
+        "마케팅",
+        "그로스"
+      ],
+      "thumbnailUrl": "https://picsum.photos/seed/post_seed_3/480/320",
+      "relatedLinks": [],
+      "attachments": [],
+      "status": "PUBLISHED",
+      "isHot": false,
+      "viewCount": 756,
+      "showConsultButton": false,
+      "publishStart": "",
+      "publishEnd": "",
+      "isScheduled": false,
+      "scheduledAt": "",
+      "authorName": "오프뷰티",
+      "createdAt": "2026-06-01T09:00:00.000Z",
+      "updatedAt": "2026-06-01T09:00:00.000Z"
+    },
+    {
+      "id": "post_seed_4",
+      "title": "창업가의 심리적 준비: 실패를 두려워하지 않는 법",
+      "body": "<p>창업 여정에서 마주하는 심리적 도전과 극복 방법.</p>",
+      "category": "인사이트",
+      "subCategory": "마인드셋",
+      "tags": [
+        "창업",
+        "마인드셋"
+      ],
+      "thumbnailUrl": "https://picsum.photos/seed/post_seed_4/480/320",
+      "relatedLinks": [],
+      "attachments": [],
+      "status": "PUBLISHED",
+      "isHot": false,
+      "viewCount": 512,
+      "showConsultButton": false,
+      "publishStart": "",
+      "publishEnd": "",
+      "isScheduled": false,
+      "scheduledAt": "",
+      "authorName": "이혁신",
+      "createdAt": "2026-06-01T09:00:00.000Z",
+      "updatedAt": "2026-06-01T09:00:00.000Z"
+    },
+    {
+      "id": "post_seed_5",
+      "title": "정부지원사업 총정리 — 2026 상반기",
+      "body": "<p>놓치면 아쉬운 창업 지원 프로그램을 한곳에 모았습니다.</p>",
+      "category": "공지사항",
+      "subCategory": "지원사업",
+      "tags": [
+        "정부지원",
+        "지원사업"
+      ],
+      "thumbnailUrl": "https://picsum.photos/seed/post_seed_5/480/320",
+      "relatedLinks": [],
+      "attachments": [],
+      "status": "PUBLISHED",
+      "isHot": true,
+      "viewCount": 2103,
+      "showConsultButton": false,
+      "publishStart": "",
+      "publishEnd": "",
+      "isScheduled": false,
+      "scheduledAt": "",
+      "authorName": "디딤에디터",
+      "createdAt": "2026-06-01T09:00:00.000Z",
+      "updatedAt": "2026-06-01T09:00:00.000Z"
+    },
+    {
+      "id": "post_seed_6",
+      "title": "3월 네트워킹 데이 안내",
+      "body": "<p>창업가와 투자자가 만나는 네트워킹 데이에 초대합니다.</p>",
+      "category": "이벤트",
+      "subCategory": "행사",
+      "tags": [
+        "네트워킹",
+        "이벤트"
+      ],
+      "thumbnailUrl": "https://picsum.photos/seed/post_seed_6/480/320",
+      "relatedLinks": [],
+      "attachments": [],
+      "status": "PUBLISHED",
+      "isHot": false,
+      "viewCount": 340,
+      "showConsultButton": false,
+      "publishStart": "",
+      "publishEnd": "",
+      "isScheduled": false,
+      "scheduledAt": "",
+      "authorName": "디딤에디터",
+      "createdAt": "2026-06-01T09:00:00.000Z",
+      "updatedAt": "2026-06-01T09:00:00.000Z"
+    }
+  ],
+  "banners": [
+    {
+      "id": "banner_seed_1",
+      "title": "스타트업의 시작을 딛는 곳,\n디딤집에서 시작하세요",
+      "subtitle": "디딤집 소개",
+      "subText": "자세히 보기 →",
+      "description": "정부·지자체 지원사업과 성장 정보를 한곳에.",
+      "textColor": "light",
+      "bannerType": "HERO_SLIDE",
+      "imageUrl": "https://picsum.photos/seed/banner_seed_1/1200/400",
+      "imageData": "",
+      "linkUrl": "/about",
+      "position": "HOME_TOP",
+      "isActive": true,
+      "sortOrder": 1,
+      "startDate": "2026-01-01",
+      "endDate": "2026-12-31",
+      "clickCount": 0,
+      "impressionCount": 0,
+      "createdBy": null,
+      "createdAt": "2026-06-01T09:00:00.000Z",
+      "updatedAt": "2026-06-01T09:00:00.000Z"
+    },
+    {
+      "id": "banner_seed_2",
+      "title": "시리즈 A 투자 유치,\n무엇부터 준비해야 할까?",
+      "subtitle": "투자 유치",
+      "subText": "가이드 보기 →",
+      "description": "현직 심사역이 알려주는 IR 피칭 전략.",
+      "textColor": "light",
+      "bannerType": "HERO_SLIDE",
+      "imageUrl": "https://picsum.photos/seed/banner_seed_2/1200/400",
+      "imageData": "",
+      "linkUrl": "/contents/funding",
+      "position": "HOME_TOP",
+      "isActive": true,
+      "sortOrder": 2,
+      "startDate": "2026-01-01",
+      "endDate": "2026-12-31",
+      "clickCount": 0,
+      "impressionCount": 0,
+      "createdBy": null,
+      "createdAt": "2026-06-01T09:00:00.000Z",
+      "updatedAt": "2026-06-01T09:00:00.000Z"
+    },
+    {
+      "id": "banner_seed_3",
+      "title": "2026 상반기\n정부지원사업 총정리",
+      "subtitle": "정부지원사업",
+      "subText": "지금 확인하기 →",
+      "description": "놓치면 아쉬운 창업 지원 프로그램.",
+      "textColor": "light",
+      "bannerType": "HERO_SLIDE",
+      "imageUrl": "https://picsum.photos/seed/banner_seed_3/1200/400",
+      "imageData": "",
+      "linkUrl": "/contents/policy",
+      "position": "HOME_TOP",
+      "isActive": true,
+      "sortOrder": 3,
+      "startDate": "2026-01-01",
+      "endDate": "2026-12-31",
+      "clickCount": 0,
+      "impressionCount": 0,
+      "createdBy": null,
+      "createdAt": "2026-06-01T09:00:00.000Z",
+      "updatedAt": "2026-06-01T09:00:00.000Z"
+    },
+    {
+      "id": "banner_seed_4",
+      "title": "설맞이 특별 할인 이벤트 (종료)",
+      "subtitle": "이벤트",
+      "subText": "이벤트 참여 →",
+      "description": "",
+      "textColor": "light",
+      "bannerType": "HERO_SLIDE",
+      "imageUrl": "https://picsum.photos/seed/banner_seed_4/1200/400",
+      "imageData": "",
+      "linkUrl": "/events/newyear",
+      "position": "HOME_TOP",
+      "isActive": false,
+      "sortOrder": 4,
+      "startDate": "2026-01-01",
+      "endDate": "2026-12-31",
+      "clickCount": 0,
+      "impressionCount": 0,
+      "createdBy": null,
+      "createdAt": "2026-06-01T09:00:00.000Z",
+      "updatedAt": "2026-06-01T09:00:00.000Z"
+    }
+  ],
+  "categories": [
+    {
+      "id": "cat_insight",
+      "name": "인사이트",
+      "slug": "insight",
+      "iconName": "RiLightbulbLine",
+      "sortOrder": 1,
+      "isVisible": true,
+      "subCategories": [
+        {
+          "id": "sub_insight_1",
+          "name": "트렌드",
+          "slug": "trend"
+        },
+        {
+          "id": "sub_insight_2",
+          "name": "노하우",
+          "slug": "knowhow"
+        }
+      ],
+      "createdAt": "2026-06-01T09:00:00.000Z",
+      "updatedAt": "2026-07-07T06:45:25.463Z"
+    },
+    {
+      "id": "cat_network",
+      "name": "네트워킹",
+      "slug": "network",
+      "iconName": "RiTeamLine",
+      "sortOrder": 2,
+      "isVisible": true,
+      "subCategories": [
+        {
+          "id": "sub_network_1",
+          "name": "모임",
+          "slug": "meetup"
+        },
+        {
+          "id": "sub_network_2",
+          "name": "파트너십",
+          "slug": "partnership"
+        }
+      ],
+      "createdAt": "2026-06-01T09:00:00.000Z",
+      "updatedAt": "2026-07-07T06:45:25.463Z"
+    },
+    {
+      "id": "cat_invest",
+      "name": "투자정보",
+      "slug": "invest",
+      "iconName": "RiFundsLine",
+      "sortOrder": 3,
+      "isVisible": true,
+      "subCategories": [
+        {
+          "id": "sub_invest_1",
+          "name": "투자유치",
+          "slug": "funding"
+        },
+        {
+          "id": "sub_invest_2",
+          "name": "IR",
+          "slug": "ir"
+        }
+      ],
+      "createdAt": "2026-06-01T09:00:00.000Z",
+      "updatedAt": "2026-07-07T06:45:25.463Z"
+    },
+    {
+      "id": "cat_job",
+      "name": "채용공고",
+      "slug": "job",
+      "iconName": "RiBriefcaseLine",
+      "sortOrder": 4,
+      "isVisible": true,
+      "subCategories": [
+        {
+          "id": "sub_job_1",
+          "name": "개발",
+          "slug": "dev"
+        },
+        {
+          "id": "sub_job_2",
+          "name": "기획",
+          "slug": "planning"
+        }
+      ],
+      "createdAt": "2026-06-01T09:00:00.000Z",
+      "updatedAt": "2026-07-07T06:45:25.463Z"
+    },
+    {
+      "id": "cat_event",
+      "name": "이벤트",
+      "slug": "event",
+      "iconName": "RiCalendarEventLine",
+      "sortOrder": 5,
+      "isVisible": true,
+      "subCategories": [
+        {
+          "id": "sub_event_1",
+          "name": "세미나",
+          "slug": "seminar"
+        },
+        {
+          "id": "sub_event_2",
+          "name": "웨비나",
+          "slug": "webinar"
+        }
+      ],
+      "createdAt": "2026-06-01T09:00:00.000Z",
+      "updatedAt": "2026-07-07T06:45:25.463Z"
+    },
+    {
+      "id": "cat_notice",
+      "name": "공지사항",
+      "slug": "notice",
+      "iconName": "RiInformationLine",
+      "sortOrder": 6,
+      "isVisible": true,
+      "subCategories": [],
+      "createdAt": "2026-06-01T09:00:00.000Z",
+      "updatedAt": "2026-07-07T06:45:25.463Z"
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import { categoriesApi, type Category } from "@didimzip/api";
+import "./globals.css";
+import Sidebar from "@/components/layout/Sidebar";
+import GNB from "@/components/layout/GNB";
+import Footer from "@/components/layout/Footer";
+import QueryProvider from "@/components/providers/QueryProvider";
+
+export const metadata: Metadata = {
+  title: "디딤집 - 창업가를 위한 콘텐츠 플랫폼",
+  description:
+    "스타트업의 시작을 딛는 곳, 디딤집에서 시작하세요. 창업 콘텐츠, 멘토 Q&A, 커뮤니티를 한 곳에서.",
+};
+
+// 매 요청마다 최신 카테고리 조회 (Admin 변경이 새로고침 시 즉시 반영)
+export const dynamic = "force-dynamic";
+
+// 노출(isVisible) 카테고리만 순서대로 조회. API 미기동 시 빈 배열 폴백.
+async function loadCategories(): Promise<Category[]> {
+  try {
+    return await categoriesApi.list({ visible: true });
+  } catch {
+    return [];
+  }
+}
+
+export default async function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  const categories = await loadCategories();
+
+  return (
+    <html lang="ko" className="h-full antialiased">
+      <head>
+        <link
+          rel="stylesheet"
+          as="style"
+          crossOrigin="anonymous"
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+        />
+      </head>
+      <body className="min-h-full flex">
+        <QueryProvider>
+          <Suspense fallback={null}>
+            <Sidebar categories={categories} />
+          </Suspense>
+          <div className="flex-1 flex flex-col min-h-screen">
+            <GNB />
+            {/* main 은 flex-1 로 확장 → Footer 는 항상 하단 고정. Footer 는 레이아웃에 두어
+                페이지 이동 시 리마운트/리페치 없이 항상 동일하게 렌더된다. */}
+            <main className="flex-1 mt-14">{children}</main>
+            <Footer />
+          </div>
+        </QueryProvider>
+      </body>
+    </html>
+  );
+}

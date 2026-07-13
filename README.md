@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DidimZip (Fundable)
 
-## Getting Started
+디딤집 서비스 모노레포. 하나의 저장소에서 고객용 Web과 관리자용 Admin을 함께 관리합니다.
 
-First, run the development server:
+## 구조
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+apps/
+  admin/     관리자 서비스 (admin.fundable.com)
+  web/       고객 서비스 (fundable.com) — 추가 예정
+packages/    공통 UI · 타입 · 유틸 (추가 예정)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 요구 사항
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Node.js 20+
+- pnpm 10+
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 개발
 
-## Learn More
+```bash
+pnpm install          # 의존성 설치 (워크스페이스 전체)
 
-To learn more about Next.js, take a look at the following resources:
+pnpm dev              # 모든 앱 동시 실행
+pnpm dev:admin        # 관리자만 실행
+pnpm dev:web          # 웹만 실행 (추가 후)
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 빌드
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+pnpm build            # 전체 빌드
+pnpm build:admin      # 관리자만 빌드
+```
 
-## Deploy on Vercel
+## 배포
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `apps/web` → fundable.com
+- `apps/admin` → admin.fundable.com
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+두 앱은 하나의 백엔드 API를 공유합니다.
